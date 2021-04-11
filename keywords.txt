@@ -48,6 +48,7 @@ AudioEffectChorus	KEYWORD2
 AudioEffectFade	KEYWORD2
 AudioEffectFlange	KEYWORD2
 AudioEffectEnvelope	KEYWORD2
+AudioEffectExpEnvelope	KEYWORD2
 AudioEffectMultiply	KEYWORD2
 AudioEffectDelay	KEYWORD2
 AudioEffectDelayExternal	KEYWORD2
@@ -134,6 +135,7 @@ windowFunction	KEYWORD2
 modify	KEYWORD2
 output	KEYWORD2
 trigger	KEYWORD2
+decimate	KEYWORD2
 length	KEYWORD2
 threshold	KEYWORD2
 setAddress	KEYWORD2

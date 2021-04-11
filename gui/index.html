@@ -520,6 +520,7 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioEffectFreeverb","data":{"defaults":{"name":{"value":"new"}},"shortName":"freeverb","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectFreeverbStereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"freeverbs","inputs":1,"outputs":2,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectEnvelope","data":{"defaults":{"name":{"value":"new"}},"shortName":"envelope","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioEffectExpEnvelope","data":{"defaults":{"name":{"value":"new"}},"shortName":"expEnv","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectMultiply","data":{"defaults":{"name":{"value":"new"}},"shortName":"multiply","inputs":2,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectRectifier","data":{"defaults":{"name":{"value":"new"}},"shortName":"rectify","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectDelay","data":{"defaults":{"name":{"value":"new"}},"shortName":"delay","inputs":1,"outputs":8,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -3933,6 +3934,91 @@ double s_freq = .0625;</p>
 	</div>
 </script>
 
+<!-- ----------------------------------------------------------------------------------------  -->
+<script type="text/x-red" data-help-name="AudioEffectExpEnvelope">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Modify a signal with a DAHDSR (Delay Attack Hold Decay Sustain
+		Release) envelope which has exponential transitions, closer to 
+		traditional analogue synthesizers.
+		</p><p>
+		The transitions' shapes may be controlled by an optional "shape" parameter limited
+		to a range of 0.5 - 0.9999, default 0.95. High values will give a faster change initially,
+		followed by a gradual curve as the final value is approached; smaller values will give a
+		slower change and a more abrupt transition to the next state of the envelope.
+		</p>
+	
+	<p align=center><img src="img/exp-dahdsr.png"></p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>Signal Input</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Signal with envelope applied</td></tr>
+	</table>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>noteOn</span>();</p>
+	<p class=desc>Begin the delay phase, or the attack phase if
+		delay is zero. 
+		</p><p class=desc>
+		While it is good practice to alternate calls
+		to noteOn and noteOff, this effect is designed to behave well if 
+		noteOn calls are executed at any point. If the envelope is already active
+		when noteOn is called, the delay phase is omitted and attack begins from the current
+		envelope level: this will result in the chosen duration being shortened, but the shape
+		will remain the same as if the attack had been started from zero.
+	</p>
+	<p class=func><span class=keyword>noteOff</span>();</p>
+	<p class=desc>Begin the release phase.
+	</p>
+	<p class=func><span class=keyword>delay</span>(milliseconds);</p>
+	<p class=desc>Set the delay from noteOn to the attack phase.  The
+		default is zero, for no delay.
+	</p>
+	<p class=func><span class=keyword>attack</span>(milliseconds[,shape]);</p>
+	<p class=desc>Set the attack time.  The default is 10.5 milliseconds, shape=0.95.
+	</p>
+	<p class=func><span class=keyword>hold</span>(milliseconds);</p>
+	<p class=desc>Set the hold time.  The default is 2.5 milliseconds.
+	</p>
+	<p class=func><span class=keyword>decay</span>(milliseconds[,shape]);</p>
+	<p class=desc>Set the decay time.  The default is 35 milliseconds, shape=0.95.
+	</p>
+	<p class=func><span class=keyword>sustain</span>(level);</p>
+	<p class=desc>Set the sustain level.  The range is 0 to 1.0.  The
+		gain will be maintained at this level after the decay phase,
+		until noteOff() is called.  The sustain phase may last any
+		length of time, controlled by when release() is called.
+	</p>
+	<p class=func><span class=keyword>release</span>(milliseconds[,shape]);</p>
+	<p class=desc>Set the release time.  The default is 300 milliseconds, shape=0.95.
+	</p>
+	<p class=func><span class=keyword>isActive</span>();</p>
+	<p class=desc>Returns true when the envelope is currently in any of
+		its 6 phases.
+	</p>
+	<p class=func><span class=keyword>isSustain</span>();</p>
+	<p class=desc>Returns true when the envelope is currently in the
+		sustain phase.
+	</p>
+	<h3>Examples</h3>
+	<p class=exam>Todo...</p>
+	<h3>Notes</h3>
+	<p>To achieve the more common ADSR shape, simply
+        set delay and hold to zero.</p>
+</script>
+
+<!-- ----------------------------------------------------------------------------------------  -->
+<script type="text/x-red" data-template-name="AudioEffectExpEnvelope">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+
+<!-- ----------------------------------------------------------------------------------------  -->
+
+
 <script type="text/x-red" data-help-name="AudioEffectMultiply">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
@@ -5044,7 +5130,7 @@ double s_freq = .0625;</p>
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Print raw audio data to the Arduino Serial Monitor.  This
-		object creates massive output quickly, and should not normally be used.</p>
+		object can create massive output quickly, and should not normally be used.</p>
 	</div>
 	<h3>Audio Connections</h3>
 	<table class=doc align=center cellpadding=3>
@@ -5053,19 +5139,24 @@ double s_freq = .0625;</p>
 	</table>
 	<h3>Functions</h3>
 	<p class=func><span class=keyword>name</span>(string);</p>
-	<p class=desc>blah blah blah blah
+	<p class=desc>Set name so you know which instance of the object has caused the output
 	</p>
 	<p class=func><span class=keyword>trigger</span>();</p>
-	<p class=desc>blah blah blah blah
+	<p class=desc>Cause output to start, possibly after delay if that's been set
 	</p>
 	<p class=func><span class=keyword>trigger</span>(level, edge);</p>
-	<p class=desc>blah blah blah blah
+	<p class=desc>Not currently implemented
 	</p>
 	<p class=func><span class=keyword>delay</span>(samples);</p>
-	<p class=desc>blah blah blah blah
+	<p class=desc>Delay this many samples before output begins
 	</p>
 	<p class=func><span class=keyword>length</span>(samples);</p>
-	<p class=desc>blah blah blah blah
+	<p class=desc>Total number of samples to output before going idle again
+	</p>
+	<p class=func><span class=keyword>decimate</span>(sample_interval);</p>
+	<p class=desc>Skips &lt;sample_interval - 1&gt; samples between output samples, to 
+	reduce amount of data output to manageable levels. 1 outputs every value, 10 every
+	tenth value, etc. 0 would be a poor choice, and is ignored.
 	</p>
 	<!--
 <h3>Examples</h3>
