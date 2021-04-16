@@ -41,6 +41,7 @@ private:
 public:
 	AudioPlayQueue(void) : AudioStream(0, NULL),
 		userblock(NULL), head(0), tail(0) { }
+	~AudioPlayQueue(){SAFE_RELEASE(queue,max_buffers,false); SAFE_RELEASE(userblock); }
 	void play(int16_t data);
 	void play(const int16_t *data, uint32_t len);
 	bool available(void);
@@ -50,8 +51,8 @@ public:
 	//bool isPlaying(void) { return playing; }
 	virtual void update(void);
 private:
-	audio_block_t *queue[max_buffers];
-	audio_block_t *userblock;
+	audio_block_t *queue[max_buffers];  // released in destructor
+	audio_block_t *userblock;  			// released in destructor
 	volatile uint8_t head, tail;
 };
 

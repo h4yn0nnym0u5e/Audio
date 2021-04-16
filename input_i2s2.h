@@ -36,6 +36,7 @@ class AudioInputI2S2 : public AudioStream
 {
 public:
 	AudioInputI2S2(void) : AudioStream(0, NULL) { begin(); }
+	~AudioInputI2S2(){SAFE_RELEASE_MANY(2,block_left,block_right);}
 	virtual void update(void);
 	void begin(void);
 protected:
@@ -44,8 +45,8 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
+	static audio_block_t *block_left;  // released in destructor
+	static audio_block_t *block_right; // released in destructor
 	static uint16_t block_offset;
 };
 

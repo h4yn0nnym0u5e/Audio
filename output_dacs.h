@@ -35,15 +35,17 @@ class AudioOutputAnalogStereo : public AudioStream
 {
 public:
 	AudioOutputAnalogStereo(void) : AudioStream(2, inputQueueArray) { begin(); }
+	~AudioOutputAnalogStereo(){SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,
+												   block_right_1st,block_right_2nd); }
 	virtual void update(void);
 	void begin(void);
 	void analogReference(int ref);
 private:
-	static audio_block_t *block_left_1st;
-	static audio_block_t *block_left_2nd;
-	static audio_block_t *block_right_1st;
-	static audio_block_t *block_right_2nd;
-	static audio_block_t block_silent;
+	static audio_block_t *block_left_1st;  // released in destructor
+	static audio_block_t *block_left_2nd;  // released in destructor
+	static audio_block_t *block_right_1st;  // released in destructor
+	static audio_block_t *block_right_2nd;  // released in destructor
+	static audio_block_t block_silent;   // doesn't need to be released in destructor
 	static bool update_responsibility;
 	audio_block_t *inputQueueArray[2];
 	static DMAChannel dma;

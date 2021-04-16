@@ -35,7 +35,7 @@ class AudioInputPDM2 : public AudioStream
 {
 public:
 	AudioInputPDM2(void) : AudioStream(0, NULL) { begin(); }
-
+	~AudioInputPDM2() {SAFE_RELEASE(block_left);}
 	virtual void update(void);
 	void begin(void);
 protected:
@@ -43,7 +43,7 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
-	static audio_block_t *block_left;
+	static audio_block_t *block_left;  // released in destructor
 };
 
 #endif

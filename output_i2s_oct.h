@@ -35,28 +35,34 @@ class AudioOutputI2SOct : public AudioStream
 {
 public:
 	AudioOutputI2SOct(void) : AudioStream(8, inputQueueArray) { begin(); }
+	~AudioOutputI2SOct()
+	{SAFE_RELEASE_MANY(16,block_ch1_1st,block_ch2_1st,block_ch3_1st,block_ch4_1st,
+						  block_ch5_1st,block_ch6_1st,block_ch7_1st,block_ch8_1st,
+						  block_ch1_2nd,block_ch2_2nd,block_ch3_2nd,block_ch4_2nd,
+						  block_ch5_2nd,block_ch6_2nd,block_ch7_2nd,block_ch8_2nd
+						  );}
 	virtual void update(void);
 	void begin(void);
 private:
-	static audio_block_t *block_ch1_1st;
-	static audio_block_t *block_ch2_1st;
-	static audio_block_t *block_ch3_1st;
-	static audio_block_t *block_ch4_1st;
-	static audio_block_t *block_ch5_1st;
-	static audio_block_t *block_ch6_1st;
-	static audio_block_t *block_ch7_1st;
-	static audio_block_t *block_ch8_1st;
+	static audio_block_t *block_ch1_1st; // released in destructor
+	static audio_block_t *block_ch2_1st; // released in destructor
+	static audio_block_t *block_ch3_1st; // released in destructor
+	static audio_block_t *block_ch4_1st; // released in destructor
+	static audio_block_t *block_ch5_1st; // released in destructor
+	static audio_block_t *block_ch6_1st; // released in destructor
+	static audio_block_t *block_ch7_1st; // released in destructor
+	static audio_block_t *block_ch8_1st; // released in destructor
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
-	static audio_block_t *block_ch1_2nd;
-	static audio_block_t *block_ch2_2nd;
-	static audio_block_t *block_ch3_2nd;
-	static audio_block_t *block_ch4_2nd;
-	static audio_block_t *block_ch5_2nd;
-	static audio_block_t *block_ch6_2nd;
-	static audio_block_t *block_ch7_2nd;
-	static audio_block_t *block_ch8_2nd;
+	static audio_block_t *block_ch1_2nd; // released in destructor
+	static audio_block_t *block_ch2_2nd; // released in destructor
+	static audio_block_t *block_ch3_2nd; // released in destructor
+	static audio_block_t *block_ch4_2nd; // released in destructor
+	static audio_block_t *block_ch5_2nd; // released in destructor
+	static audio_block_t *block_ch6_2nd; // released in destructor
+	static audio_block_t *block_ch7_2nd; // released in destructor
+	static audio_block_t *block_ch8_2nd; // released in destructor
 	static uint16_t ch1_offset;
 	static uint16_t ch2_offset;
 	static uint16_t ch3_offset;

@@ -35,6 +35,7 @@ class AudioInputTDM : public AudioStream
 {
 public:
 	AudioInputTDM(void) : AudioStream(0, NULL) { begin(); }
+	~AudioInputTDM() {SAFE_RELEASE(block_incoming,16);}
 	virtual void update(void);
 	void begin(void);
 protected:	
@@ -42,7 +43,7 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
-	static audio_block_t *block_incoming[16];
+	static audio_block_t *block_incoming[16];  // released in destructor
 };
 
 #endif

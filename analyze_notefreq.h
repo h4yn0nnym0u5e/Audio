@@ -49,7 +49,17 @@ public:
     AudioAnalyzeNoteFrequency( void ) : AudioStream( 1, inputQueueArray ), enabled( false ), new_output(false) {
         
     }
-    
+	
+	/**
+	 *  Destructor - ensure the private blocklists are released
+	 */
+    ~AudioAnalyzeNoteFrequency() 
+	{
+		__disable_irq(); 
+		release(blocklist1,AUDIO_GUITARTUNER_BLOCKS,false);
+		release(blocklist1,AUDIO_GUITARTUNER_BLOCKS);
+	}
+	
     /**
      *  initialize variables and start conversion
      *
@@ -127,8 +137,8 @@ private:
     float    periodicity, yin_threshold, cpu_usage_max, data;
     bool     enabled, next_buffer, first_run;
     volatile bool new_output, process_buffer;
-    audio_block_t *blocklist1[AUDIO_GUITARTUNER_BLOCKS];
-    audio_block_t *blocklist2[AUDIO_GUITARTUNER_BLOCKS];
+    audio_block_t *blocklist1[AUDIO_GUITARTUNER_BLOCKS]; // released in destructor
+    audio_block_t *blocklist2[AUDIO_GUITARTUNER_BLOCKS]; // released in destructor
     audio_block_t *inputQueueArray[1];
 };
 #endif

@@ -35,16 +35,17 @@ class AudioInputI2SQuad : public AudioStream
 {
 public:
 	AudioInputI2SQuad(void) : AudioStream(0, NULL) { begin(); }
+	~AudioInputI2SQuad() {SAFE_RELEASE_MANY(4,block_ch1,block_ch2,block_ch3,block_ch4);}
 	virtual void update(void);
 	void begin(void);
 private:
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
-	static audio_block_t *block_ch1;
-	static audio_block_t *block_ch2;
-	static audio_block_t *block_ch3;
-	static audio_block_t *block_ch4;
+	static audio_block_t *block_ch1; // released in destructor
+	static audio_block_t *block_ch2; // released in destructor
+	static audio_block_t *block_ch3; // released in destructor
+	static audio_block_t *block_ch4; // released in destructor
 	static uint16_t block_offset;
 };
 

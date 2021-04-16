@@ -61,6 +61,13 @@ public:
 		prevblocks[2] = NULL;
 #endif
 	}
+	~AudioAnalyzeFFT256() {
+#if AUDIO_BLOCK_SAMPLES == 128
+		SAFE_RELEASE(prevblock);
+#elif AUDIO_BLOCK_SAMPLES == 64
+		SAFE_RELEASE(prevblocks,3);
+#endif
+	}
 	bool available() {
 		if (outputflag == true) {
 			outputflag = false;
@@ -100,9 +107,9 @@ public:
 private:
 	const int16_t *window;
 #if AUDIO_BLOCK_SAMPLES == 128
-	audio_block_t *prevblock;
+	audio_block_t *prevblock; // released in destructor
 #elif AUDIO_BLOCK_SAMPLES == 64
-	audio_block_t *prevblocks[3];
+	audio_block_t *prevblocks[3]; // released in destructor
 #endif
 	int16_t buffer[512] __attribute__ ((aligned (4)));
 #if AUDIO_BLOCK_SAMPLES == 128

@@ -37,6 +37,7 @@ class AudioInputSPDIF3 : public AudioStream
 {
 public:
 	AudioInputSPDIF3(void) : AudioStream(0, NULL) { begin(); }
+	~AudioInputSPDIF3() {SAFE_RELEASE_MANY(2,block_left,block_right);}
 	virtual void update(void);
 	void begin(void);
 	static bool pllLocked(void);
@@ -47,8 +48,8 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
+	static audio_block_t *block_left;  // released in destructor
+	static audio_block_t *block_right; // released in destructor
 	static uint16_t block_offset;
 };
 

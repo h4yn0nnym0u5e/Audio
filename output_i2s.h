@@ -38,6 +38,7 @@ class AudioOutputI2S : public AudioStream
 {
 public:
 	AudioOutputI2S(void) : AudioStream(2, inputQueueArray) { begin(); }
+	~AudioOutputI2S(){SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);}
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2S;
@@ -53,14 +54,14 @@ public:
 protected:
 	AudioOutputI2S(int dummy): AudioStream(2, inputQueueArray) {} // to be used only inside AudioOutputI2Sslave !!
 	static void config_i2s(bool only_bclk = false);
-	static audio_block_t *block_left_1st;
-	static audio_block_t *block_right_1st;
+	static audio_block_t *block_left_1st;  // released in destructor
+	static audio_block_t *block_right_1st; // released in destructor
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
 private:
-	static audio_block_t *block_left_2nd;
-	static audio_block_t *block_right_2nd;
+	static audio_block_t *block_left_2nd;  // released in destructor
+	static audio_block_t *block_right_2nd; // released in destructor
 	static uint16_t block_left_offset;
 	static uint16_t block_right_offset;
 	audio_block_t *inputQueueArray[2];
@@ -88,14 +89,15 @@ class AudioOutputI2S : public AudioStream
 {
 public:
 	AudioOutputI2S(void) : AudioStream(2, inputQueueArray) { begin(); }
+	~AudioOutputI2S(){SAFE_RELEASE_MANY(2,block_left,block_right);}
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2S;
 protected:
 	AudioOutputI2S(int dummy): AudioStream(2, inputQueueArray) {} // to be used only inside AudioOutputI2Sslave !!
 	static void config_i2s(void);
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
+	static audio_block_t *block_left;  // released in destructor
+	static audio_block_t *block_right; // released in destructor
 	static bool update_responsibility;
 	static DMAChannel dma1;
 	static DMAChannel dma2;

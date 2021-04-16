@@ -39,6 +39,7 @@ public:
 	void begin(void);
 protected:	
 	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
+	~AudioInputI2S() {SAFE_RELEASE_MANY(2,block_left,block_right);}
 	static bool update_responsibility;
 
 #if !defined(KINETISL)
@@ -51,8 +52,8 @@ protected:
 #endif
 
 private:
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
+	static audio_block_t *block_left;   // released in destructor
+	static audio_block_t *block_right;  // released in destructor
 #if !defined(KINETISL)	
 	static uint16_t block_offset;
 #endif	

@@ -56,17 +56,21 @@ private:
 	static void isr(void);
 	void begin(void);
 #if defined(KINETISK)
-	static audio_block_t *block_1st;
-	static audio_block_t *block_2nd;
+public:
+	~AudioOutputPWM(void) {SAFE_RELEASE_MANY(2,block_1st,block_2nd);}
+private:
+	static audio_block_t *block_1st; // released in destructor
+	static audio_block_t *block_2nd; // released in destructor
 	static uint32_t block_offset;
 	static uint8_t interrupt_count;
 	static DMAChannel dma;
 #elif defined(__IMXRT1062__)
 public:
 	AudioOutputPWM(uint8_t pin1, uint8_t pin2) : AudioStream(1, inputQueueArray) { begin(pin1, pin2); }
+	~AudioOutputPWM(void) {SAFE_RELEASE(block);}
 private: 
 	void begin(uint8_t pin1, uint8_t pin2); //FlexPWM pins only
-	static audio_block_t *block;
+	static audio_block_t *block; // released in destructor
 	static DMAChannel dma[2];
 	static _audio_info_flexpwm apins[2];
 #endif

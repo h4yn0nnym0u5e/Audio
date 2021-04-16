@@ -57,6 +57,7 @@ public:
 		maxblocks = 0;
 		memset(queue, 0, sizeof(queue));
 	}
+	~AudioEffectDelay() {release(queue,DELAY_QUEUE_SIZE);}
 	void delay(uint8_t channel, float milliseconds) {
 		if (channel >= 8) return;
 		if (milliseconds < 0.0f) milliseconds = 0.0f;
@@ -111,7 +112,7 @@ private:
 #else
 	uint32_t position[8]; // # of sample delay for each channel
 #endif
-	audio_block_t *queue[DELAY_QUEUE_SIZE];
+	audio_block_t *queue[DELAY_QUEUE_SIZE]; // released in destructor
 	audio_block_t *inputQueueArray[1];
 };
 

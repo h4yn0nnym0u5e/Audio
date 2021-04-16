@@ -35,6 +35,7 @@ class AudioPlaySdWav : public AudioStream
 {
 public:
 	AudioPlaySdWav(void) : AudioStream(0, NULL), block_left(NULL), block_right(NULL) { begin(); }
+	~AudioPlaySdWav(){SAFE_RELEASE_MANY(2,block_left,block_right);}
 	void begin(void);
 	bool play(const char *filename);
 	void togglePlayPause(void);
@@ -53,8 +54,8 @@ private:
 	uint32_t data_length;		// number of bytes remaining in current section
 	uint32_t total_length;		// number of audio data bytes in file
 	uint32_t bytes2millis;
-	audio_block_t *block_left;
-	audio_block_t *block_right;
+	audio_block_t *block_left; // released in destructor
+	audio_block_t *block_right; // released in destructor
 	uint16_t block_offset;		// how much data is in block_left & block_right
 	uint8_t buffer[512];		// buffer one block of data
 	uint16_t buffer_offset;		// where we're at consuming "buffer"

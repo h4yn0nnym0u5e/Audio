@@ -31,6 +31,7 @@ class AudioOutputSPDIF3 : public AudioStream
 {
 public:
 	AudioOutputSPDIF3(void) : AudioStream(2, inputQueueArray) { begin(); }
+	~AudioOutputSPDIF3(){SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);}
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputSPDIF3;
@@ -40,16 +41,16 @@ public:
 protected:
 	//AudioOutputSPDIF3(int dummy): AudioStream(2, inputQueueArray) {}
 	static void config_spdif3(void);
-	static audio_block_t *block_left_1st;
-	static audio_block_t *block_right_1st;
+	static audio_block_t *block_left_1st; // released in destructor
+	static audio_block_t *block_right_1st; // released in destructor
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);	
 private:
 	static uint32_t dpll_Gain() __attribute__ ((const));
-	static audio_block_t *block_left_2nd;
-	static audio_block_t *block_right_2nd;
-	static audio_block_t block_silent;
+	static audio_block_t *block_left_2nd; // released in destructor
+	static audio_block_t *block_right_2nd; // released in destructor
+	static audio_block_t block_silent; // no need to be released in destructor
 	audio_block_t *inputQueueArray[2];
 };
 

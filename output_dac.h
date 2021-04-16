@@ -35,12 +35,13 @@ class AudioOutputAnalog : public AudioStream
 {
 public:
 	AudioOutputAnalog(void) : AudioStream(1, inputQueueArray) { begin(); }
+	~AudioOutputAnalog() {SAFE_RELEASE_MANY(2,block_left_1st,block_left_2nd);}
 	virtual void update(void);
 	void begin(void);
 	void analogReference(int ref);
 private:
-	static audio_block_t *block_left_1st;
-	static audio_block_t *block_left_2nd;
+	static audio_block_t *block_left_1st; // released in destructor
+	static audio_block_t *block_left_2nd; // released in destructor
 	static bool update_responsibility;
 	audio_block_t *inputQueueArray[1];
 #if defined(KINETISK)

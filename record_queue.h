@@ -41,6 +41,7 @@ private:
 public:
 	AudioRecordQueue(void) : AudioStream(1, inputQueueArray),
 		userblock(NULL), head(0), tail(0), enabled(0) { }
+	~AudioRecordQueue(){SAFE_RELEASE(queue,max_buffers,false); SAFE_RELEASE(userblock); }
 	void begin(void) {
 		clear();
 		enabled = 1;
@@ -55,8 +56,8 @@ public:
 	virtual void update(void);
 private:
 	audio_block_t *inputQueueArray[1];
-	audio_block_t * volatile queue[max_buffers];
-	audio_block_t *userblock;
+	audio_block_t * volatile queue[max_buffers]; // released in destructor
+	audio_block_t *userblock;  					 // released in destructor
 	volatile uint8_t head, tail, enabled;
 };
 

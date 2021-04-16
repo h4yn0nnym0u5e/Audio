@@ -35,15 +35,18 @@ class AudioInputAnalogStereo : public AudioStream
 {
 public:
         AudioInputAnalogStereo() : AudioStream(0, NULL) {
-        init(A2, A3);
-    }
+			init(A2, A3);
+		}
+		
         AudioInputAnalogStereo(uint8_t pin0, uint8_t pin1) : AudioStream(0, NULL) {
-        init(pin0, pin1);
-    }
+			init(pin0, pin1);
+		}
+		
+		~AudioInputAnalogStereo() {SAFE_RELEASE_MANY(2,block_left,block_right);}
         virtual void update(void);
 private:
-        static audio_block_t *block_left;
-        static audio_block_t *block_right;
+        static audio_block_t *block_left;  // released in destructor
+        static audio_block_t *block_right; // released in destructor
         static uint16_t offset_left;
         static uint16_t offset_right;
         static int32_t hpf_y1[2];

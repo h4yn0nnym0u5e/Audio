@@ -36,9 +36,10 @@ class AudioInputAnalog : public AudioStream
 public:
         AudioInputAnalog() : AudioStream(0, NULL) { init(A2); }
         AudioInputAnalog(uint8_t pin) : AudioStream(0, NULL) { init(pin); }
+		~AudioInputAnalog() {SAFE_RELEASE(block_left);}
         virtual void update(void);
 private:
-        static audio_block_t *block_left;
+        static audio_block_t *block_left; // released in destructor
         static uint16_t block_offset;
         static int32_t hpf_y1;
         static int32_t hpf_x1;

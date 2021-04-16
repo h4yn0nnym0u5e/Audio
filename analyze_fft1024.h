@@ -53,6 +53,7 @@ public:
 	  window(AudioWindowHanning1024), state(0), outputflag(false) {
 		arm_cfft_radix4_init_q15(&fft_inst, 1024, 0, 1);
 	}
+	~AudioAnalyzeFFT1024() {SAFE_RELEASE(blocklist,8);}
 	bool available() {
 		if (outputflag == true) {
 			outputflag = false;
@@ -89,7 +90,7 @@ public:
 private:
 	void init(void);
 	const int16_t *window;
-	audio_block_t *blocklist[8];
+	audio_block_t *blocklist[8]; // released in destructor
 	int16_t buffer[2048] __attribute__ ((aligned (4)));
 	//uint32_t sum[512];
 	//uint8_t count;

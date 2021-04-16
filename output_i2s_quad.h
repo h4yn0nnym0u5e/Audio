@@ -35,22 +35,26 @@ class AudioOutputI2SQuad : public AudioStream
 {
 public:
 	AudioOutputI2SQuad(void) : AudioStream(4, inputQueueArray) { begin(); }
+	~AudioOutputI2SQuad()
+	{SAFE_RELEASE_MANY(8,block_ch1_1st,block_ch2_1st,block_ch3_1st,block_ch4_1st,
+						  block_ch1_2nd,block_ch2_2nd,block_ch3_2nd,block_ch4_2nd
+						  );}
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2SQuad;
 private:
 	static void config_i2s(void);
-	static audio_block_t *block_ch1_1st;
-	static audio_block_t *block_ch2_1st;
-	static audio_block_t *block_ch3_1st;
-	static audio_block_t *block_ch4_1st;
+	static audio_block_t *block_ch1_1st; // released in destructor
+	static audio_block_t *block_ch2_1st; // released in destructor
+	static audio_block_t *block_ch3_1st; // released in destructor
+	static audio_block_t *block_ch4_1st; // released in destructor
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
-	static audio_block_t *block_ch1_2nd;
-	static audio_block_t *block_ch2_2nd;
-	static audio_block_t *block_ch3_2nd;
-	static audio_block_t *block_ch4_2nd;
+	static audio_block_t *block_ch1_2nd; // released in destructor
+	static audio_block_t *block_ch2_2nd; // released in destructor
+	static audio_block_t *block_ch3_2nd; // released in destructor
+	static audio_block_t *block_ch4_2nd; // released in destructor
 	static uint16_t ch1_offset;
 	static uint16_t ch2_offset;
 	static uint16_t ch3_offset;

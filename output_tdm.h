@@ -35,12 +35,13 @@ class AudioOutputTDM : public AudioStream
 {
 public:
 	AudioOutputTDM(void) : AudioStream(16, inputQueueArray) { begin(); }
+	~AudioOutputTDM() {SAFE_RELEASE(block_input,16);}
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputTDM;
 protected:
 	static void config_tdm(void);
-	static audio_block_t *block_input[16];
+	static audio_block_t *block_input[16]; // released in destructor
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
