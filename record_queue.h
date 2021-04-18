@@ -41,7 +41,7 @@ private:
 public:
 	AudioRecordQueue(void) : AudioStream(1, inputQueueArray),
 		userblock(NULL), head(0), tail(0), enabled(0) { }
-	~AudioRecordQueue(){SAFE_RELEASE(queue,max_buffers,false); SAFE_RELEASE(userblock); }
+	~AudioRecordQueue(){SAFE_RELEASE((audio_block_t **)queue,max_buffers,false); SAFE_RELEASE(userblock); }
 	void begin(void) {
 		clear();
 		enabled = 1;
