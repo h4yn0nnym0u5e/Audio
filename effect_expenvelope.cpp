@@ -165,7 +165,7 @@ void AudioEffectExpEnvelope::update(void)
           switch (state) // this is current state, we're about to transition
           {
             default:    // should never happen
-              *p++ = 0;
+              doRelease();	// this should be safer than processing just two samples...
               break;
               
     			  case STATE_ATTACK:
