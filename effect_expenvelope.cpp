@@ -45,17 +45,17 @@ void inline AudioEffectExpEnvelope::doAttack()
   target = attack_target;
   factor = attack_factor; 
   factor1 = attack_factor1;
-  transition_mult = ONE;  
+  transition_mult = EEE_ONE;  
 }
 
 void inline AudioEffectExpEnvelope::doHold()
 {
   state = STATE_HOLD;
   count = hold_count;
-  mult_hires = ONE;
+  mult_hires = EEE_ONE;
   target = mult_hires - 1; // ensure we don't transition because we've "reached target"
   factor = 0;
-  factor1 = ONE;
+  factor1 = EEE_ONE;
 }
 
 
@@ -77,7 +77,7 @@ void inline AudioEffectExpEnvelope::doSustain()
   mult_hires = sustain_mult;
   target = mult_hires - 1; // ensure we don't transition because we've "reached target"
   factor = 0;
-  factor1 = ONE;
+  factor1 = EEE_ONE;
 }
 
 
@@ -162,82 +162,85 @@ void AudioEffectExpEnvelope::update(void)
     		// we only care about the state when completing a region
     		if (count == 0 || target == mult_hires) 
     		{
-          switch (state) // this is current state, we're about to transition
-          {
-            default:    // should never happen
-              doRelease();	// this should be safer than processing just two samples...
-              break;
-              
-    			  case STATE_ATTACK:
-      				if (hold_count > 0) 
-                doHold();
-      				else 
-                doDecay();
-      				continue;
-    			 
-    			  case STATE_HOLD:
-              doDecay();
-      				continue;
-    			
-            case STATE_DECAY: 
-            case STATE_RISING_DECAY: 
-              doSustain();
-              break;
-    			 
-    			  case STATE_SUSTAIN:	// has no transition out, apart from noteOff()
-      				count = 0xFFFF;
-              break;
-    			
-    			  case STATE_RELEASE: 
-              if (mult_hires > 0) // got here before release really completed
-              {
-                count = release_count; // keep going
-    #if 0            
-                Serial.print(mult_hires);
-                Serial.print(' ');
-                Serial.print(target);
-                Serial.print(' ');
-                Serial.print(mult);
-                Serial.print(' ');
-                Serial.println(transition_mult);
-                Serial.println();
-    #endif            
-              }
-              else
-              {
-        				state = STATE_IDLE;
-        				while (p < end) 
-        				{
-        					*p++ = 0;
-        					*p++ = 0;
-        					*p++ = 0;
-        					*p++ = 0;
-        				}
-              }
-             
-      				break;
-    			 
-    			 
-    			  case STATE_FORCED: 
-      				mult_hires = 0; // click!
-              target = mult_hires - 1; // ensure we don't transition because we've "reached target"
-      				count = delay_count;
-      				if (count > 0) 
-      				{
-      					state = STATE_DELAY;
-      					factor = 0;
-                factor1 = ONE;
-      				} 
-      				else 
-      				  doAttack();
-              break;
-    			 
-    			  case STATE_DELAY: 
-      				doAttack();
-      				continue;
-    			}
-    		}
-    
+			  switch (state) // this is current state, we're about to transition
+			  {
+				default:    // should never happen
+				  doRelease();	// this should be safer than processing just two samples...
+				  break;
+				  
+					  case STATE_ATTACK:
+						if (hold_count > 0) 
+					doHold();
+						else 
+					doDecay();
+						continue;
+					 
+					  case STATE_HOLD:
+				  doDecay();
+						continue;
+					
+				case STATE_DECAY: 
+				case STATE_RISING_DECAY: 
+				  doSustain();
+				  break;
+					 
+					  case STATE_SUSTAIN:	// has no transition out, apart from noteOff()
+						count = 0xFFFF;
+				  break;
+					
+					  case STATE_RELEASE: 
+				  if (mult_hires > 0) // got here before release really completed
+				  {
+					count = release_count; // keep going
+		#if 0            
+					Serial.print(mult_hires);
+					Serial.print(' ');
+					Serial.print(target);
+					Serial.print(' ');
+					Serial.print(mult);
+					Serial.print(' ');
+					Serial.println(transition_mult);
+					Serial.println();
+		#endif            
+				  }
+				  else
+				  {
+							state = STATE_IDLE;
+							while (p < end) 
+							{
+								*p++ = 0;
+								*p++ = 0;
+								*p++ = 0;
+								*p++ = 0;
+							}
+				  }
+				 
+						break;
+					 
+					 
+					  case STATE_FORCED: 
+						mult_hires = 0; // click!
+				  target = mult_hires - 1; // ensure we don't transition because we've "reached target"
+						count = delay_count;
+						if (count > 0) 
+						{
+							state = STATE_DELAY;
+							factor = 0;
+					factor1 = EEE_ONE;
+						} 
+						else 
+						  doAttack();
+				  break;
+					 
+					  case STATE_DELAY: 
+						doAttack();
+						continue;
+				}
+			}
+			
+			if (STATE_IDLE == state) // already filled block, we're done here
+				break;
+			
     		mult = mult_hires >> 14;  // 30-bit -> 16-bit
     		// process 8 samples, using only mult and inc (16 bit resolution)
     		sample12 = *p++;
@@ -246,69 +249,69 @@ void AudioEffectExpEnvelope::update(void)
     		sample78 = *p++;
     		p -= 4;
     
-        if (state < STATE_DYNAMIC_THRESHOLD) // stable, no need to change mult
-        {
-          count--; // these are a fixed or indefinite time: do the count
-          
-      		tmp1 = signed_multiply_32x16b(mult, sample12);
-      		tmp2 = signed_multiply_32x16t(mult, sample12);
-      		sample12 = pack_16b_16b(tmp2, tmp1);
-          
-      		tmp1 = signed_multiply_32x16b(mult, sample34);
-      		tmp2 = signed_multiply_32x16t(mult, sample34);
-      		sample34 = pack_16b_16b(tmp2, tmp1);
-          
-      		tmp1 = signed_multiply_32x16b(mult, sample56);
-      		tmp2 = signed_multiply_32x16t(mult, sample56);
-      		sample56 = pack_16b_16b(tmp2, tmp1);
-          
-      		tmp1 = signed_multiply_32x16b(mult, sample78);
-      		tmp2 = signed_multiply_32x16t(mult, sample78);
-      		sample78 = pack_16b_16b(tmp2, tmp1);
-          
-        }
-        else // dynamic states
-        {
-          int32_t addFactor = multiply_32x32_rshift32(target,factor);
-          // mult = mult*(1 - attack) + target * attack: stabilises at "target"
-          // we use DSP instructions for speed, though we lose a couple of bits of precision
-    #define MULT_STEP unsigned_saturate_rshift(mult_hires,16,(SHIFT - 16)); \
-                      mult_hires = (multiply_32x32_rshift32(mult_hires,factor1) + \
-                                    addFactor) << (32 - SHIFT); \
-                      if (state < STATE_DYNAMIC_DOWN \
-                              ?mult_hires >= transition_mult \
-                              :mult_hires <= transition_mult) {/*count = 0;*/ target = mult_hires = transition_mult; addFactor = 0; factor1 = ONE;} \
-                      
-    
-          mult = MULT_STEP;
-          tmp1 = signed_multiply_32x16b(mult, sample12);
-          mult = MULT_STEP;
-          tmp2 = signed_multiply_32x16t(mult, sample12);
-          sample12 = pack_16b_16b(tmp2, tmp1);
-          
-          mult = MULT_STEP;
-          tmp1 = signed_multiply_32x16b(mult, sample34);
-          mult = MULT_STEP;
-          tmp2 = signed_multiply_32x16t(mult, sample34);
-          sample34 = pack_16b_16b(tmp2, tmp1);
-          
-          mult = MULT_STEP;
-          tmp1 = signed_multiply_32x16b(mult, sample56);
-          mult = MULT_STEP;
-          tmp2 = signed_multiply_32x16t(mult, sample56);
-          sample56 = pack_16b_16b(tmp2, tmp1);
-          
-          mult = MULT_STEP;
-          tmp1 = signed_multiply_32x16b(mult, sample78);
-          mult = MULT_STEP;
-          tmp2 = signed_multiply_32x16t(mult, sample78);
-          sample78 = pack_16b_16b(tmp2, tmp1);
-            
-          if (target == mult_hires) // reached dynamic target...
-            count = 0;              // ...next state
-          else
-            count--; // ...safety net
-        }
+			if (state < STATE_DYNAMIC_THRESHOLD) // stable, no need to change mult
+			{
+			  count--; // these are a fixed or indefinite time: do the count
+			  
+				tmp1 = signed_multiply_32x16b(mult, sample12);
+				tmp2 = signed_multiply_32x16t(mult, sample12);
+				sample12 = pack_16b_16b(tmp2, tmp1);
+			  
+				tmp1 = signed_multiply_32x16b(mult, sample34);
+				tmp2 = signed_multiply_32x16t(mult, sample34);
+				sample34 = pack_16b_16b(tmp2, tmp1);
+			  
+				tmp1 = signed_multiply_32x16b(mult, sample56);
+				tmp2 = signed_multiply_32x16t(mult, sample56);
+				sample56 = pack_16b_16b(tmp2, tmp1);
+			  
+				tmp1 = signed_multiply_32x16b(mult, sample78);
+				tmp2 = signed_multiply_32x16t(mult, sample78);
+				sample78 = pack_16b_16b(tmp2, tmp1);
+			  
+			}
+			else // dynamic states
+			{
+			  int32_t addFactor = multiply_32x32_rshift32(target,factor);
+			  // mult = mult*(1 - attack) + target * attack: stabilises at "target"
+			  // we use DSP instructions for speed, though we lose a couple of bits of precision
+		#define MULT_STEP unsigned_saturate_rshift(mult_hires,16,(SHIFT - 16)); \
+						  mult_hires = (multiply_32x32_rshift32(mult_hires,factor1) + \
+										addFactor) << (32 - SHIFT); \
+						  if (state < STATE_DYNAMIC_DOWN \
+								  ?mult_hires >= transition_mult \
+								  :mult_hires <= transition_mult) {/*count = 0;*/ target = mult_hires = transition_mult; addFactor = 0; factor1 = EEE_ONE;} \
+						  
+		
+			  mult = MULT_STEP;
+			  tmp1 = signed_multiply_32x16b(mult, sample12);
+			  mult = MULT_STEP;
+			  tmp2 = signed_multiply_32x16t(mult, sample12);
+			  sample12 = pack_16b_16b(tmp2, tmp1);
+			  
+			  mult = MULT_STEP;
+			  tmp1 = signed_multiply_32x16b(mult, sample34);
+			  mult = MULT_STEP;
+			  tmp2 = signed_multiply_32x16t(mult, sample34);
+			  sample34 = pack_16b_16b(tmp2, tmp1);
+			  
+			  mult = MULT_STEP;
+			  tmp1 = signed_multiply_32x16b(mult, sample56);
+			  mult = MULT_STEP;
+			  tmp2 = signed_multiply_32x16t(mult, sample56);
+			  sample56 = pack_16b_16b(tmp2, tmp1);
+			  
+			  mult = MULT_STEP;
+			  tmp1 = signed_multiply_32x16b(mult, sample78);
+			  mult = MULT_STEP;
+			  tmp2 = signed_multiply_32x16t(mult, sample78);
+			  sample78 = pack_16b_16b(tmp2, tmp1);
+				
+			  if (target == mult_hires) // reached dynamic target...
+				count = 0;              // ...next state
+			  else
+				count--; // ...safety net
+			}
     		*p++ = sample12;
     		*p++ = sample34;
     		*p++ = sample56;
@@ -316,6 +319,8 @@ void AudioEffectExpEnvelope::update(void)
     		// adjust the long-term gain using 30 bit resolution (fix #102)
     		// https://github.com/PaulStoffregen/Audio/issues/102
     	}
+//		if (p>end)
+//			Serial.println("whoops...");
     	transmit(block);
     	release(block);
     }
