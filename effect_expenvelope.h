@@ -56,7 +56,7 @@ static inline int32_t unsigned_saturate_rshift(int32_t val, int bits, int rshift
 
 #define SAMPLES_PER_MSEC (AUDIO_SAMPLE_RATE_EXACT/1000.0f)
 #define SHIFT 30
-#define ONE (1L << SHIFT) // scale to unity gain at high resolution
+#define EEE_ONE (1L << SHIFT) // scale to unity gain at high resolution
 #define MAX_MULT 65535    // maximum 16-bit multiplier value
 #define TF 0.95f          // target factor for exponential: switch state here, we'll never get to 1.00!
 
@@ -103,7 +103,7 @@ public:
 	void attack(float milliseconds, float target_factor = TF) 
 	{
 		attack_count = milliseconds2count(milliseconds);
-    set_factors(milliseconds,ONE,target_factor,
+    set_factors(milliseconds,EEE_ONE,target_factor,
                 &attack_count,&attack_factor,&attack_factor1,&attack_target,NULL);
 		if (attack_count == 0) 
 		  attack_count = 1;
@@ -141,9 +141,9 @@ public:
  
 	void decay(float milliseconds, float target_factor = TF) 
 	{
-    set_factors(milliseconds,ONE - sustain_mult,target_factor,
+    set_factors(milliseconds,EEE_ONE - sustain_mult,target_factor,
                 &decay_count,&decay_factor,&decay_factor1,&decay_target,&decay_tf);
-    decay_target = ONE - decay_target;
+    decay_target = EEE_ONE - decay_target;
     decay_ms = milliseconds;
     
     // is decay active? change if so
@@ -172,7 +172,7 @@ public:
 
     __disable_irq();
     
-		sustain_mult = level * ONE;
+		sustain_mult = level * EEE_ONE;
     // sustain level changed, need to re-calculate
     decay(decay_ms,decay_tf);
     release(release_ms,release_tf);
@@ -189,7 +189,7 @@ public:
       }
       else // new sustain level is higher than we've decayed to!
       {
-        float milliseconds = decay_ms * (sustain_mult - mult_hires) / (ONE - old_sustain_mult);
+        float milliseconds = decay_ms * (sustain_mult - mult_hires) / (EEE_ONE - old_sustain_mult);
         
         set_factors(milliseconds,sustain_mult - mult_hires,decay_factor,
                     &count,&factor,&factor1,&target,NULL);
@@ -218,6 +218,15 @@ public:
 	  }
 
     __enable_irq();
+	}
+	
+	 //ElectroTechnique 2020 - close the envelope to silence it
+	void close(){
+	 __disable_irq();
+		  mult_hires = 0;//Zero gain
+		  //inc_hires = 0;//Same as STATE_DELAY
+		  state = STATE_IDLE;
+	  __enable_irq();
 	}
 
    
@@ -272,8 +281,8 @@ private:
       if (tf_record)
         *tf_record = target_factor;
       *count = c;
-      *factor = (int32_t)(-log(1-target_factor)*ONE/c/8);
-      *factor1 = ONE - *factor;
+      *factor = (int32_t)(-log(1-target_factor)*EEE_ONE/c/8);
+      *factor1 = EEE_ONE - *factor;
       *target = change / target_factor;   
   }
 
