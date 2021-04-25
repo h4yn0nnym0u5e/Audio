@@ -46,6 +46,48 @@ static void applyGain(int16_t *data, int32_t mult)
 	} while (p < end);
 }
 
+// Gradually apply gain change across the duration of the audio block.
+// Uses one multiply and one divide to set up, then addition, subtraction
+// and comparison only in the loop.
+static void applyGainSlew(int16_t *data, int32_t mult_start, int32_t mult_end)
+{
+	uint32_t *p = (uint32_t *)data;
+	const uint32_t *end = (uint32_t *)(data + AUDIO_BLOCK_SAMPLES);
+	
+	int32_t mult = mult_start;
+	int32_t rise = mult_end - mult_start;
+	int32_t inc = rise / AUDIO_BLOCK_SAMPLES;
+	int32_t add = rise - inc * AUDIO_BLOCK_SAMPLES;
+	int32_t acc = rise >> 1;
+
+	do {
+		uint32_t tmp32 = *p; // read 2 samples from *data
+		int32_t val1 = signed_multiply_32x16b(mult, tmp32);
+		
+		mult += inc;
+		acc += add;
+		if (acc > AUDIO_BLOCK_SAMPLES)
+		{
+			mult +=1;
+			acc -= AUDIO_BLOCK_SAMPLES;
+		}
+		
+		int32_t val2 = signed_multiply_32x16t(mult, tmp32);
+		
+		mult += inc;
+		acc += add;
+		if (acc > AUDIO_BLOCK_SAMPLES)
+		{
+			mult +=1;
+			acc -= AUDIO_BLOCK_SAMPLES;
+		}
+		
+		val1 = signed_saturate_rshift(val1, 16, 0);
+		val2 = signed_saturate_rshift(val2, 16, 0);
+		*p++ = pack_16b_16b(val2, val1);
+	} while (p < end);
+}
+
 static void applyGainThenAdd(int16_t *data, const int16_t *in, int32_t mult)
 {
 	uint32_t *dst = (uint32_t *)data;
@@ -83,6 +125,30 @@ static void applyGain(int16_t *data, int32_t mult)
 	do {
 		int32_t val = *data * mult;
 		*data++ = signed_saturate_rshift(val, 16, 0);
+	} while (data < end);
+}
+
+static void applyGainSlew(int16_t *data, int32_t mult_start, int32_t mult_end)
+{
+	const int16_t *end = data + AUDIO_BLOCK_SAMPLES;
+	
+	int32_t mult = mult_start;
+	int32_t rise = mult_end - mult_start;
+	int32_t inc = rise / AUDIO_BLOCK_SAMPLES;
+	int32_t add = rise - inc * AUDIO_BLOCK_SAMPLES;
+	int32_t acc = rise >> 1;
+	
+	do {
+		int32_t val = *data * mult;
+		*data++ = signed_saturate_rshift(val, 16, 0);
+		
+		mult += inc;
+		acc += add;
+		if (acc > AUDIO_BLOCK_SAMPLES)
+		{
+			mult +=1;
+			acc -= AUDIO_BLOCK_SAMPLES;
+		}
 	} while (data < end);
 }
 
@@ -136,7 +202,17 @@ void AudioAmplifier::update(void)
 	audio_block_t *block;
 	int32_t mult = multiplier;
 
-	if (mult == 0) {
+	if (slewGain && mult != prev_mult)
+	{
+		block = receiveWritable(0);
+		if (block) 
+		{
+			applyGainSlew(block->data, prev_mult, mult);
+			transmit(block);
+			release(block);
+		}
+	}
+	else if (mult == 0) {
 		// zero gain, discard any input and transmit nothing
 		block = receiveReadOnly(0);
 		if (block) release(block);
@@ -156,4 +232,8 @@ void AudioAmplifier::update(void)
 			release(block);
 		}
 	}
+	
+	// do this last, so multiple calls to gain() only
+	// change the previous value once it really is previous!
+	prev_mult = multiplier;
 }

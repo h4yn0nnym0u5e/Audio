@@ -69,17 +69,29 @@ private:
 class AudioAmplifier : public AudioStream
 {
 public:
-	AudioAmplifier(void) : AudioStream(1, inputQueueArray), multiplier(65536) {
-	}
+	AudioAmplifier(void) : AudioStream(1, inputQueueArray), 
+	multiplier(65536), prev_mult(65536) 
+	{}
+	
 	virtual void update(void);
-	void gain(float n) {
+	
+	void gain(float n) 
+	{
 		if (n > 32767.0f) n = 32767.0f;
 		else if (n < -32767.0f) n = -32767.0f;
 		multiplier = n * 65536.0f;
 	}
+	
+	void slew(bool doSlew) 
+	{
+		slewGain = doSlew;
+	}
+	
 private:
-	int32_t multiplier;
+	int32_t multiplier; // 65536 => unity gain
+	int32_t prev_mult;
+	bool slewGain;
 	audio_block_t *inputQueueArray[1];
 };
-
+
 #endif
