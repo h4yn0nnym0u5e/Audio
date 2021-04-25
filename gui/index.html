@@ -2479,7 +2479,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</table>
 	<h3>Functions</h3>
 	<p>This object has no functions to call from the Arduino sketch.  It
-		simply streams from it's 2 input ports to the USB.</p>
+		simply streams from its 2 input ports to the USB.</p>
 	<!--
 	<h3>Hardware</h3>
 	-->
@@ -2526,6 +2526,12 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		off completely.  Between 0 to 1.0 attenuates the signal, and above
 		1.0 amplifies it.  Negative numbers may also be used, to invert the
 		signal.
+	</p>
+	<p class=func><span class=keyword>slew</span>(enable);</p>
+	<p class=desc>Enables or disables slewing a gain change made by calling gain(), so
+	that its effect takes place gradually over the duration of the audio block being
+	processed, rather than abruptly at its start. Increases CPU load, but only if
+	enabled and the gain has been changed.
 	</p>
 	<!--<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; SamplePlayer
