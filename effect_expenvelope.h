@@ -57,6 +57,7 @@ static inline int32_t unsigned_saturate_rshift(int32_t val, int bits, int rshift
 #define SAMPLES_PER_MSEC (AUDIO_SAMPLE_RATE_EXACT/1000.0f)
 #define SHIFT 30
 #define EEE_ONE (1L << SHIFT) // scale to unity gain at high resolution
+#define HIRES_TO_FLOAT(i32) ((float) i32 / EEE_ONE)
 #define MAX_MULT 65535    // maximum 16-bit multiplier value
 #define TF 0.95f          // target factor for exponential: switch state here, we'll never get to 1.00!
 
@@ -234,6 +235,9 @@ public:
  uint8_t getState();
 	bool isActive();
 	bool isSustain();
+   float getGain() {return HIRES_TO_FLOAT(mult_hires);}
+   
+   
 	using AudioStream::release;
 	virtual void update(void);
   
