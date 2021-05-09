@@ -1,8 +1,12 @@
-Please use this form only to report code defects or bugs.
+Please use this form only to report code defects or bugs. Please also note that I have a day job,
+and may not be able to fix any defects you find in a timely manner. If you can figure out the 
+needed changes, implement and test them, then that would be most excellent of you!
 
-For any question, even questions directly pertaining to this code, post your question on the forum.
+This feature branch almost certainly has dependencies, in particular on the Audio core in Teensyduino,
+which must be updated to incorporate the dynamic creation and destruction of Audio library objects.
 
-Teensy: forum.pjrc.com
+For any question, even questions directly pertaining to this code, post your question on the forum thread:
+https://forum.pjrc.com/threads/66840-Roadmap-quot-Dynamic-Updates-quot-any-effort-going-on
 
 If you are experiencing trouble but not certain of the cause, or need help using this code, ask on the forum.  This is not the place to ask for support or help, even directly related to this code.  Only use this form you are certain you have discovered a defect in this code!
 
