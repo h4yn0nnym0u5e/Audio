@@ -34,7 +34,7 @@ void AudioEffectBitcrusher::update(void)
 {
 	audio_block_t *block;
 	uint32_t i;
-	uint32_t sampleSquidge, sampleSqueeze; //squidge is bitdepth, squeeze is for samplerate
+	uint32_t sampleSquidge; //squidge is bitdepth, squeeze is for samplerate
 			
 	if (crushBits == 16 && sampleStep <= 1) {
 		// nothing to do. Output is sent through clean, then exit the function
@@ -60,34 +60,43 @@ void AudioEffectBitcrusher::update(void)
 		}
 	} else if (crushBits == 16) { //bitcrusher not being used, samplerate mods only.
 		i=0;
-		while (i < AUDIO_BLOCK_SAMPLES) {
+		while (i < AUDIO_BLOCK_SAMPLES) 
+		{
 			// save the root sample. this will pick up a root
 			// sample every _sampleStep_ samples.
-			sampleSqueeze = block->data[i];
-			for (int j = 0; j < sampleStep && i < AUDIO_BLOCK_SAMPLES; j++) {
- 				// for each repeated sample, paste in the current
-				// root sample, then move onto the next step.
-				block->data[i] = sampleSqueeze;
-				i++;
+			if (remaining <= 0)
+			{
+				remaining = sampleStep;
+				sampleSqueeze = block->data[i];
 			}
+			// for each repeated sample, paste in the current
+			// root sample, then move onto the next step.
+			block->data[i] = sampleSqueeze;
+			i++;
+			remaining--;	
 		}
+		
 	} else {           //both being used. crush those bits and mash those samples.
 		i=0;
-		while (i < AUDIO_BLOCK_SAMPLES) {
+		while (i < AUDIO_BLOCK_SAMPLES) 
+		{
 			// save the root sample. this will pick up a root sample
 			// every _sampleStep_ samples.
-			sampleSqueeze = block->data[i];
-			for (int j = 0; j < sampleStep && i < AUDIO_BLOCK_SAMPLES; j++) {
- 				// shift bits right to cut off fine detail sampleSquidge
+			if (remaining <= 0)
+			{
+				remaining = sampleStep;
+				// shift bits right to cut off fine detail sampleSquidge
 				// is a uint32 so sign extension will not occur, fills
 				// with zeroes.
-				sampleSquidge = sampleSqueeze >> (16-crushBits);
- 				// shift bits left again to regain the volume level.
-				// fills with zeroes. paste into buffer sample +
-				// sampleStep offset.
-				block->data[i] = sampleSquidge << (16-crushBits);
-				i++;
+				sampleSquidge = block->data[i] >> (16-crushBits);
+				sampleSqueeze = sampleSquidge << (16-crushBits);
 			}
+			// shift bits left again to regain the volume level.
+			// fills with zeroes. paste into buffer sample +
+			// sampleStep offset.
+			block->data[i] = sampleSqueeze;
+			i++;
+			remaining--;
 		}
 	}
 	transmit(block);
