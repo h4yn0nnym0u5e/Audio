@@ -35,11 +35,11 @@ class AudioInputI2S : public AudioStream
 {
 public:
 	AudioInputI2S(void) : AudioStream(0, NULL) { begin(); }
+	~AudioInputI2S() {SAFE_RELEASE_MANY(2,block_left,block_right);}
 	virtual void update(void);
 	void begin(void);
 protected:	
 	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
-	~AudioInputI2S() {SAFE_RELEASE_MANY(2,block_left,block_right);}
 	static bool update_responsibility;
 
 #if !defined(KINETISL)
