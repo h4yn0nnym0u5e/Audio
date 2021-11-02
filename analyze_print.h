@@ -35,6 +35,7 @@ class AudioAnalyzePrint : public AudioStream
 public:
 	AudioAnalyzePrint(void) : AudioStream(1, inputQueueArray),
 	  myname(NULL), state(0), trigger_edge(0), delay_length(0), print_length(500) {}
+	~AudioAnalyzePrint() {active = false;};
 	virtual void update(void);
 	void name(const char *str) { myname = str; }
 	void trigger(void);

@@ -34,6 +34,7 @@ class AudioPlayMemory : public AudioStream
 {
 public:
 	AudioPlayMemory(void) : AudioStream(0, NULL), playing(0) { }
+	~AudioPlayMemory() {active = false;}
 	void play(const unsigned int *data);
 	void stop(void);
 	bool isPlaying(void) { return playing; }

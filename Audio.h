@@ -61,6 +61,7 @@
 #include "analyze_fft256.h"
 #include "analyze_fft1024.h"
 #include "analyze_print.h"
+#include "analyze_event.h"
 #include "analyze_tonedetect.h"
 #include "analyze_notefreq.h"
 #include "analyze_peak.h"

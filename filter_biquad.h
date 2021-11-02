@@ -37,6 +37,7 @@ public:
 		// by default, the filter will not pass anything
 		for (int i=0; i<32; i++) definition[i] = 0;
 	}
+	~AudioFilterBiquad() {active = false;}
 	virtual void update(void);
 
 	// Set the biquad coefficients directly

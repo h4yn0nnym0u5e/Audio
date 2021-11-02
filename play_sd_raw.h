@@ -35,6 +35,7 @@ class AudioPlaySdRaw : public AudioStream
 {
 public:
 	AudioPlaySdRaw(void) : AudioStream(0, NULL) { begin(); }
+	~AudioPlaySdRaw() {active = false;}
 	void begin(void);
 	bool play(const char *filename);
 	void stop(void);

@@ -63,6 +63,7 @@ class AudioEffectReverb : public AudioStream
       clear_buffers();
       reverbTime(5.0);
     }
+	~AudioEffectReverb() {active = false;}
     virtual void update(void);
     void reverbTime(float);
 

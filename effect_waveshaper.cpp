@@ -27,9 +27,11 @@
 
 AudioEffectWaveshaper::~AudioEffectWaveshaper()
 {
-  if(this->waveshape) {
-    delete [] this->waveshape;
-  }
+	active = false;
+	if (this->waveshape) 
+	{
+		delete [] this->waveshape;
+	}
 }
 
 void AudioEffectWaveshaper::shape(float* waveshape, int length)

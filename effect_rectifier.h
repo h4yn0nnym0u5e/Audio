@@ -34,6 +34,7 @@ class AudioEffectRectifier: public AudioStream
 {
 public:
 	AudioEffectRectifier(void) : AudioStream(1, inputQueueArray) {}
+	~AudioEffectRectifier() {active = false;}
 	virtual void update(void);
 private:
 	audio_block_t *inputQueueArray[1];

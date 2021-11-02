@@ -91,6 +91,10 @@ public:
 	 * Class constructor.
 	 */
 	AudioSynthWavetable(void) : AudioStream(0, NULL) {}
+	/**
+	 * Class destructor.
+	 */
+	~AudioSynthWavetable() {active = false;}
 
 	/**
 	 * @brief Set the instrument_data struct to be used as the playback instrument.

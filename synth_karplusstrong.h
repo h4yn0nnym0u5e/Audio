@@ -36,6 +36,7 @@ public:
 	AudioSynthKarplusStrong() : AudioStream(0, NULL) {
 		state = 0;
 	}
+	~AudioSynthKarplusStrong() {active = false;}
 	void noteOn(float frequency, float velocity) {
 		if (velocity > 1.0f) {
 			velocity = 0.0f;

@@ -89,6 +89,7 @@ class AudioSynthWaveformDc : public AudioStream
 {
 public:
 	AudioSynthWaveformDc() : AudioStream(0, NULL), state(0), magnitude(0) {}
+	~AudioSynthWaveformDc() {active = false;}
 	// immediately jump to the new DC level
 	void amplitude(float n) {
 		if (n > 1.0f) n = 1.0f;

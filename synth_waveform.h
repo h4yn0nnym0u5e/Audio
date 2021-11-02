@@ -103,6 +103,8 @@ public:
 		arbdata(NULL), sample(0), tone_type(WAVEFORM_SINE),
 		tone_offset(0) {
 	}
+	
+	~AudioSynthWaveform(void) {active = false;}
 
 	void frequency(float freq) {
 		if (freq < 0.0f) {
@@ -189,6 +191,7 @@ public:
 		magnitude(0), arbdata(NULL), sample(0), tone_offset(0),
 		tone_type(WAVEFORM_SINE), modulation_type(0) {
 	}
+	~AudioSynthWaveformModulated() {active = false;}
 
 	void frequency(float freq) {
 		if (freq < 0.0f) {

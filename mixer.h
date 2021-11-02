@@ -37,6 +37,7 @@ public:
 	AudioMixer4(void) : AudioStream(4, inputQueueArray) {
 		for (int i=0; i<4; i++) multiplier[i] = 65536;
 	}
+	~AudioMixer4(void) {active = false;}
 	virtual void update(void);
 	void gain(unsigned int channel, float gain) {
 		if (channel >= 4) return;
@@ -53,6 +54,7 @@ public:
 	AudioMixer4(void) : AudioStream(4, inputQueueArray) {
 		for (int i=0; i<4; i++) multiplier[i] = 256;
 	}
+	~AudioMixer4(void) {active = false;}
 	virtual void update(void);
 	void gain(unsigned int channel, float gain) {
 		if (channel >= 4) return;
@@ -72,6 +74,7 @@ public:
 	AudioAmplifier(void) : AudioStream(1, inputQueueArray), 
 	multiplier(65536), prev_mult(65536) 
 	{}
+	~AudioAmplifier(void) {active = false;}
 	
 	virtual void update(void);
 	

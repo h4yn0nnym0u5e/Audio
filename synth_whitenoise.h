@@ -37,6 +37,7 @@ public:
 		level = 0;
 		seed = 1 + instance_count++;
 	}
+	~AudioSynthNoiseWhite() {active = false;}
 	void amplitude(float n) {
 		if (n < 0.0f) n = 0.0;
 		else if (n > 1.0f) n = 1.0f;

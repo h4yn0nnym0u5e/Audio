@@ -40,6 +40,7 @@ public:
 		pinc   = 0x0CCC;
 		pdec   = 0x0CCC;
 	}	
+	~AudioSynthNoisePink() {active = false;}
 	void amplitude(float n) {
 		if (n < 0.0f) n = 0.0;
 		else if (n > 1.0f) n = 1.0f;

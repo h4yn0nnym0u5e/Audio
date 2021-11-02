@@ -36,6 +36,7 @@ class AudioPlaySerialflashRaw : public AudioStream
 {
 public:
 	AudioPlaySerialflashRaw(void) : AudioStream(0, NULL) { begin(); }
+	~AudioPlaySerialflashRaw() {active = false;}
 	void begin(void);
 	bool play(const char *filename);
 	void stop(void);

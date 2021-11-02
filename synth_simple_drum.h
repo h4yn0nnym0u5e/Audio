@@ -43,6 +43,7 @@ public:
     wav_amplitude1 = 0x7fff;
     wav_amplitude2 = 0;
   }
+  ~AudioSynthSimpleDrum() {active = false;}
   void noteOn();
 
   void frequency(float freq)

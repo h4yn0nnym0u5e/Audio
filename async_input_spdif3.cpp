@@ -58,6 +58,7 @@ int32_t AsyncAudioInputSPDIF3::resample_offset = 0; // read/written by resample/
 DMAChannel AsyncAudioInputSPDIF3::dma(false);
 
 AsyncAudioInputSPDIF3::~AsyncAudioInputSPDIF3(){
+	active = false;
 	delete [] _bufferLPFilter.pCoeffs;
 	delete [] _bufferLPFilter.pState;
 	delete quantizer[0];

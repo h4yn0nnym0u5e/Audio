@@ -43,6 +43,7 @@ public:
 		MODULO = 3,
 	};
 	AudioEffectDigitalCombine() : AudioStream(2, inputQueueArray), mode_sel(OR) { }
+	~AudioEffectDigitalCombine() {active = false;};
 	void setCombineMode(int mode_in) {
 		if (mode_in > 3) {
 	  		mode_in = 3;

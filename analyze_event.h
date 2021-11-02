@@ -1,7 +1,6 @@
 /* Audio Library for Teensy 3.X
- * Copyright (c) 2014, Jonathan Payne (jon@jonnypayne.com)
- * Based on Effect_Fade by Paul Stoffregen
-
+ * Copyright (c) 2014, Paul Stoffregen, paul@pjrc.com
+ *
  * Development of this audio library was funded by PJRC.COM, LLC by sales of
  * Teensy and Audio Adaptor boards.  Please support PJRC's efforts to develop
  * open source software by purchasing Teensy or other PJRC products.
@@ -25,39 +24,36 @@
  * THE SOFTWARE.
  */
 
-#ifndef effect_bitcrusher_h_
-#define effect_bitcrusher_h_
+#ifndef analyze_event_h_
+#define analyze_event_h_
 
+#include "EventResponder.h"
 #include "Arduino.h"
 #include "AudioStream.h"
 
-class AudioEffectBitcrusher : public AudioStream
+class AudioAnalyzeEvent : EventResponder, public AudioStream
 {
 public:
-	AudioEffectBitcrusher(void)
-	  : AudioStream(1, inputQueueArray),
-	  crushBits(16),sampleStep(1),remaining(0),sampleSqueeze(0) // do nothing is the default
-	  {}
-	~AudioEffectBitcrusher() {active = false;};
-	void bits(uint8_t b) {
-		if (b > 16) b = 16;
-		else if (b == 0) b = 1;
-		crushBits = b;
-	}
-        void sampleRate(float hz) {
-		int n = (AUDIO_SAMPLE_RATE_EXACT / hz) + 0.5f;
-		if (n < 1) n = 1;
-		//else if (n > 64) n = 64;
-		sampleStep = n;
-	}
-	virtual void update(void);
-	
+	AudioAnalyzeEvent(void) : AudioStream(1, inputQueueArray),
+	  count(0) {}
+	// Destructor:
+	// AudioStream stops IRQs, unlinks, enables IRQs
+	// EventResponder stops IRQs, detaches, enables IRQs
+	~AudioAnalyzeEvent(void) {
+		active = false;				// prevents crash during destruction (?!)
+		//destructorDisableNVIC(); 	// prevents crash during destruction (?!): a bit brutal, stops everything
+		EventResponder::_function = NULL;
+		};
+	void update(void);
+	uint32_t getCount(void) {return count;}
+	uint32_t getMicros(void) {return tstamp;}
+	void* getContext(void) {return EventResponder::getContext();}
+	void* getData(void) {return EventResponder::getData();}
+	void setEventFn(EventResponderFunction evFn,void* context);
 private:
-	uint8_t crushBits; // 16 = off
-	int sampleStep; // the number of samples to double up. This simple technique only allows a few stepped positions
-	int remaining;
-	uint32_t sampleSqueeze;
-	audio_block_t *inputQueueArray[1];
+	volatile uint32_t count;			//!< count of audio updates
+	uint32_t tstamp;		//!< timestamp of last audio update
+	audio_block_t *inputQueueArray[1]; //!< dummy "input queue" so we can wire it up
 };
 
 #endif

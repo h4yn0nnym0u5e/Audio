@@ -42,6 +42,7 @@ public:
 		accum = 0;
 		count = 0;
 	}
+	~AudioAnalyzeRMS(void) {active = false;}
 	bool available(void) {
 		return count > 0;
 	}
