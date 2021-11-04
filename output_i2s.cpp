@@ -44,6 +44,7 @@ uint16_t  AudioOutputI2S::block_left_offset = 0;
 uint16_t  AudioOutputI2S::block_right_offset = 0;
 bool AudioOutputI2S::update_responsibility = false;
 DMAChannel AudioOutputI2S::dma(false);
+AudioOutputI2S::dmaState_t AudioOutputI2S::dmaState = AOI2S_Stop;
 DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SAMPLES];
 
 #if defined(__IMXRT1062__)
@@ -52,7 +53,9 @@ DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SA
 
 void AudioOutputI2S::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+		dma.begin(true); // Allocate the DMA channel first
+	dmaState = AOI2S_Running;
 
 	block_left_1st = NULL;
 	block_right_1st = NULL;
@@ -103,11 +106,22 @@ void AudioOutputI2S::begin(void)
 }
 
 
+AudioOutputI2S::~AudioOutputI2S()
+{
+	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
+	block_left_1st = NULL;
+	block_left_2nd = NULL;
+	block_right_1st = NULL;
+	block_right_2nd = NULL;
+	dmaState = AOI2S_Paused;
+}
+
+extern void xblox(audio_block_t *l,audio_block_t *r);
 void AudioOutputI2S::isr(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
-	int16_t *dest;
 	audio_block_t *blockL, *blockR;
+	int16_t *dest;
 	uint32_t saddr, offsetL, offsetR;
 
 	saddr = (uint32_t)(dma.TCD->SADDR);
@@ -127,15 +141,17 @@ void AudioOutputI2S::isr(void)
 	blockR = AudioOutputI2S::block_right_1st;
 	offsetL = AudioOutputI2S::block_left_offset;
 	offsetR = AudioOutputI2S::block_right_offset;
+	
+//xblox(blockL,blockR);
 
-	if (blockL && blockR) {
+	if (AOI2S_Running == dmaState && blockL && blockR) {
 		memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR);
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
-	} else if (blockL) {
+	} else if (AOI2S_Running == dmaState && blockL) {
 		memcpy_tointerleaveL(dest, blockL->data + offsetL);
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
-	} else if (blockR) {
+	} else if (AOI2S_Running == dmaState && blockR) {
 		memcpy_tointerleaveR(dest, blockR->data + offsetR);
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
 	} else {
@@ -148,7 +164,7 @@ void AudioOutputI2S::isr(void)
 		AudioOutputI2S::block_left_offset = offsetL;
 	} else {
 		AudioOutputI2S::block_left_offset = 0;
-		AudioStream::release(blockL);
+		AudioStream::release(blockL); // safe even if blockL is NULL
 		AudioOutputI2S::block_left_1st = AudioOutputI2S::block_left_2nd;
 		AudioOutputI2S::block_left_2nd = NULL;
 	}
@@ -156,7 +172,7 @@ void AudioOutputI2S::isr(void)
 		AudioOutputI2S::block_right_offset = offsetR;
 	} else {
 		AudioOutputI2S::block_right_offset = 0;
-		AudioStream::release(blockR);
+		AudioStream::release(blockR); // safe even if blockR is NULL
 		AudioOutputI2S::block_right_1st = AudioOutputI2S::block_right_2nd;
 		AudioOutputI2S::block_right_2nd = NULL;
 	}
@@ -182,7 +198,7 @@ void AudioOutputI2S::isr(void)
 	}
 
 	block = AudioOutputI2S::block_left_1st;
-	if (block) {
+	if (AOI2S_Running == dmaState && block) {
 		offset = AudioOutputI2S::block_left_offset;
 		src = &block->data[offset];
 		do {
@@ -194,7 +210,7 @@ void AudioOutputI2S::isr(void)
 			AudioOutputI2S::block_left_offset = offset;
 		} else {
 			AudioOutputI2S::block_left_offset = 0;
-			AudioStream::release(block);
+			AudioStream::release(block); // safe even if block is NULL
 			AudioOutputI2S::block_left_1st = AudioOutputI2S::block_left_2nd;
 			AudioOutputI2S::block_left_2nd = NULL;
 		}
@@ -206,7 +222,7 @@ void AudioOutputI2S::isr(void)
 	}
 	dest -= AUDIO_BLOCK_SAMPLES - 1;
 	block = AudioOutputI2S::block_right_1st;
-	if (block) {
+	if (AOI2S_Running == dmaState && block) {
 		offset = AudioOutputI2S::block_right_offset;
 		src = &block->data[offset];
 		do {
@@ -261,6 +277,7 @@ void AudioOutputI2S::update(void)
 			release(tmp);
 		}
 	}
+audio_block_t *block2 = block;
 	block = receiveReadOnly(1); // input 1 = right channel
 	if (block) {
 		__disable_irq();
@@ -280,6 +297,7 @@ void AudioOutputI2S::update(void)
 			release(tmp);
 		}
 	}
+xblox(block2,block);
 }
 
 #if defined(KINETISK)

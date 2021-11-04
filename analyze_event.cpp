@@ -26,7 +26,6 @@
 
 #include <Arduino.h>
 #include "analyze_event.h"
-extern uint32_t stuff[];
 
 void AudioAnalyzeEvent::update(void)
 {
@@ -35,31 +34,19 @@ void AudioAnalyzeEvent::update(void)
 	// the input connection just serves to ensure update()
 	// is called, maybe at a specific point (not sure why
 	// that'd be needed at the moment, but The Future..)
-stuff[13]++;
 	block = receiveReadOnly();
-stuff[13]++;
 	if (block)	// data received...
 	{
-stuff[13]+=100;
 		transmit(block);	// ... may as well forward it
-stuff[13]+=100;
 		release(block);
-stuff[13]+=100;
 	}
-	
-stuff[13]++;
-	
+		
 	count++;				// count updates of this object
-stuff[13]++;
 	tstamp = micros();		// log when it occurred
-stuff[13]++;
 	if (NULL != this->_function)	// trigger the event, if it exists
 	{
-stuff[13]+=1000;
 		this->triggerEvent(0,this);	// with this object as its data (use EvRef.getData())
-stuff[13]+=1000;
 	}
-stuff[13]++;
 }
 
 

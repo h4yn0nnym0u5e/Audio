@@ -38,7 +38,7 @@ class AudioOutputI2S : public AudioStream
 {
 public:
 	AudioOutputI2S(void) : AudioStream(2, inputQueueArray) { begin(); }
-	~AudioOutputI2S(){SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);}
+	~AudioOutputI2S();
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2S;
@@ -60,6 +60,8 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static audio_block_t *block_left_2nd;  // released in destructor
 	static audio_block_t *block_right_2nd; // released in destructor
 	static uint16_t block_left_offset;
