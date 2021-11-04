@@ -116,7 +116,6 @@ AudioOutputI2S::~AudioOutputI2S()
 	dmaState = AOI2S_Paused;
 }
 
-extern void xblox(audio_block_t *l,audio_block_t *r);
 void AudioOutputI2S::isr(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
@@ -142,8 +141,6 @@ void AudioOutputI2S::isr(void)
 	offsetL = AudioOutputI2S::block_left_offset;
 	offsetR = AudioOutputI2S::block_right_offset;
 	
-//xblox(blockL,blockR);
-
 	if (AOI2S_Running == dmaState && blockL && blockR) {
 		memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR);
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
@@ -277,7 +274,6 @@ void AudioOutputI2S::update(void)
 			release(tmp);
 		}
 	}
-audio_block_t *block2 = block;
 	block = receiveReadOnly(1); // input 1 = right channel
 	if (block) {
 		__disable_irq();
@@ -297,7 +293,6 @@ audio_block_t *block2 = block;
 			release(tmp);
 		}
 	}
-xblox(block2,block);
 }
 
 #if defined(KINETISK)
@@ -484,7 +479,9 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 void AudioOutputI2Sslave::begin(void)
 {
 
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+		dma.begin(true); // Allocate the DMA channel first
+	dmaState = AOI2S_Running;
 
 	block_left_1st = NULL;
 	block_right_1st = NULL;
@@ -632,15 +629,26 @@ DMAMEM static int16_t i2s_tx_buffer1[NUM_SAMPLES * 2];
 DMAMEM static int16_t i2s_tx_buffer2[NUM_SAMPLES * 2];
 DMAChannel AudioOutputI2S::dma1(false);
 DMAChannel AudioOutputI2S::dma2(false);
+AudioOutputI2S::dmaState_t AudioOutputI2S::dmaState = AOI2S_Stop;
+
+AudioOutputI2S::~AudioOutputI2S()
+{
+	SAFE_RELEASE_MANY(2,block_left,block_right);
+	block_left = NULL;
+	block_right = NULL;
+	dmaState = AOI2S_Paused;
+}
 
 void AudioOutputI2S::begin(void)
 {
 
 	memset(i2s_tx_buffer1, 0, sizeof( i2s_tx_buffer1 ) );
 	memset(i2s_tx_buffer2, 0, sizeof( i2s_tx_buffer2 ) );
-
-	dma1.begin(true); // Allocate the DMA channel first
-	dma2.begin(true);
+	
+	if (AOI2S_Stop == dmaState)
+		dma1.begin(true); // Allocate the DMA channel first
+		dma2.begin(true);
+	dmaState = AOI2S_Running;
 
 	config_i2s();
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
@@ -713,38 +721,41 @@ static void interleave(const int16_t *dest,const audio_block_t *block_left, cons
 	uint32_t *p = (uint32_t*)dest;
 	uint32_t *end = p + NUM_SAMPLES;
 
-	if (block_left != nullptr && block_right != nullptr) {
-		uint16_t *l = (uint16_t*)&block_left->data[offset];
-		uint16_t *r = (uint16_t*)&block_right->data[offset];
-		do {
-			*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
-			*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
-			*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
-			*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
-		} while (p < end);
-		return;
-	}
+	if (AOI2S_Running == dmaState)
+	{
+		if (block_left != nullptr && block_right != nullptr) {
+			uint16_t *l = (uint16_t*)&block_left->data[offset];
+			uint16_t *r = (uint16_t*)&block_right->data[offset];
+			do {
+				*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
+				*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
+				*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
+				*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
+			} while (p < end);
+			return;
+		}
 
-	if (block_left != nullptr) {
-		uint16_t *l = (uint16_t*)&block_left->data[offset];
-		do {
-			*p++ = (uint32_t)(*l++) << 16;
-			*p++ = (uint32_t)(*l++) << 16;
-			*p++ = (uint32_t)(*l++) << 16;
-			*p++ = (uint32_t)(*l++) << 16;
-		} while (p < end);
-		return;
-	}
+		if (block_left != nullptr) {
+			uint16_t *l = (uint16_t*)&block_left->data[offset];
+			do {
+				*p++ = (uint32_t)(*l++) << 16;
+				*p++ = (uint32_t)(*l++) << 16;
+				*p++ = (uint32_t)(*l++) << 16;
+				*p++ = (uint32_t)(*l++) << 16;
+			} while (p < end);
+			return;
+		}
 
-	if (block_right != nullptr) {
-		uint16_t *r = (uint16_t*)&block_right->data[offset];
-		do {
-			*p++ =(uint32_t)(*r++);
-			*p++ =(uint32_t)(*r++);
-			*p++ =(uint32_t)(*r++);
-			*p++ =(uint32_t)(*r++);
-		} while (p < end);
-		return;
+		if (block_right != nullptr) {
+			uint16_t *r = (uint16_t*)&block_right->data[offset];
+			do {
+				*p++ =(uint32_t)(*r++);
+				*p++ =(uint32_t)(*r++);
+				*p++ =(uint32_t)(*r++);
+				*p++ =(uint32_t)(*r++);
+			} while (p < end);
+			return;
+		}
 	}
 
 	do {
@@ -797,8 +808,10 @@ void AudioOutputI2Sslave::begin(void)
 	memset(i2s_tx_buffer1, 0, sizeof( i2s_tx_buffer1 ) );
 	memset(i2s_tx_buffer2, 0, sizeof( i2s_tx_buffer2 ) );
 
-	dma1.begin(true); // Allocate the DMA channels first
-	dma2.begin(true);
+	if (AOI2S_Stop == dmaState)
+		dma1.begin(true); // Allocate the DMA channels first
+		dma2.begin(true);
+	dmaState = AOI2S_Running;
 	
 	config_i2s();
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0

@@ -59,9 +59,9 @@ protected:
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
-private:
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
 	static dmaState_t dmaState;
+private:
 	static audio_block_t *block_left_2nd;  // released in destructor
 	static audio_block_t *block_right_2nd; // released in destructor
 	static uint16_t block_left_offset;
@@ -91,7 +91,7 @@ class AudioOutputI2S : public AudioStream
 {
 public:
 	AudioOutputI2S(void) : AudioStream(2, inputQueueArray) { begin(); }
-	~AudioOutputI2S(){SAFE_RELEASE_MANY(2,block_left,block_right);}
+	~AudioOutputI2S();
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2S;
@@ -105,6 +105,8 @@ protected:
 	static DMAChannel dma2;
 	static void isr1(void);
 	static void isr2(void);
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 private:
 	audio_block_t *inputQueueArray[2];
 };
