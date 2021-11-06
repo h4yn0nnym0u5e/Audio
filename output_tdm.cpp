@@ -32,76 +32,86 @@
 #include "memcpy_audio.h"
 #include "utility/imxrt_hw.h"
 
-audio_block_t * AudioOutputTDM::block_input[16] = {
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
-};
+audio_block_t * AudioOutputTDM::block_input[AUDIO_TDM_BLOCKS] = {0};
 bool AudioOutputTDM::update_responsibility = false;
+AudioOutputTDM::dmaState_t AudioOutputTDM::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputTDM::dma(false);
 DMAMEM __attribute__((aligned(32)))
 static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 DMAMEM __attribute__((aligned(32)))
-static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
+static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*AUDIO_TDM_BLOCKS];
 
 
 void AudioOutputTDM::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	for (int i=0; i < 16; i++) {
-		block_input[i] = nullptr;
-	}
-	memset(zeros, 0, sizeof(zeros));
-	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
+		for (int i=0; i < AUDIO_TDM_BLOCKS; i++) {
+			block_input[i] = nullptr;
+		}
+		memset(zeros, 0, sizeof(zeros));
+		memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
 
-	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_tdm();
+		// TODO: should we set & clear the I2S_TCSR_SR bit here?
+		config_tdm();
 #if defined(KINETISK)
-	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
+		CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
-	dma.TCD->SADDR = tdm_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
-	dma.TCD->DADDR = &I2S0_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
+		dma.TCD->SADDR = tdm_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = 4;
+		dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
+		dma.TCD->DADDR = &I2S0_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
 
-	update_responsibility = update_setup();
-	dma.enable();
+		dma.enable();
 
-	I2S0_TCSR = I2S_TCSR_SR;
-	I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+		I2S0_TCSR = I2S_TCSR_SR;
+		I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 #elif defined(__IMXRT1062__)
-	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
+		CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
 
-	dma.TCD->SADDR = tdm_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
-	dma.TCD->DADDR = &I2S1_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
+		dma.TCD->SADDR = tdm_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = 4;
+		dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
+		dma.TCD->DADDR = &I2S1_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 
-	update_responsibility = update_setup();
-	dma.enable();
+		dma.enable();
 
-	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
-	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-
+		I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
+		I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 #endif
+	}
+	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
 }
+
+
+AudioOutputTDM::~AudioOutputTDM() 
+{
+	SAFE_RELEASE(block_input,AUDIO_TDM_BLOCKS);
+	for (int i=0; i < AUDIO_TDM_BLOCKS; i++) 
+		block_input[i] = nullptr;
+	dmaState = AOI2S_Paused;
+}
+
 
 // TODO: needs optimization...
 static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *src2)
@@ -153,9 +163,13 @@ void AudioOutputTDM::isr(void)
 	uint32_t *dc = dest;
 	#endif
 	
-	for (i=0; i < 16; i += 2) {
-		src1 = block_input[i] ? (uint32_t *)(block_input[i]->data) : zeros;
-		src2 = block_input[i+1] ? (uint32_t *)(block_input[i+1]->data) : zeros;
+	for (i=0; i < AUDIO_TDM_BLOCKS; i += 2) {
+		src1 = (AOI2S_Running == dmaState && block_input[i]) 
+							? (uint32_t *)(block_input[i]->data) 
+							: zeros;
+		src2 = (AOI2S_Running == dmaState && block_input[i+1])
+							? (uint32_t *)(block_input[i+1]->data) 
+							: zeros;
 		memcpy_tdm_tx(dest, src1, src2);
 		dest++;
 	}
@@ -164,7 +178,7 @@ void AudioOutputTDM::isr(void)
 	arm_dcache_flush_delete(dc, sizeof(tdm_tx_buffer) / 2 );
 	#endif
 
-	for (i=0; i < 16; i++) {
+	for (i=0; i < AUDIO_TDM_BLOCKS; i++) {
 		if (block_input[i]) {
 			release(block_input[i]);
 			block_input[i] = nullptr;
@@ -175,16 +189,16 @@ void AudioOutputTDM::isr(void)
 
 void AudioOutputTDM::update(void)
 {
-	audio_block_t *prev[16];
+	audio_block_t *prev[AUDIO_TDM_BLOCKS];
 	unsigned int i;
 
 	__disable_irq();
-	for (i=0; i < 16; i++) {
+	for (i=0; i < AUDIO_TDM_BLOCKS; i++) {
 		prev[i] = block_input[i];
 		block_input[i] = receiveReadOnly(i);
 	}
 	__enable_irq();
-	for (i=0; i < 16; i++) {
+	for (i=0; i < AUDIO_TDM_BLOCKS; i++) {
 		if (prev[i]) release(prev[i]);
 	}
 }

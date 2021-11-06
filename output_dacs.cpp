@@ -35,18 +35,18 @@ audio_block_t * AudioOutputAnalogStereo::block_left_1st = NULL;
 audio_block_t * AudioOutputAnalogStereo::block_left_2nd = NULL;
 audio_block_t * AudioOutputAnalogStereo::block_right_1st = NULL;
 audio_block_t * AudioOutputAnalogStereo::block_right_2nd = NULL;
-audio_block_t AudioOutputAnalogStereo::block_silent;
-bool AudioOutputAnalogStereo::update_responsibility = false;
+bool AudioOutputAnalogStereo::update_responsibility = false;AudioOutputAnalogStereo::dmaState_t AudioOutputAnalogStereo::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputAnalogStereo::dma(false);
 
 void AudioOutputAnalogStereo::begin(void)
 {
+	if (AOI2S_Stop == dmaState)
+	{
 	dma.begin(true); // Allocate the DMA channel first
 
 	SIM_SCGC2 |= SIM_SCGC2_DAC0 | SIM_SCGC2_DAC1;
 	DAC0_C0 = DAC_C0_DACEN;                   // 1.2V VDDA is DACREF_2
 	DAC1_C0 = DAC_C0_DACEN;
-	memset(&block_silent, 0, sizeof(block_silent));
 
 	// slowly ramp up to DC voltage, approx 1/4 second
 	for (int16_t i=0; i<=2048; i+=8) {
@@ -86,6 +86,20 @@ void AudioOutputAnalogStereo::begin(void)
 	update_responsibility = update_setup();
 	dma.enable();
 	dma.attachInterrupt(isr);
+}
+
+
+
+AudioOutputAnalogStereo::~AudioOutputAnalogStereo()
+{
+	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,
+						block_right_1st,block_right_2nd); 
+	block_left_1st = NULL;
+	block_left_2nd = NULL;
+	block_right_1st = NULL;
+	block_right_2nd = NULL;											   
+	dmaState = AOI2S_Paused;
+	
 }
 
 void AudioOutputAnalogStereo::analogReference(int ref)
@@ -165,12 +179,21 @@ void AudioOutputAnalogStereo::isr(void)
 		end = dac_buffer + AUDIO_BLOCK_SAMPLES;
 	}
 	block_left = block_left_1st;
-	if (!block_left) block_left = &block_silent;
+	if (!block_left) block_left = &silentBlock;
 	block_right = block_right_1st;
-	if (!block_right) block_right = &block_silent;
+	if (!block_right) block_right = &silentBlock;
 
-	src_left = (const uint32_t *)(block_left->data);
-	src_right = (const uint32_t *)(block_right->data);
+	if (AOI2S_Running == dmaState)
+	{
+		src_left = (const uint32_t *)(block_left->data);
+		src_right = (const uint32_t *)(block_right->data);
+	}
+	else
+	{
+		src_left = (const uint32_t *)(&(silentBlock.data));
+		src_right = (const uint32_t *)(&(silentBlock.data));
+	}
+	
 	do {
 		// TODO: can this be optimized?
 		uint32_t left = *src_left++;
@@ -183,12 +206,12 @@ void AudioOutputAnalogStereo::isr(void)
 		*dest++ = out2;
 	} while (dest < end);
 
-	if (block_left != &block_silent) {
+	if (block_left != &silentBlock) {
 		release(block_left);
 		block_left_1st = block_left_2nd;
 		block_left_2nd = NULL;
 	}
-	if (block_right != &block_silent) {
+	if (block_right != &silentBlock) {
 		release(block_right);
 		block_right_1st = block_right_2nd;
 		block_right_2nd = NULL;

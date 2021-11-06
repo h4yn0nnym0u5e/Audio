@@ -57,7 +57,7 @@ bool AudioOutputADAT::update_responsibility = false;
 //uint32_t  AudioOutputADAT::vucp = VUCP_VALID;
 
 DMAMEM __attribute__((aligned(32))) static uint32_t ADAT_tx_buffer[AUDIO_BLOCK_SAMPLES * 8]; //4 KB, AUDIO_BLOCK_SAMPLES is usually 128
-
+AudioOutputADAT::dmaState_t AudioOutputADAT::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputADAT::dma(false);
 
 static const uint32_t zerodata[AUDIO_BLOCK_SAMPLES/4] = {0};
@@ -70,9 +70,6 @@ static const uint32_t LookupTable_fourthword[256] = { 0x0, 0x1, 0x3, 0x2, 0x7, 0
 
 void AudioOutputADAT::begin(void)
 {
-
-	dma.begin(true); // Allocate the DMA channel first
-
 	block_ch1_1st = NULL;
 	block_ch2_1st = NULL;
 	block_ch3_1st = NULL;
@@ -81,30 +78,55 @@ void AudioOutputADAT::begin(void)
 	block_ch6_1st = NULL;
 	block_ch7_1st = NULL;
 	block_ch8_1st = NULL;
-	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_ADAT();
-	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
-	const int nbytes_mlno = 2 * 8; // 16 Bytes per minor loop
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	dma.TCD->SADDR = ADAT_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2); //transfersize 2 = 32 bit, 5 = 32 byte
-	dma.TCD->NBYTES_MLNO = nbytes_mlno;
-	dma.TCD->SLAST = -sizeof(ADAT_tx_buffer);
-	dma.TCD->DADDR = &I2S0_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(ADAT_tx_buffer) / nbytes_mlno;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(ADAT_tx_buffer) / nbytes_mlno;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
+		// TODO: should we set & clear the I2S_TCSR_SR bit here?
+		config_ADAT();
+		CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
+
+		const int nbytes_mlno = 2 * 8; // 16 Bytes per minor loop
+
+		dma.TCD->SADDR = ADAT_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2); //transfersize 2 = 32 bit, 5 = 32 byte
+		dma.TCD->NBYTES_MLNO = nbytes_mlno;
+		dma.TCD->SLAST = -sizeof(ADAT_tx_buffer);
+		dma.TCD->DADDR = &I2S0_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(ADAT_tx_buffer) / nbytes_mlno;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(ADAT_tx_buffer) / nbytes_mlno;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
+		dma.enable();
+
+		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
+	}
+	dmaState = AOI2S_Running;
 	update_responsibility = update_setup();
-	dma.enable();
+	dma.attachInterrupt(isr);	
+}
 
-	I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
-	dma.attachInterrupt(isr);
 
+void AudioOutputADAT::~AudioOutputADAT(void)
+{
+	SAFE_RELEASE_MANY(16,block_ch1_1st,block_ch2_1st,block_ch3_1st,block_ch4_1st,
+						  block_ch5_1st,block_ch6_1st,block_ch7_1st,block_ch8_1st,
+						  block_ch1_2nd,block_ch2_2nd,block_ch3_2nd,block_ch4_2nd,
+						  block_ch5_2nd,block_ch6_2nd,block_ch7_2nd,block_ch8_2nd
+						 );
+	block_ch1_1st = NULL;
+	block_ch2_1st = NULL;
+	block_ch3_1st = NULL;
+	block_ch4_1st = NULL;
+	block_ch5_1st = NULL;
+	block_ch6_1st = NULL;
+	block_ch7_1st = NULL;
+	block_ch8_1st = NULL;
+	dmaState = AOI2S_Paused;
 }
 
 /*
@@ -149,14 +171,14 @@ void AudioOutputADAT::isr(void)
 		end = (uint32_t *)&ADAT_tx_buffer[AUDIO_BLOCK_SAMPLES * 8/2];
 	}
 
-	src1 = (block_ch1_1st) ? block_ch1_1st->data + ch1_offset : zeros;
-	src2 = (block_ch2_1st) ? block_ch2_1st->data + ch2_offset : zeros;
-	src3 = (block_ch3_1st) ? block_ch3_1st->data + ch3_offset : zeros;
-	src4 = (block_ch4_1st) ? block_ch4_1st->data + ch4_offset : zeros;
-	src5 = (block_ch5_1st) ? block_ch5_1st->data + ch5_offset : zeros;
-	src6 = (block_ch6_1st) ? block_ch6_1st->data + ch6_offset : zeros;
-	src7 = (block_ch7_1st) ? block_ch7_1st->data + ch7_offset : zeros;
-	src8 = (block_ch8_1st) ? block_ch8_1st->data + ch8_offset : zeros;
+	src1 = (block_ch1_1st && AOI2S_Running == dmaState) ? block_ch1_1st->data + ch1_offset : zeros;
+	src2 = (block_ch2_1st && AOI2S_Running == dmaState) ? block_ch2_1st->data + ch2_offset : zeros;
+	src3 = (block_ch3_1st && AOI2S_Running == dmaState) ? block_ch3_1st->data + ch3_offset : zeros;
+	src4 = (block_ch4_1st && AOI2S_Running == dmaState) ? block_ch4_1st->data + ch4_offset : zeros;
+	src5 = (block_ch5_1st && AOI2S_Running == dmaState) ? block_ch5_1st->data + ch5_offset : zeros;
+	src6 = (block_ch6_1st && AOI2S_Running == dmaState) ? block_ch6_1st->data + ch6_offset : zeros;
+	src7 = (block_ch7_1st && AOI2S_Running == dmaState) ? block_ch7_1st->data + ch7_offset : zeros;
+	src8 = (block_ch8_1st && AOI2S_Running == dmaState) ? block_ch8_1st->data + ch8_offset : zeros;
 
 
 	//Non-NZRI encoded 'empty' ADAT Frame

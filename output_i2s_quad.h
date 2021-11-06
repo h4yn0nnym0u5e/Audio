@@ -35,10 +35,7 @@ class AudioOutputI2SQuad : public AudioStream
 {
 public:
 	AudioOutputI2SQuad(void) : AudioStream(4, inputQueueArray) { begin(); }
-	~AudioOutputI2SQuad()
-	{SAFE_RELEASE_MANY(8,block_ch1_1st,block_ch2_1st,block_ch3_1st,block_ch4_1st,
-						  block_ch1_2nd,block_ch2_2nd,block_ch3_2nd,block_ch4_2nd
-						  );}
+	~AudioOutputI2SQuad();
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2SQuad;
@@ -49,6 +46,8 @@ private:
 	static audio_block_t *block_ch3_1st; // released in destructor
 	static audio_block_t *block_ch4_1st; // released in destructor
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 	static audio_block_t *block_ch1_2nd; // released in destructor

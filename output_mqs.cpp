@@ -38,6 +38,7 @@ audio_block_t * AudioOutputMQS::block_right_2nd = NULL;
 uint16_t  AudioOutputMQS::block_left_offset = 0;
 uint16_t  AudioOutputMQS::block_right_offset = 0;
 bool AudioOutputMQS::update_responsibility = false;
+AudioOutputMQS::dmaState_t AudioOutputMQS::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputMQS::dma(false);
 DMAMEM __attribute__((aligned(32)))
 static uint32_t I2S3_tx_buffer[AUDIO_BLOCK_SAMPLES];
@@ -45,34 +46,50 @@ static uint32_t I2S3_tx_buffer[AUDIO_BLOCK_SAMPLES];
 
 void AudioOutputMQS::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	block_left_1st = NULL;
-	block_right_1st = NULL;
+		block_left_1st = NULL;
+		block_right_1st = NULL;
 
-	config_i2s();
+		config_i2s();
 
-	CORE_PIN10_CONFIG = 2;//B0_00 MQS_RIGHT
-	CORE_PIN12_CONFIG = 2;//B0_01 MQS_LEFT
+		CORE_PIN10_CONFIG = 2;//B0_00 MQS_RIGHT
+		CORE_PIN12_CONFIG = 2;//B0_01 MQS_LEFT
 
-	dma.TCD->SADDR = I2S3_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = -sizeof(I2S3_tx_buffer);
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(I2S3_tx_buffer) / 2;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(I2S3_tx_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.TCD->DADDR = (void *)((uint32_t)&I2S3_TDR0 + 0);
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI3_TX);
+		dma.TCD->SADDR = I2S3_tx_buffer;
+		dma.TCD->SOFF = 2;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = -sizeof(I2S3_tx_buffer);
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(I2S3_tx_buffer) / 2;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(I2S3_tx_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.TCD->DADDR = (void *)((uint32_t)&I2S3_TDR0 + 0);
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI3_TX);
 
-	I2S3_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+		I2S3_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+		dma.enable();
+	}
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
-	dma.enable();
+	dmaState = AOI2S_Running;
 }
+
+
+AudioOutputMQS::~AudioOutputMQS()
+{
+	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
+	block_left_1st = NULL;
+	block_right_1st = NULL;
+	block_left_2nd = NULL;
+	block_right_2nd = NULL;
+	dmaState = AOI2S_Paused;
+}
+
 
 void AudioOutputMQS::isr(void)
 {
@@ -98,14 +115,14 @@ void AudioOutputMQS::isr(void)
 	offsetL = AudioOutputMQS::block_left_offset;
 	offsetR = AudioOutputMQS::block_right_offset;
 
-	if (blockL && blockR) {
+	if (AOI2S_Running == dmaState && blockL && blockR) {
 		memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR);
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;	
-	} else if (blockL) {
+	} else if (AOI2S_Running == dmaState && blockL) {
 		memcpy_tointerleaveL(dest, blockL->data + offsetL);
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;		
-	} else if (blockR) {
+	} else if (AOI2S_Running == dmaState && blockR) {
 		memcpy_tointerleaveR(dest, blockR->data + offsetR);
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;		
 	} else {
@@ -116,7 +133,7 @@ void AudioOutputMQS::isr(void)
 	arm_dcache_flush_delete(dest, sizeof(I2S3_tx_buffer) / 2 );
 	#endif
 	
-	if (offsetL < AUDIO_BLOCK_SAMPLES) {
+	if (AOI2S_Running == dmaState && offsetL < AUDIO_BLOCK_SAMPLES) {
 		AudioOutputMQS::block_left_offset = offsetL;
 	} else {
 		AudioOutputMQS::block_left_offset = 0;
@@ -124,7 +141,7 @@ void AudioOutputMQS::isr(void)
 		AudioOutputMQS::block_left_1st = AudioOutputMQS::block_left_2nd;
 		AudioOutputMQS::block_left_2nd = NULL;
 	}
-	if (offsetR < AUDIO_BLOCK_SAMPLES) {
+	if (AOI2S_Running == dmaState && offsetR < AUDIO_BLOCK_SAMPLES) {
 		AudioOutputMQS::block_right_offset = offsetR;
 	} else {
 		AudioOutputMQS::block_right_offset = 0;
@@ -132,10 +149,7 @@ void AudioOutputMQS::isr(void)
 		AudioOutputMQS::block_right_1st = AudioOutputMQS::block_right_2nd;
 		AudioOutputMQS::block_right_2nd = NULL;
 	}
-
 }
-
-
 
 
 void AudioOutputMQS::update(void)
@@ -186,6 +200,7 @@ void AudioOutputMQS::update(void)
 	}
 
 }
+
 
 void AudioOutputMQS::config_i2s(void)
 {

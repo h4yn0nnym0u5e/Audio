@@ -47,7 +47,7 @@ class AudioOutputPT8211 : public AudioStream
 {
 public:
 	AudioOutputPT8211(void) : AudioStream(2, inputQueueArray) { begin(); }
-	~AudioOutputPT8211(){SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);}
+	~AudioOutputPT8211();
 	virtual void update(void);
 	void begin(void);
 protected:
@@ -55,6 +55,8 @@ protected:
 	static audio_block_t *block_left_1st; // released in destructor
 	static audio_block_t *block_right_1st; // released in destructor
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void)
 	#if defined(AUDIO_PT8211_OVERSAMPLING)
@@ -78,14 +80,18 @@ class AudioOutputPT8211 : public AudioStream
 {
 public:
 	AudioOutputPT8211(void) : AudioStream(2, inputQueueArray) { begin(); }
-	~AudioOutputPT8211(){SAFE_RELEASE_MANY(2,block_left,block_right);}
+	~AudioOutputPT8211();
 	virtual void update(void);
 	void begin(void);
 	
 protected:	
 	static audio_block_t *block_left; // released in destructor
 	static audio_block_t *block_right; // released in destructor
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma1;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma2;
 	audio_block_t *inputQueueArray[2];
 	static void isr1(void);

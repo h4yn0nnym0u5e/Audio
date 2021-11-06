@@ -35,7 +35,7 @@ class AudioOutputAnalog : public AudioStream
 {
 public:
 	AudioOutputAnalog(void) : AudioStream(1, inputQueueArray) { begin(); }
-	~AudioOutputAnalog() {SAFE_RELEASE_MANY(2,block_left_1st,block_left_2nd);}
+	~AudioOutputAnalog();
 	virtual void update(void);
 	void begin(void);
 	void analogReference(int ref);
@@ -45,9 +45,13 @@ private:
 	static bool update_responsibility;
 	audio_block_t *inputQueueArray[1];
 #if defined(KINETISK)
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 #elif defined(KINETISL)
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma1;
 	static DMAChannel dma2;
 	static void isr1(void);

@@ -34,49 +34,63 @@ DMAMEM __attribute__((aligned(32))) static uint16_t dac_buffer[AUDIO_BLOCK_SAMPL
 audio_block_t * AudioOutputAnalog::block_left_1st = NULL;
 audio_block_t * AudioOutputAnalog::block_left_2nd = NULL;
 bool AudioOutputAnalog::update_responsibility = false;
+AudioOutputAnalog::dmaState_t AudioOutputAnalog::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputAnalog::dma(false);
 
 void AudioOutputAnalog::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	SIM_SCGC2 |= SIM_SCGC2_DAC0;
-	DAC0_C0 = DAC_C0_DACEN;                   // 1.2V VDDA is DACREF_2
-	// slowly ramp up to DC voltage, approx 1/4 second
-	for (int16_t i=0; i<=2048; i+=8) {
-		*(int16_t *)&(DAC0_DAT0L) = i;
-		delay(1);
+		SIM_SCGC2 |= SIM_SCGC2_DAC0;
+		DAC0_C0 = DAC_C0_DACEN;                   // 1.2V VDDA is DACREF_2
+		// slowly ramp up to DC voltage, approx 1/4 second
+		for (int16_t i=0; i<=2048; i+=8) {
+			*(int16_t *)&(DAC0_DAT0L) = i;
+			delay(1);
+		}
+
+		// set the programmable delay block to trigger DMA requests
+		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
+		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
+		  || PDB0_MOD != PDB_PERIOD
+		  || PDB0_IDLY != 1
+		  || PDB0_CH0C1 != 0x0101) {
+			SIM_SCGC6 |= SIM_SCGC6_PDB;
+			PDB0_IDLY = 1;
+			PDB0_MOD = PDB_PERIOD;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+			PDB0_CH0C1 = 0x0101;
+		}
+
+		dma.TCD->SADDR = dac_buffer;
+		dma.TCD->SOFF = 2;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = -sizeof(dac_buffer);
+		dma.TCD->DADDR = &DAC0_DAT0L;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(dac_buffer) / 2;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(dac_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_PDB);
+		dma.enable();
 	}
-
-	// set the programmable delay block to trigger DMA requests
-	if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
-	  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
-	  || PDB0_MOD != PDB_PERIOD
-	  || PDB0_IDLY != 1
-	  || PDB0_CH0C1 != 0x0101) {
-		SIM_SCGC6 |= SIM_SCGC6_PDB;
-		PDB0_IDLY = 1;
-		PDB0_MOD = PDB_PERIOD;
-		PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
-		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
-		PDB0_CH0C1 = 0x0101;
-	}
-
-	dma.TCD->SADDR = dac_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = -sizeof(dac_buffer);
-	dma.TCD->DADDR = &DAC0_DAT0L;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(dac_buffer) / 2;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(dac_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_PDB);
 	update_responsibility = update_setup();
-	dma.enable();
 	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
+}
+
+
+AudioOutputAnalog::~AudioOutputAnalog() 
+{
+	SAFE_RELEASE_MANY(2,block_left_1st,block_left_2nd);
+	block_left_1st = NULL;
+	block_left_2nd = NULL;
+	dmaState = AOI2S_paused;
 }
 
 void AudioOutputAnalog::analogReference(int ref)
@@ -136,7 +150,7 @@ void AudioOutputAnalog::isr(void)
 		end = (int16_t *)&dac_buffer[AUDIO_BLOCK_SAMPLES];
 	}
 	block = AudioOutputAnalog::block_left_1st;
-	if (block) {
+	if (AOI2S_Running == dmaState && block) {
 		src = block->data;
 		do {
 			// TODO: this should probably dither
@@ -161,42 +175,56 @@ DMAMEM static uint16_t dac_buffer1[AUDIO_BLOCK_SAMPLES];
 DMAMEM static uint16_t dac_buffer2[AUDIO_BLOCK_SAMPLES];
 audio_block_t * AudioOutputAnalog::block_left_1st = NULL;
 audio_block_t * AudioOutputAnalog::block_left_2nd = NULL;
-bool AudioOutputAnalog::update_responsibility = false;
+bool AudioOutputAnalog::update_responsibility = false;AudioOutputAnalog::dmaState_t AudioOutputAnalog::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputAnalog::dma1(false);
 
 void AudioOutputAnalog::begin(void)
 {
-	dma1.begin(true); // Allocate the DMA channels first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma1.begin(true); // Allocate the DMA channels first
 
-	//delay(2500);
-	//Serial.println("AudioOutputAnalog begin");
-	delay(10);
+		//delay(2500);
+		//Serial.println("AudioOutputAnalog begin");
+		delay(10);
 
-	SIM_SCGC6 |= SIM_SCGC6_DAC0;
-	DAC0_C0 = DAC_C0_DACEN | DAC_C0_DACRFS;		// VDDA (3.3V) ref
-	// slowly ramp up to DC voltage, approx 1/4 second
-	for (int16_t i=0; i<2048; i+=8) {
-		*(int16_t *)&(DAC0_DAT0L) = i;
-		delay(1);
+		SIM_SCGC6 |= SIM_SCGC6_DAC0;
+		DAC0_C0 = DAC_C0_DACEN | DAC_C0_DACRFS;		// VDDA (3.3V) ref
+		// slowly ramp up to DC voltage, approx 1/4 second
+		for (int16_t i=0; i<2048; i+=8) {
+			*(int16_t *)&(DAC0_DAT0L) = i;
+			delay(1);
+		}
+
+		// commandeer FTM1 for timing (PWM on pin 3 & 4 will become 22 kHz)
+		FTM1_SC = 0;
+		FTM1_CNT = 0;
+		FTM1_MOD = (uint32_t)((F_PLL/2) / 44117.64706/*AUDIO_SAMPLE_RATE_EXACT*/ + 0.5);
+		FTM1_SC = FTM_SC_CLKS(1) | FTM_SC_DMA;
+
+		dma1.sourceBuffer(dac_buffer1, sizeof(dac_buffer1));
+		dma1.destination(*(int16_t *)&DAC0_DAT0L);
+		dma1.interruptAtCompletion();
+		dma1.disableOnCompletion();
+		dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_FTM1_OV);
+
+		// Enable DMA transfers on timer
+		dma1.enable();
 	}
-
-	// commandeer FTM1 for timing (PWM on pin 3 & 4 will become 22 kHz)
-	FTM1_SC = 0;
-	FTM1_CNT = 0;
-	FTM1_MOD = (uint32_t)((F_PLL/2) / 44117.64706/*AUDIO_SAMPLE_RATE_EXACT*/ + 0.5);
-	FTM1_SC = FTM_SC_CLKS(1) | FTM_SC_DMA;
-
-	dma1.sourceBuffer(dac_buffer1, sizeof(dac_buffer1));
-	dma1.destination(*(int16_t *)&DAC0_DAT0L);
-	dma1.interruptAtCompletion();
-	dma1.disableOnCompletion();
-	dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_FTM1_OV);
-	dma1.attachInterrupt(isr1);
-
 	update_responsibility = update_setup();
-	// Enable DMA transfers on timer
-	dma1.enable();
+	dma.attachInterrupt(isr1);
+	dmaState = AOI2S_Running;
 }
+
+
+AudioOutputAnalog::~AudioOutputAnalog() 
+{
+	SAFE_RELEASE_MANY(2,block_left_1st,block_left_2nd);
+	block_left_1st = NULL;
+	block_left_2nd = NULL;
+	dmaState = AOI2S_paused;
+}
+
 
 void AudioOutputAnalog::isr1(void)
 {
@@ -226,7 +254,7 @@ void AudioOutputAnalog::isr1(void)
 	const int16_t *src;
 	audio_block_t *block;
 	block = AudioOutputAnalog::block_left_1st;
-	if (block) {
+	if (AOI2S_Running == dmaState && block) {
 		src = block->data;
 		do {
 			*dest++ = ((*src++) >> 4) + 0x800;

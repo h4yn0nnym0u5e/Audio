@@ -32,22 +32,26 @@
 #include "AudioStream.h"
 #include "DMAChannel.h"
 
+#define AUDIO_TDM_BLOCKS 16
+
 class AudioOutputTDM2 : public AudioStream
 {
 public:
-	AudioOutputTDM2(void) : AudioStream(16, inputQueueArray) { begin(); }
-	~AudioOutputTDM2() {SAFE_RELEASE(block_input,16);}
+	AudioOutputTDM2(void) : AudioStream(AUDIO_TDM_BLOCKS, inputQueueArray) { begin(); }
+	~AudioOutputTDM2();
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputTDM2;
 protected:
 	static void config_tdm(void);
-	static audio_block_t *block_input[16]; // released in destructory
+	static audio_block_t *block_input[AUDIO_TDM_BLOCKS]; // released in destructor
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 private:
-	audio_block_t *inputQueueArray[16];
+	audio_block_t *inputQueueArray[AUDIO_TDM_BLOCKS];
 };
 
 

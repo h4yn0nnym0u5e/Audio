@@ -30,52 +30,64 @@
 #include "memcpy_audio.h"
 #include "utility/imxrt_hw.h"
 
-audio_block_t * AudioOutputTDM2::block_input[16] = {
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
-};
+audio_block_t * AudioOutputTDM2::block_input[AUDIO_TDM_BLOCKS] = {0};
 bool AudioOutputTDM2::update_responsibility = false;
+AudioOutputTDM2::dmaState_t AudioOutputTDM2::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputTDM2::dma(false);
 DMAMEM __attribute__((aligned(32)))
 static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 DMAMEM __attribute__((aligned(32)))
-static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
+static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*AUDIO_TDM_BLOCKS];
 
 
 void AudioOutputTDM2::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	for (int i=0; i < 16; i++) {
-		block_input[i] = nullptr;
+		for (int i=0; i < AUDIO_TDM_BLOCKS; i++) {
+			block_input[i] = nullptr;
+		}
+
+		// TODO: should we set & clear the I2S_TCSR_SR bit here?
+		config_tdm();
+
+		CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
+
+		dma.TCD->SADDR = tdm_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = 4;
+		dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
+		dma.TCD->DADDR = &I2S2_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
+
+		dma.enable();
+
+		//I2S2_RCSR |= I2S_RCSR_RE;
+		I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+
 	}
-
-	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_tdm();
-
-	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
-
-	dma.TCD->SADDR = tdm_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
-	dma.TCD->DADDR = &I2S2_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
-
 	update_responsibility = update_setup();
-	dma.enable();
-
-	//I2S2_RCSR |= I2S_RCSR_RE;
-	I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-
 	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
 }
+
+
+AudioOutputTDM2::~AudioOutputTDM2()
+{
+	SAFE_RELEASE(block_input,AUDIO_TDM_BLOCKS);
+	for (int i=0; i < AUDIO_TDM_BLOCKS; i++) 
+		block_input[i] = nullptr;
+	dmaState = AOI2S_Paused;
+}
+
 
 // TODO: needs optimization...
 static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *src2)
@@ -121,9 +133,13 @@ void AudioOutputTDM2::isr(void)
 	}
 	if (update_responsibility) AudioStream::update_all();
 	dc = dest;
-	for (i=0; i < 16; i += 2) {
-		src1 = block_input[i] ? (uint32_t *)(block_input[i]->data) : zeros;
-		src2 = block_input[i+1] ? (uint32_t *)(block_input[i+1]->data) : zeros;
+	for (i=0; i < AUDIO_TDM_BLOCKS; i += 2) {
+		src1 = (AOI2S_Running == dmaState && block_input[i]) 
+							? (uint32_t *)(block_input[i]->data) 
+							: zeros;
+		src2 = (AOI2S_Running == dmaState && block_input[i+1])
+							? (uint32_t *)(block_input[i+1]->data) 
+							: zeros;
 		memcpy_tdm_tx(dest, src1, src2);
 		dest++;
 	}
@@ -132,7 +148,7 @@ void AudioOutputTDM2::isr(void)
 	arm_dcache_flush_delete(dc, sizeof(tdm_tx_buffer) / 2 );
 	#endif
 
-	for (i=0; i < 16; i++) {
+	for (i=0; i < AUDIO_TDM_BLOCKS; i++) {
 		if (block_input[i]) {
 			release(block_input[i]);
 			block_input[i] = nullptr;
@@ -143,16 +159,16 @@ void AudioOutputTDM2::isr(void)
 
 void AudioOutputTDM2::update(void)
 {
-	audio_block_t *prev[16];
+	audio_block_t *prev[AUDIO_TDM_BLOCKS];
 	unsigned int i;
 
 	__disable_irq();
-	for (i=0; i < 16; i++) {
+	for (i=0; i < AUDIO_TDM_BLOCKS; i++) {
 		prev[i] = block_input[i];
 		block_input[i] = receiveReadOnly(i);
 	}
 	__enable_irq();
-	for (i=0; i < 16; i++) {
+	for (i=0; i < AUDIO_TDM_BLOCKS; i++) {
 		if (prev[i]) release(prev[i]);
 	}
 }

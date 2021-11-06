@@ -36,6 +36,7 @@ audio_block_t * AudioOutputI2S2::block_right_2nd = NULL;
 uint16_t  AudioOutputI2S2::block_left_offset = 0;
 uint16_t  AudioOutputI2S2::block_right_offset = 0;
 bool AudioOutputI2S2::update_responsibility = false;
+AudioOutputI2S2::dmaState_t AudioOutputI2S2::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputI2S2::dma(false);
 DMAMEM __attribute__((aligned(32))) static uint32_t i2s2_tx_buffer[AUDIO_BLOCK_SAMPLES];
 
@@ -43,38 +44,55 @@ DMAMEM __attribute__((aligned(32))) static uint32_t i2s2_tx_buffer[AUDIO_BLOCK_S
 
 void AudioOutputI2S2::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	block_left_1st = NULL;
-	block_right_1st = NULL;
+		block_left_1st = NULL;
+		block_right_1st = NULL;
 
-	config_i2s();
+		config_i2s();
 
-	// if AudioInputI2S2 set I2S_TCSR_TE (for clock sync), disable it
-	I2S2_TCSR = 0;
-	while (I2S2_TCSR & I2S_TCSR_TE) ; //wait for transmit disabled
+		// if AudioInputI2S2 set I2S_TCSR_TE (for clock sync), disable it
+		I2S2_TCSR = 0;
+		while (I2S2_TCSR & I2S_TCSR_TE) ; //wait for transmit disabled
 
-	CORE_PIN2_CONFIG  = 2;  //EMC_04, 2=SAI2_TX_DATA, page 428
+		CORE_PIN2_CONFIG  = 2;  //EMC_04, 2=SAI2_TX_DATA, page 428
 
-	dma.TCD->SADDR = i2s2_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = -sizeof(i2s2_tx_buffer);
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(i2s2_tx_buffer) / 2;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(i2s2_tx_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.TCD->DADDR = (void *)((uint32_t)&I2S2_TDR0 + 2);
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
-	dma.enable();
+		dma.TCD->SADDR = i2s2_tx_buffer;
+		dma.TCD->SOFF = 2;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = -sizeof(i2s2_tx_buffer);
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(i2s2_tx_buffer) / 2;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(i2s2_tx_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.TCD->DADDR = (void *)((uint32_t)&I2S2_TDR0 + 2);
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
+		dma.enable();
 
-	I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
-
+		I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
+	}
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
 }
+
+
+AudioOutputI2S2::~AudioOutputI2S2()
+{
+	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
+	
+	block_left_1st = NULL;
+	block_left_2nd = NULL;
+	block_right_1st = NULL;
+	block_right_2nd = NULL;
+	
+	dmaState = AOI2S_Paused;	
+}
+
 
 void AudioOutputI2S2::isr(void)
 {
@@ -100,14 +118,14 @@ void AudioOutputI2S2::isr(void)
 	offsetL = AudioOutputI2S2::block_left_offset;
 	offsetR = AudioOutputI2S2::block_right_offset;
 
-	if (blockL && blockR) {
+	if (AOI2S_Running == dmaState && blockL && blockR) {
 		memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR);
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
-	} else if (blockL) {
+	} else if (AOI2S_Running == dmaState && blockL) {
 		memcpy_tointerleaveL(dest, blockL->data + offsetL);
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
-	} else if (blockR) {
+	} else if (AOI2S_Running == dmaState && blockR) {
 		memcpy_tointerleaveR(dest, blockR->data + offsetR);
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
 	} else {
@@ -135,8 +153,6 @@ void AudioOutputI2S2::isr(void)
 		AudioOutputI2S2::block_right_2nd = NULL;
 	}
 }
-
-
 
 
 void AudioOutputI2S2::update(void)
@@ -248,36 +264,41 @@ void AudioOutputI2S2::config_i2s(void)
 
 void AudioOutputI2S2slave::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	//pinMode(2, OUTPUT);
-	block_left_1st = NULL;
-	block_right_1st = NULL;
+		//pinMode(2, OUTPUT);
+		block_left_1st = NULL;
+		block_right_1st = NULL;
 
-	config_i2s();
+		config_i2s();
 
-	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
+		CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
 
-	dma.TCD->SADDR = i2s2_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = -sizeof(i2s2_tx_buffer);
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(i2s2_tx_buffer) / 2;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(i2s2_tx_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.TCD->DADDR = (void *)((uint32_t)&I2S2_TDR0 + 2);
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
-	dma.enable();
+		dma.TCD->SADDR = i2s2_tx_buffer;
+		dma.TCD->SOFF = 2;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = -sizeof(i2s2_tx_buffer);
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(i2s2_tx_buffer) / 2;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(i2s2_tx_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.TCD->DADDR = (void *)((uint32_t)&I2S2_TDR0 + 2);
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
+		dma.enable();
 
-	I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
+		I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
 
+	}
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
 
 }
+
 
 void AudioOutputI2S2slave::config_i2s(void)
 {

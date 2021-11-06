@@ -52,58 +52,87 @@ uint16_t  AudioOutputI2SHex::ch5_offset = 0;
 uint16_t  AudioOutputI2SHex::ch6_offset = 0;
 bool AudioOutputI2SHex::update_responsibility = false;
 DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SAMPLES*3];
+AudioOutputI2SHex::dmaState_t AudioOutputI2SHex::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputI2SHex::dma(false);
 
 static const uint32_t zerodata[AUDIO_BLOCK_SAMPLES/4] = {0};
 
 void AudioOutputI2SHex::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
+		block_ch1_1st = NULL;
+		block_ch2_1st = NULL;
+		block_ch3_1st = NULL;
+		block_ch4_1st = NULL;
+		block_ch5_1st = NULL;
+		block_ch6_1st = NULL;
+
+		const int pinoffset = 0; // TODO: make this configurable...
+		memset(i2s_tx_buffer, 0, sizeof(i2s_tx_buffer));
+		AudioOutputI2S::config_i2s();
+		I2S1_TCR3 = I2S_TCR3_TCE_3CH << pinoffset;
+		switch (pinoffset) {
+		  case 0:
+			CORE_PIN7_CONFIG  = 3;
+			CORE_PIN32_CONFIG = 3;
+			CORE_PIN9_CONFIG  = 3;
+			break;
+		  case 1:
+			CORE_PIN32_CONFIG = 3;
+			CORE_PIN9_CONFIG  = 3;
+			CORE_PIN6_CONFIG  = 3;
+		}
+		dma.TCD->SADDR = i2s_tx_buffer;
+		dma.TCD->SOFF = 2;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLOFFYES = DMA_TCD_NBYTES_DMLOE |
+			DMA_TCD_NBYTES_MLOFFYES_MLOFF(-12) |
+			DMA_TCD_NBYTES_MLOFFYES_NBYTES(6);
+		dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
+		dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0 + 2 + pinoffset * 4);
+		dma.TCD->DOFF = 4;
+		dma.TCD->CITER_ELINKNO = AUDIO_BLOCK_SAMPLES * 2;
+		dma.TCD->DLASTSGA = -12;
+		dma.TCD->BITER_ELINKNO = AUDIO_BLOCK_SAMPLES * 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
+		dma.enable();
+		I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
+		I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+		I2S1_TCR3 = I2S_TCR3_TCE_3CH << pinoffset;
+	}
+	update_responsibility = update_setup();
+	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
+}
+
+
+AudioOutputI2SHex::~AudioOutputI2SHex()
+{
+	SAFE_RELEASE_MANY(12,block_ch1_1st,block_ch2_1st,block_ch3_1st,block_ch4_1st,
+					  block_ch5_1st,block_ch6_1st,
+					  block_ch1_2nd,block_ch2_2nd,block_ch3_2nd,block_ch4_2nd,
+					  block_ch5_2nd,block_ch6_2nd
+					  );
 	block_ch1_1st = NULL;
 	block_ch2_1st = NULL;
 	block_ch3_1st = NULL;
 	block_ch4_1st = NULL;
 	block_ch5_1st = NULL;
 	block_ch6_1st = NULL;
-
-	const int pinoffset = 0; // TODO: make this configurable...
-	memset(i2s_tx_buffer, 0, sizeof(i2s_tx_buffer));
-	AudioOutputI2S::config_i2s();
-	I2S1_TCR3 = I2S_TCR3_TCE_3CH << pinoffset;
-	switch (pinoffset) {
-	  case 0:
-		CORE_PIN7_CONFIG  = 3;
-		CORE_PIN32_CONFIG = 3;
-		CORE_PIN9_CONFIG  = 3;
-		break;
-	  case 1:
-		CORE_PIN32_CONFIG = 3;
-		CORE_PIN9_CONFIG  = 3;
-		CORE_PIN6_CONFIG  = 3;
-	}
-	dma.TCD->SADDR = i2s_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLOFFYES = DMA_TCD_NBYTES_DMLOE |
-		DMA_TCD_NBYTES_MLOFFYES_MLOFF(-12) |
-		DMA_TCD_NBYTES_MLOFFYES_NBYTES(6);
-	dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
-	dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0 + 2 + pinoffset * 4);
-	dma.TCD->DOFF = 4;
-	dma.TCD->CITER_ELINKNO = AUDIO_BLOCK_SAMPLES * 2;
-	dma.TCD->DLASTSGA = -12;
-	dma.TCD->BITER_ELINKNO = AUDIO_BLOCK_SAMPLES * 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
-	dma.enable();
-	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
-	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-	I2S1_TCR3 = I2S_TCR3_TCE_3CH << pinoffset;
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	block_ch1_2nd = NULL;
+	block_ch2_2nd = NULL;
+	block_ch3_2nd = NULL;
+	block_ch4_2nd = NULL;
+	block_ch5_2nd = NULL;
+	block_ch6_2nd = NULL;
+	dmaState = AOI2S_Paused;
 }
-
+						  
+						  
 void AudioOutputI2SHex::isr(void)
 {
 	uint32_t saddr;
@@ -122,12 +151,12 @@ void AudioOutputI2SHex::isr(void)
 		dest = (int16_t *)i2s_tx_buffer;
 	}
 
-	src1 = (block_ch1_1st) ? block_ch1_1st->data + ch1_offset : zeros;
-	src2 = (block_ch2_1st) ? block_ch2_1st->data + ch2_offset : zeros;
-	src3 = (block_ch3_1st) ? block_ch3_1st->data + ch3_offset : zeros;
-	src4 = (block_ch4_1st) ? block_ch4_1st->data + ch4_offset : zeros;
-	src5 = (block_ch5_1st) ? block_ch5_1st->data + ch5_offset : zeros;
-	src6 = (block_ch6_1st) ? block_ch6_1st->data + ch6_offset : zeros;
+	src1 = (AOI2S_Running == dmaState && block_ch1_1st) ? block_ch1_1st->data + ch1_offset : zeros;
+	src2 = (AOI2S_Running == dmaState && block_ch2_1st) ? block_ch2_1st->data + ch2_offset : zeros;
+	src3 = (AOI2S_Running == dmaState && block_ch3_1st) ? block_ch3_1st->data + ch3_offset : zeros;
+	src4 = (AOI2S_Running == dmaState && block_ch4_1st) ? block_ch4_1st->data + ch4_offset : zeros;
+	src5 = (AOI2S_Running == dmaState && block_ch5_1st) ? block_ch5_1st->data + ch5_offset : zeros;
+	src6 = (AOI2S_Running == dmaState && block_ch6_1st) ? block_ch6_1st->data + ch6_offset : zeros;
 #if 0
 	// TODO: optimized 6 channel copy...
 	memcpy_tointerleaveQuad(dest, src1, src2, src3, src4);
@@ -331,6 +360,10 @@ void AudioOutputI2SHex::update(void)
 #else // not supported
 
 void AudioOutputI2SHex::begin(void)
+{
+}
+
+AudioOutputI2SHex::~AudioOutputI2SHex()
 {
 }
 

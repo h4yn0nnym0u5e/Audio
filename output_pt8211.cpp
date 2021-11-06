@@ -44,6 +44,7 @@ DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SA
 #else
 DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SAMPLES];
 #endif
+AudioOutputPT8211::dmaState_t AudioOutputPT8211::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputPT8211::dma(false);
 
 void AudioOutputPT8211::begin(void)
@@ -51,65 +52,77 @@ void AudioOutputPT8211::begin(void)
 
 	memset(i2s_tx_buffer, 0, sizeof(i2s_tx_buffer));
 
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	block_left_1st = NULL;
-	block_right_1st = NULL;
+		block_left_1st = NULL;
+		block_right_1st = NULL;
 
-	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_i2s();
+		// TODO: should we set & clear the I2S_TCSR_SR bit here?
+		config_i2s();
 #if defined(KINETISK)
-	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
+		CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
-	dma.TCD->SADDR = i2s_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
-	dma.TCD->DADDR = &I2S0_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.TCD->SADDR = i2s_tx_buffer;
+		dma.TCD->SOFF = 2;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
+		dma.TCD->DADDR = &I2S0_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
-	dma.enable();
-	I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
-	return;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
+		dma.enable();
+		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
 
 #if defined(__IMXRT1052__)
-	CORE_PIN6_CONFIG  = 3;  //1:TX_DATA0
+		CORE_PIN6_CONFIG  = 3;  //1:TX_DATA0
 #elif defined(__IMXRT1062__)
-	arm_dcache_flush_delete(i2s_tx_buffer, sizeof(i2s_tx_buffer));
-	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
+		arm_dcache_flush_delete(i2s_tx_buffer, sizeof(i2s_tx_buffer));
+		CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
 #endif
 
-	dma.TCD->SADDR = i2s_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0);
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
+		dma.TCD->SADDR = i2s_tx_buffer;
+		dma.TCD->SOFF = 2;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0);
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 
-	I2S1_RCSR |= I2S_RCSR_RE;
-	I2S1_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+		I2S1_RCSR |= I2S_RCSR_RE;
+		I2S1_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
+		dma.enable();
+#endif
+	}
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
-	dma.enable();
-	return;
-#endif
+	dmaState = AOI2S_Running;
 }
+
+
+AudioOutputPT8211::~AudioOutputPT8211()
+{
+	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
+	block_left_1st = NULL;
+	block_right_1st = NULL;
+	block_left_2nd = NULL;
+	block_right_2nd = NULL;
+	dmaState = AOI2S_Paused;
+}
+
 
 void AudioOutputPT8211::isr(void)
 {
@@ -146,7 +159,7 @@ void AudioOutputPT8211::isr(void)
 		static int32_t oldL = 0;
 		static int32_t oldR = 0;
 	#endif
-	if (blockL && blockR) {
+	if (AOI2S_Running == dmaState && blockL && blockR) {
 		#if defined(AUDIO_PT8211_OVERSAMPLING)
 			#if defined(AUDIO_PT8211_INTERPOLATION_LINEAR)
 				for (int i=0; i< AUDIO_BLOCK_SAMPLES / 2; i++, offsetL++, offsetR++) {
@@ -223,7 +236,7 @@ void AudioOutputPT8211::isr(void)
 			offsetR += AUDIO_BLOCK_SAMPLES / 2;
 		#endif //defined(AUDIO_PT8211_OVERSAMPLING)
 
-	} else if (blockL) {
+	} else if (AOI2S_Running == dmaState && blockL) {
 		#if defined(AUDIO_PT8211_OVERSAMPLING)
 			#if defined(AUDIO_PT8211_INTERPOLATION_LINEAR)
 				for (int i=0; i< AUDIO_BLOCK_SAMPLES / 2; i++, offsetL++) {
@@ -282,7 +295,7 @@ void AudioOutputPT8211::isr(void)
 			memcpy_tointerleaveL(dest, blockL->data + offsetL);
 			offsetL += (AUDIO_BLOCK_SAMPLES / 2);
 		#endif //defined(AUDIO_PT8211_OVERSAMPLING)
-	} else if (blockR) {
+	} else if (AOI2S_Running == dmaState && blockR) {
 		#if defined(AUDIO_PT8211_OVERSAMPLING)
 			#if defined(AUDIO_PT8211_INTERPOLATION_LINEAR)
 				for (int i=0; i< AUDIO_BLOCK_SAMPLES / 2; i++, offsetR++) {
@@ -347,7 +360,7 @@ void AudioOutputPT8211::isr(void)
 
 	arm_dcache_flush_delete(dest_copy, sizeof(i2s_tx_buffer) / 2);
 
-	if (offsetL < AUDIO_BLOCK_SAMPLES) {
+	if (AOI2S_Running == dmaState && offsetL < AUDIO_BLOCK_SAMPLES) {
 		AudioOutputPT8211::block_left_offset = offsetL;
 	} else {
 		AudioOutputPT8211::block_left_offset = 0;
@@ -355,7 +368,7 @@ void AudioOutputPT8211::isr(void)
 		AudioOutputPT8211::block_left_1st = AudioOutputPT8211::block_left_2nd;
 		AudioOutputPT8211::block_left_2nd = NULL;
 	}
-	if (offsetR < AUDIO_BLOCK_SAMPLES) {
+	if (AOI2S_Running == dmaState && offsetR < AUDIO_BLOCK_SAMPLES) {
 		AudioOutputPT8211::block_right_offset = offsetR;
 	} else {
 		AudioOutputPT8211::block_right_offset = 0;
@@ -573,8 +586,8 @@ bool AudioOutputPT8211::update_responsibility = false;
 #define NUM_SAMPLES (AUDIO_BLOCK_SAMPLES / 2)
 
 DMAMEM static int16_t i2s_tx_buffer1[NUM_SAMPLES*2];
-DMAMEM static int16_t i2s_tx_buffer2[NUM_SAMPLES*2];
-DMAChannel AudioOutputPT8211::dma1(false);
+DMAMEM static int16_t i2s_tx_buffer2[NUM_SAMPLES*2];AudioOutputPT8211::dmaState_t AudioOutputPT8211::dmaState = AOI2S_Stop;
+DMAChannel AudioOutputPT8211::dma1(false);AudioOutputPT8211::dmaState_t AudioOutputPT8211::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputPT8211::dma2(false);
 
 
@@ -584,49 +597,62 @@ void AudioOutputPT8211::begin(void)
 	memset(i2s_tx_buffer1, 0, sizeof( i2s_tx_buffer1 ) );
 	memset(i2s_tx_buffer2, 0, sizeof( i2s_tx_buffer2 ) );
 
-	dma1.begin(true); // Allocate the DMA channel first
-	dma2.begin(true);
+	if (AOI2S_Stop == dmaState)
+	{
+		dma1.begin(true); // Allocate the DMA channel first
+		dma2.begin(true);
 
-	SIM_SCGC6 |= SIM_SCGC6_I2S;//Enable I2S periphal
+		SIM_SCGC6 |= SIM_SCGC6_I2S;//Enable I2S periphal
 
-	// enable MCLK
-	I2S0_MCR = I2S_MCR_MICS(0) | I2S_MCR_MOE;
-	//MDR is not available on Teensy LC
+		// enable MCLK
+		I2S0_MCR = I2S_MCR_MICS(0) | I2S_MCR_MOE;
+		//MDR is not available on Teensy LC
 
-	// configure transmitter
-	I2S0_TMR = 0;
-	I2S0_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(16);
-	I2S0_TCR3 = I2S_TCR3_TCE;
-	I2S0_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF /*| I2S_TCR4_FSE*/ | I2S_TCR4_FSP | I2S_TCR4_FSD;
-	I2S0_TCR5 = I2S_TCR5_WNW(15) | I2S_TCR5_W0W(15) | I2S_TCR5_FBT(15);
+		// configure transmitter
+		I2S0_TMR = 0;
+		I2S0_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(16);
+		I2S0_TCR3 = I2S_TCR3_TCE;
+		I2S0_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF /*| I2S_TCR4_FSE*/ | I2S_TCR4_FSP | I2S_TCR4_FSD;
+		I2S0_TCR5 = I2S_TCR5_WNW(15) | I2S_TCR5_W0W(15) | I2S_TCR5_FBT(15);
 
-	// configure pin mux
-	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
-	CORE_PIN23_CONFIG = PORT_PCR_MUX(6); // pin 23, PTC2, I2S0_TX_FS (LRCLK)
-	CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
-	//CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
+		// configure pin mux
+		CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
+		CORE_PIN23_CONFIG = PORT_PCR_MUX(6); // pin 23, PTC2, I2S0_TX_FS (LRCLK)
+		CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
+		//CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
 
-	//configure both DMA channels
-	dma1.sourceBuffer(i2s_tx_buffer1, sizeof(i2s_tx_buffer1));
-	dma1.destination(*(int16_t *)&I2S0_TDR0);
-	dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
-	dma1.interruptAtCompletion();
-	dma1.disableOnCompletion();
-	dma1.attachInterrupt(isr1);
+		//configure both DMA channels
+		dma1.sourceBuffer(i2s_tx_buffer1, sizeof(i2s_tx_buffer1));
+		dma1.destination(*(int16_t *)&I2S0_TDR0);
+		dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
+		dma1.interruptAtCompletion();
+		dma1.disableOnCompletion();
 
-	dma2.destination(*(int16_t *)&I2S0_TDR0);
-	dma2.sourceBuffer(i2s_tx_buffer2, sizeof(i2s_tx_buffer2));
-	dma2.interruptAtCompletion();
-	dma2.disableOnCompletion();
-	dma2.attachInterrupt(isr2);
+		dma2.destination(*(int16_t *)&I2S0_TDR0);
+		dma2.sourceBuffer(i2s_tx_buffer2, sizeof(i2s_tx_buffer2));
+		dma2.interruptAtCompletion();
+		dma2.disableOnCompletion();
 
+		dma1.enable();
+
+		I2S0_TCSR = I2S_TCSR_SR;
+		I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FWDE;
+	}
 	update_responsibility = update_setup();
-	dma1.enable();
-
-	I2S0_TCSR = I2S_TCSR_SR;
-	I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FWDE;
-
+	dma1.attachInterrupt(isr1);
+	dma2.attachInterrupt(isr2);
+	dmaState = AOI2S_Running;
 }
+	
+
+AudioOutputPT8211::~AudioOutputPT8211()
+{
+	SAFE_RELEASE_MANY(2,block_left,block_right);
+	block_left = NULL;
+	block_right = NULL;
+	dmaState = AOI2S_Paused;
+}
+
 
 void AudioOutputPT8211::update(void)
 {
@@ -634,52 +660,55 @@ void AudioOutputPT8211::update(void)
 	if (!block_right) block_right = receiveReadOnly(1);// input 1 = right channel
 }
 
+
 inline __attribute__((always_inline, hot))
 void interleave(const int16_t *dest,const audio_block_t *block_left, const audio_block_t *block_right, const size_t offset)
 {
 
 	uint32_t *p = (uint32_t*)dest;
 	uint32_t *end = p + NUM_SAMPLES;
+	
+	if (AudioOutputPT8211::AOI2S_Running == dmaState)
+	{
+		if (block_left != nullptr && block_right != nullptr) {
+			uint16_t *l = (uint16_t*)&block_left->data[offset];
+			uint16_t *r = (uint16_t*)&block_right->data[offset];
+			do {
+				*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
+				*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
+				*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
+				*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
+			} while (p < end);
+			return;
+		}
 
-	if (block_left != nullptr && block_right != nullptr) {
-		uint16_t *l = (uint16_t*)&block_left->data[offset];
-		uint16_t *r = (uint16_t*)&block_right->data[offset];
-		do {
-			*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
-			*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
-			*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
-			*p++ = (((uint32_t)(*l++)) << 16)  | (uint32_t)(*r++);
-		} while (p < end);
-		return;
-	}
+		if (block_left != nullptr) {
+			uint16_t *l = (uint16_t*)&block_left->data[offset];
+			do {
+				*p++ = (uint32_t)(*l++) << 16;
+				*p++ = (uint32_t)(*l++) << 16;
+				*p++ = (uint32_t)(*l++) << 16;
+				*p++ = (uint32_t)(*l++) << 16;
+			} while (p < end);
+			return;
+		}
 
-	if (block_left != nullptr) {
-		uint16_t *l = (uint16_t*)&block_left->data[offset];
-		do {
-			*p++ = (uint32_t)(*l++) << 16;
-			*p++ = (uint32_t)(*l++) << 16;
-			*p++ = (uint32_t)(*l++) << 16;
-			*p++ = (uint32_t)(*l++) << 16;
-		} while (p < end);
-		return;
-	}
-
-	if (block_right != nullptr) {
-		uint16_t *r = (uint16_t*)&block_right->data[offset];
-		do {
-			*p++ =(uint32_t)(*r++);
-			*p++ =(uint32_t)(*r++);
-			*p++ =(uint32_t)(*r++);
-			*p++ =(uint32_t)(*r++);
-		} while (p < end);
-		return;
+		if (block_right != nullptr) {
+			uint16_t *r = (uint16_t*)&block_right->data[offset];
+			do {
+				*p++ =(uint32_t)(*r++);
+				*p++ =(uint32_t)(*r++);
+				*p++ =(uint32_t)(*r++);
+				*p++ =(uint32_t)(*r++);
+			} while (p < end);
+			return;
+		}
 	}
 
 	do {
 		*p++ = 0;
 		*p++ = 0;
 	} while (p < end);
-
 }
 
 void AudioOutputPT8211::isr1(void)

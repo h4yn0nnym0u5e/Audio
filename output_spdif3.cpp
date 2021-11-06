@@ -38,12 +38,11 @@ audio_block_t * AudioOutputSPDIF3::block_right_1st = nullptr;
 audio_block_t * AudioOutputSPDIF3::block_left_2nd = nullptr;
 audio_block_t * AudioOutputSPDIF3::block_right_2nd = nullptr;
 bool AudioOutputSPDIF3::update_responsibility = false;
+AudioOutputSPDIF3::dmaState_t AudioOutputSPDIF3::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputSPDIF3::dma(false);
 
 DMAMEM  __attribute__((aligned(32)))
 static int32_t SPDIF_tx_buffer[AUDIO_BLOCK_SAMPLES * 4];
-DMAMEM  __attribute__((aligned(32)))
-audio_block_t AudioOutputSPDIF3::block_silent;
 
 #define SPDIF_DPLL_GAIN24 0
 #define SPDIF_DPLL_GAIN16 1
@@ -61,44 +60,58 @@ FLASHMEM
 void AudioOutputSPDIF3::begin(void)
 {
 
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	block_left_1st = nullptr;
-	block_right_1st = nullptr;
-	memset(&block_silent, 0, sizeof(block_silent));
+		block_left_1st = nullptr;
+		block_right_1st = nullptr;
 
-	config_spdif3();
-	const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
+		config_spdif3();
+		const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
 
-	dma.TCD->SADDR = SPDIF_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = DMA_TCD_NBYTES_MLOFFYES_NBYTES(nbytes_mlno) | DMA_TCD_NBYTES_DMLOE |
-                         DMA_TCD_NBYTES_MLOFFYES_MLOFF(-8);
-	dma.TCD->SLAST = -sizeof(SPDIF_tx_buffer);
-	dma.TCD->DADDR = &SPDIF_STL;
-	dma.TCD->DOFF = 4;
-	dma.TCD->DLASTSGA = -8;
-	//dma.TCD->ATTR_DST = ((31 - __builtin_clz(8)) << 3);
-	dma.TCD->CITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
-	dma.TCD->BITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.TCD->SADDR = SPDIF_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = DMA_TCD_NBYTES_MLOFFYES_NBYTES(nbytes_mlno) | DMA_TCD_NBYTES_DMLOE |
+							 DMA_TCD_NBYTES_MLOFFYES_MLOFF(-8);
+		dma.TCD->SLAST = -sizeof(SPDIF_tx_buffer);
+		dma.TCD->DADDR = &SPDIF_STL;
+		dma.TCD->DOFF = 4;
+		dma.TCD->DLASTSGA = -8;
+		//dma.TCD->ATTR_DST = ((31 - __builtin_clz(8)) << 3);
+		dma.TCD->CITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
+		dma.TCD->BITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_TX);
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_TX);
 
+		dma.enable();
+
+		CORE_PIN14_CONFIG = 3;  //3:SPDIF_OUT
+		SPDIF_SCR |= SPDIF_SCR_DMA_TX_EN;
+		SPDIF_STC |= SPDIF_STC_TX_ALL_CLK_EN;
+	}
 	update_responsibility = update_setup();
-	dma.enable();
 	dma.attachInterrupt(isr);
-
-	CORE_PIN14_CONFIG = 3;  //3:SPDIF_OUT
-	SPDIF_SCR |= SPDIF_SCR_DMA_TX_EN;
-	SPDIF_STC |= SPDIF_STC_TX_ALL_CLK_EN;
+	dmaState = AOI2S_Running;
 //	pinMode(13, OUTPUT);
 }
 
+
+AudioOutputSPDIF3::~AudioOutputSPDIF3()
+{
+	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
+	block_left_1st = NULL;
+	block_right_1st = NULL;
+	block_left_2nd = NULL;
+	block_right_2nd = NULL;
+	dmaState = AOI2S_Paused;
+}
+
+
 void AudioOutputSPDIF3::isr(void)
 {
-
 	const int16_t *src_left, *src_right;
 	const int32_t *end;
 	int32_t *dest;
@@ -118,10 +131,11 @@ void AudioOutputSPDIF3::isr(void)
 		dest = SPDIF_tx_buffer;
 		end = SPDIF_tx_buffer + AUDIO_BLOCK_SAMPLES*2;
 	}
+	
 	block_left = block_left_1st;
-	if (!block_left) block_left = &block_silent;
+	if (AOI2S_Running != dmaState || !block_left) block_left = &silentBlock;
 	block_right = block_right_1st;
-	if (!block_right) block_right = &block_silent;
+	if (AOI2S_Running != dmaState || !block_right) block_right = &silentBlock;
 
 	src_left = (const int16_t *)(block_left->data);
 	src_right = (const int16_t *)(block_right->data);
@@ -146,12 +160,12 @@ void AudioOutputSPDIF3::isr(void)
 
 	} while (dest < end);
 
-	if (block_left != &block_silent) {
+	if (block_left != &silentBlock) {
 		release(block_left);
 		block_left_1st = block_left_2nd;
 		block_left_2nd = nullptr;
 	}
-	if (block_right != &block_silent) {
+	if (block_right != &silentBlock) {
 		release(block_right);
 		block_right_1st = block_right_2nd;
 		block_right_2nd = nullptr;

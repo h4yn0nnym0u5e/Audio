@@ -31,7 +31,7 @@ class AudioOutputSPDIF3 : public AudioStream
 {
 public:
 	AudioOutputSPDIF3(void) : AudioStream(2, inputQueueArray) { begin(); }
-	~AudioOutputSPDIF3(){SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);}
+	~AudioOutputSPDIF3();
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputSPDIF3;
@@ -44,6 +44,8 @@ protected:
 	static audio_block_t *block_left_1st; // released in destructor
 	static audio_block_t *block_right_1st; // released in destructor
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);	
 private:

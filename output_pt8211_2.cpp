@@ -44,41 +44,60 @@ DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SA
 #else
 DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SAMPLES];
 #endif
+AudioOutputPT8211_2::dmaState_t AudioOutputPT8211_2::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputPT8211_2::dma(false);
+
 
 FLASHMEM
 void AudioOutputPT8211_2::begin(void)
 {
 	memset(i2s_tx_buffer, 0, sizeof(i2s_tx_buffer));
-	arm_dcache_flush_delete(i2s_tx_buffer, sizeof(i2s_tx_buffer));		
-	dma.begin(true); // Allocate the DMA channel first
-
-	block_left_1st = NULL;
-	block_right_1st = NULL;
-
-	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_i2s();
-	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
+	arm_dcache_flush_delete(i2s_tx_buffer, sizeof(i2s_tx_buffer));	
 	
-	dma.TCD->SADDR = i2s_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.TCD->DADDR = (void *)((uint32_t)&I2S2_TDR0);
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+		block_left_1st = NULL;
+		block_right_1st = NULL;
 
+		// TODO: should we set & clear the I2S_TCSR_SR bit here?
+		config_i2s();
+		CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
+		
+		dma.TCD->SADDR = i2s_tx_buffer;
+		dma.TCD->SOFF = 2;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.TCD->DADDR = (void *)((uint32_t)&I2S2_TDR0);
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
+
+		I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+
+		dma.enable();
+	}
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
-	dma.enable();
+	dmaState = AOI2S_Running;
 }
+
+
+AudioOutputPT8211_2::~AudioOutputPT8211_2()
+{
+	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
+	block_left_1st = NULL;
+	block_right_1st = NULL;
+	block_left_2nd = NULL;
+	block_right_2nd = NULL;
+	dmaState = AOI2S_Paused;
+}
+
 
 void AudioOutputPT8211_2::isr(void)
 {
@@ -113,7 +132,7 @@ void AudioOutputPT8211_2::isr(void)
 		static int32_t oldL = 0;
 		static int32_t oldR = 0;
 	#endif
-	if (blockL && blockR) {
+	if (AOI2S_Running == dmaState && blockL && blockR) {
 		#if defined(AUDIO_PT8211_OVERSAMPLING)
 			#if defined(AUDIO_PT8211_INTERPOLATION_LINEAR)
 				for (int i=0; i< AUDIO_BLOCK_SAMPLES / 2; i++, offsetL++, offsetR++) {
@@ -190,7 +209,7 @@ void AudioOutputPT8211_2::isr(void)
 			offsetR += AUDIO_BLOCK_SAMPLES / 2;
 		#endif //defined(AUDIO_PT8211_OVERSAMPLING)
 
-	} else if (blockL) {
+	} else if (AOI2S_Running == dmaState && blockL) {
 		#if defined(AUDIO_PT8211_OVERSAMPLING)
 			#if defined(AUDIO_PT8211_INTERPOLATION_LINEAR)
 				for (int i=0; i< AUDIO_BLOCK_SAMPLES / 2; i++, offsetL++) {
@@ -249,7 +268,7 @@ void AudioOutputPT8211_2::isr(void)
 			memcpy_tointerleaveL(dest, blockL->data + offsetL);
 			offsetL += (AUDIO_BLOCK_SAMPLES / 2);
 		#endif //defined(AUDIO_PT8211_OVERSAMPLING)
-	} else if (blockR) {
+	} else if (AOI2S_Running == dmaState && blockR) {
 		#if defined(AUDIO_PT8211_OVERSAMPLING)
 			#if defined(AUDIO_PT8211_INTERPOLATION_LINEAR)
 				for (int i=0; i< AUDIO_BLOCK_SAMPLES / 2; i++, offsetR++) {
@@ -319,7 +338,7 @@ void AudioOutputPT8211_2::isr(void)
 
 	arm_dcache_flush_delete(dest_copy, sizeof(i2s_tx_buffer) / 2);
 
-	if (offsetL < AUDIO_BLOCK_SAMPLES) {
+	if (AOI2S_Running == dmaState && offsetL < AUDIO_BLOCK_SAMPLES) {
 		AudioOutputPT8211_2::block_left_offset = offsetL;
 	} else {
 		AudioOutputPT8211_2::block_left_offset = 0;
@@ -327,7 +346,7 @@ void AudioOutputPT8211_2::isr(void)
 		AudioOutputPT8211_2::block_left_1st = AudioOutputPT8211_2::block_left_2nd;
 		AudioOutputPT8211_2::block_left_2nd = NULL;
 	}
-	if (offsetR < AUDIO_BLOCK_SAMPLES) {
+	if (AOI2S_Running == dmaState && offsetR < AUDIO_BLOCK_SAMPLES) {
 		AudioOutputPT8211_2::block_right_offset = offsetR;
 	} else {
 		AudioOutputPT8211_2::block_right_offset = 0;
@@ -336,7 +355,6 @@ void AudioOutputPT8211_2::isr(void)
 		AudioOutputPT8211_2::block_right_2nd = NULL;
 	}
 }
-
 
 
 void AudioOutputPT8211_2::update(void)
@@ -382,6 +400,7 @@ void AudioOutputPT8211_2::update(void)
 		}
 	}
 }
+
 
 FLASHMEM
 void AudioOutputPT8211_2::config_i2s(void)

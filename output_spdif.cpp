@@ -34,6 +34,7 @@ audio_block_t * AudioOutputSPDIF::block_right_2nd = NULL;
 uint16_t  AudioOutputSPDIF::block_left_offset = 0;
 uint16_t  AudioOutputSPDIF::block_right_offset = 0;
 bool AudioOutputSPDIF::update_responsibility = false;
+AudioOutputSPDIF::dmaState_t AudioOutputSPDIF::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputSPDIF::dma(false);
 extern uint16_t spdif_bmclookup[256];
 DMAMEM __attribute__((aligned(32)))
@@ -55,60 +56,74 @@ FLASHMEM
 void AudioOutputSPDIF::begin(void)
 {
 
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
+		block_left_1st = NULL;
+		block_right_1st = NULL;
+
+		// TODO: should we set & clear the I2S_TCSR_SR bit here?
+		config_SPDIF();
+	#if defined(KINETISK)
+		CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
+
+		const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
+
+		dma.TCD->SADDR = SPDIF_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = nbytes_mlno;
+		dma.TCD->SLAST = -sizeof(SPDIF_tx_buffer);
+		dma.TCD->DADDR = &I2S0_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
+		dma.enable();
+
+		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
+
+	#elif defined(__IMXRT1062__)
+		CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0	
+		const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
+
+		dma.TCD->SADDR = SPDIF_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = nbytes_mlno;
+		dma.TCD->SLAST = -sizeof(SPDIF_tx_buffer);
+		dma.TCD->DADDR = &I2S1_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
+		dma.enable();
+
+		I2S1_RCSR |= I2S_RCSR_RE;
+		I2S1_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
+	#endif
+	}
+	update_responsibility = update_setup();
+	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;	
+}
+
+
+AudioOutputSPDIF::~AudioOutputSPDIF()
+{
+	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
 	block_left_1st = NULL;
 	block_right_1st = NULL;
-
-	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_SPDIF();
-#if defined(KINETISK)
-	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
-
-	const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
-
-	dma.TCD->SADDR = SPDIF_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = nbytes_mlno;
-	dma.TCD->SLAST = -sizeof(SPDIF_tx_buffer);
-	dma.TCD->DADDR = &I2S0_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
-	update_responsibility = update_setup();
-	dma.enable();
-
-	I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
-	dma.attachInterrupt(isr);
-
-#elif defined(__IMXRT1062__)
-	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0	
-	const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
-
-	dma.TCD->SADDR = SPDIF_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = nbytes_mlno;
-	dma.TCD->SLAST = -sizeof(SPDIF_tx_buffer);
-	dma.TCD->DADDR = &I2S1_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(SPDIF_tx_buffer) / nbytes_mlno;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
-	update_responsibility = update_setup();
-	dma.enable();
-
-	I2S1_RCSR |= I2S_RCSR_RE;
-	I2S1_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
-	dma.attachInterrupt(isr);
-#endif
+	block_left_2nd = NULL;
+	block_right_2nd = NULL;
+	dmaState = AOI2S_Paused;
 }
+
 
 /*
 
@@ -150,7 +165,7 @@ void AudioOutputSPDIF::isr(void)
 
 
 	block = AudioOutputSPDIF::block_left_1st;
-	if (block) {
+	if (AOI2S_Running == dmaState && block) {
 		offset = AudioOutputSPDIF::block_left_offset;
 		src = &block->data[offset];
 		do {
@@ -202,7 +217,7 @@ void AudioOutputSPDIF::isr(void)
 
 	dest -= AUDIO_BLOCK_SAMPLES * 4/2 - 4/2;
 	block = AudioOutputSPDIF::block_right_1st;
-	if (block) {
+	if (AOI2S_Running == dmaState && block) {
 		offset = AudioOutputSPDIF::block_right_offset;
 		src = &block->data[offset];
 
@@ -243,13 +258,14 @@ void AudioOutputSPDIF::isr(void)
 	dest -= AUDIO_BLOCK_SAMPLES * 4/2 + 4/2;
 	arm_dcache_flush_delete(dest, sizeof(SPDIF_tx_buffer) / 2 );
 	#endif	
-	
 }
+
 
 void AudioOutputSPDIF::mute_PCM(const bool mute)
 {
 	vucp = mute?VUCP_INVALID:VUCP_VALID;
 }
+
 
 void AudioOutputSPDIF::update(void)
 {
@@ -294,7 +310,6 @@ void AudioOutputSPDIF::update(void)
 			release(tmp);
 		}
 	}
-
 }
 
 #if defined(KINETISK)
