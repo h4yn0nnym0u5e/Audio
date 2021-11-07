@@ -129,6 +129,7 @@ AudioOutputI2SHex::~AudioOutputI2SHex()
 	block_ch4_2nd = NULL;
 	block_ch5_2nd = NULL;
 	block_ch6_2nd = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 						  

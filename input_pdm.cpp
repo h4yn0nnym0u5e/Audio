@@ -57,8 +57,19 @@ DMAMEM __attribute__((aligned(32))) static uint32_t pdm_buffer[AUDIO_BLOCK_SAMPL
 static uint32_t leftover[14];
 audio_block_t * AudioInputPDM::block_left = NULL;
 bool AudioInputPDM::update_responsibility = false;
+AudioInputPDM::dmaState_t AudioInputPDM::dmaState = AOI2S_Stop;
 DMAChannel AudioInputPDM::dma(false);
 #endif
+
+
+// This works for both 3.x and 4.x
+AudioInputPDM::~AudioInputPDM() 
+{
+	SAFE_RELEASE(block_left);
+	block_left = NULL;
+	update_responsibility = false;
+	dmaState = AOI2S_Paused;
+}
 
 
 // Teensy 4.x
@@ -69,10 +80,12 @@ DMAChannel AudioInputPDM::dma(false);
 // T4.x version
 void AudioInputPDM::begin()
 {
-  dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-  AudioOutputI2S::config_i2s(true) ;
-  int rsync = 0;
+		AudioOutputI2S::config_i2s(true) ;
+		int rsync = 0;
   /*
     int tsync = 1;
     CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
@@ -113,39 +126,40 @@ void AudioInputPDM::begin()
     I2S1_TCR4 = I2S_TCR4_FRSZ((2-1)) | I2S_TCR4_SYWD((32-1)) | I2S_TCR4_MF | I2S_TCR4_FSD | I2S_TCR4_FSE | I2S_TCR4_FSP;
     I2S1_TCR5 = I2S_TCR5_WNW((32-1)) | I2S_TCR5_W0W((32-1)) | I2S_TCR5_FBT((32-1));
   */
-  I2S1_RMR = 0;
-  //I2S1_RCSR = (1<<25); //Reset
-  I2S1_RCR1 = I2S_RCR1_RFW(2);  // 2 not 1
-  I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_RCR2_BCP | (I2S_RCR2_BCD | I2S_RCR2_DIV((1)) | I2S_RCR2_MSEL(1));  // sync=0; rx is async;
-  I2S1_RCR3 = I2S_RCR3_RCE;
-  I2S1_RCR4 = I2S_RCR4_FRSZ((2-1)) | I2S_RCR4_SYWD((32-1)) | I2S_RCR4_MF /* | I2S_RCR4_FSE */ | I2S_RCR4_FSP | I2S_RCR4_FSD;
-  I2S1_RCR5 = I2S_RCR5_WNW((32-1)) | I2S_RCR5_W0W((32-1)) | I2S_RCR5_FBT((32-1));
+		I2S1_RMR = 0;
+		//I2S1_RCSR = (1<<25); //Reset
+		I2S1_RCR1 = I2S_RCR1_RFW(2);  // 2 not 1
+		I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_RCR2_BCP | (I2S_RCR2_BCD | I2S_RCR2_DIV((1)) | I2S_RCR2_MSEL(1));  // sync=0; rx is async;
+		I2S1_RCR3 = I2S_RCR3_RCE;
+		I2S1_RCR4 = I2S_RCR4_FRSZ((2-1)) | I2S_RCR4_SYWD((32-1)) | I2S_RCR4_MF /* | I2S_RCR4_FSE */ | I2S_RCR4_FSP | I2S_RCR4_FSD;
+		I2S1_RCR5 = I2S_RCR5_WNW((32-1)) | I2S_RCR5_W0W((32-1)) | I2S_RCR5_FBT((32-1));
 
-  CORE_PIN8_CONFIG  = 3;  //1:RX_DATA0
-  IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
+		CORE_PIN8_CONFIG  = 3;  //1:RX_DATA0
+		IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
 
-  dma.TCD->SADDR = &I2S1_RDR0;
-  dma.TCD->SOFF = 0;
-  dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-  dma.TCD->NBYTES_MLNO = 4;
-  dma.TCD->SLAST = 0;
-  dma.TCD->DADDR = pdm_buffer;
-  dma.TCD->DOFF = 4;
-  dma.TCD->CITER_ELINKNO = sizeof(pdm_buffer) / 4;
-  dma.TCD->DLASTSGA = -sizeof(pdm_buffer);
-  dma.TCD->BITER_ELINKNO = sizeof(pdm_buffer) / 4;
-  dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.TCD->SADDR = &I2S1_RDR0;
+		dma.TCD->SOFF = 0;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = 4;
+		dma.TCD->SLAST = 0;
+		dma.TCD->DADDR = pdm_buffer;
+		dma.TCD->DOFF = 4;
+		dma.TCD->CITER_ELINKNO = sizeof(pdm_buffer) / 4;
+		dma.TCD->DLASTSGA = -sizeof(pdm_buffer);
+		dma.TCD->BITER_ELINKNO = sizeof(pdm_buffer) / 4;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
-  dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
-  
-  update_responsibility = update_setup();
-  dma.enable();
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
 
-  I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
-  //I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
-  //I2S1_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
+		dma.enable();
 
-  dma.attachInterrupt(isr);
+		I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
+		//I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
+		//I2S1_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
+	}
+	update_responsibility = update_setup();
+	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
 }
 
 
@@ -207,66 +221,70 @@ void AudioInputPDM::begin()
 // T3.x version
 void AudioInputPDM::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	AudioOutputI2S::config_i2s(true);
-	/*
-	SIM_SCGC6 |= SIM_SCGC6_I2S;
-	SIM_SCGC7 |= SIM_SCGC7_DMA;
-	SIM_SCGC6 |= SIM_SCGC6_DMAMUX;
+		AudioOutputI2S::config_i2s(true);
+		/*
+		SIM_SCGC6 |= SIM_SCGC6_I2S;
+		SIM_SCGC7 |= SIM_SCGC7_DMA;
+		SIM_SCGC6 |= SIM_SCGC6_DMAMUX;
 
-        // enable MCLK output
-        I2S0_MCR = I2S_MCR_MICS(MCLK_SRC) | I2S_MCR_MOE;
-        while (I2S0_MCR & I2S_MCR_DUF) ;
-        I2S0_MDR = I2S_MDR_FRACT((MCLK_MULT-1)) | I2S_MDR_DIVIDE((MCLK_DIV-1));
+			// enable MCLK output
+			I2S0_MCR = I2S_MCR_MICS(MCLK_SRC) | I2S_MCR_MOE;
+			while (I2S0_MCR & I2S_MCR_DUF) ;
+			I2S0_MDR = I2S_MDR_FRACT((MCLK_MULT-1)) | I2S_MDR_DIVIDE((MCLK_DIV-1));
 
-        // configure transmitter
-        I2S0_TMR = 0;
-        I2S0_TCR1 = I2S_TCR1_TFW(1);  // watermark at half fifo size
-        I2S0_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1)
-                | I2S_TCR2_BCD | I2S_TCR2_DIV(1);
-        I2S0_TCR3 = I2S_TCR3_TCE;
-        I2S0_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(31) | I2S_TCR4_MF
-                | I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_TCR4_FSD;
-        I2S0_TCR5 = I2S_TCR5_WNW(31) | I2S_TCR5_W0W(31) | I2S_TCR5_FBT(31);
+			// configure transmitter
+			I2S0_TMR = 0;
+			I2S0_TCR1 = I2S_TCR1_TFW(1);  // watermark at half fifo size
+			I2S0_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1)
+					| I2S_TCR2_BCD | I2S_TCR2_DIV(1);
+			I2S0_TCR3 = I2S_TCR3_TCE;
+			I2S0_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(31) | I2S_TCR4_MF
+					| I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_TCR4_FSD;
+			I2S0_TCR5 = I2S_TCR5_WNW(31) | I2S_TCR5_W0W(31) | I2S_TCR5_FBT(31);
 
-        // configure receiver (sync'd to transmitter clocks)
-        I2S0_RMR = 0;
-	*/
-        I2S0_RCR1 = I2S_RCR1_RFW(2);
-	/*
-        I2S0_RCR2 = I2S_RCR2_SYNC(1) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
-                | I2S_RCR2_BCD | I2S_RCR2_DIV(1);
-        I2S0_RCR3 = I2S_RCR3_RCE;
-	*/
-        I2S0_RCR4 = I2S_RCR4_FRSZ(1) | I2S_RCR4_SYWD(31) | I2S_RCR4_MF
-                /* | I2S_RCR4_FSE */ | I2S_RCR4_FSP | I2S_RCR4_FSD;
-	/*
-        I2S0_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
+			// configure receiver (sync'd to transmitter clocks)
+			I2S0_RMR = 0;
+		*/
+			I2S0_RCR1 = I2S_RCR1_RFW(2);
+		/*
+			I2S0_RCR2 = I2S_RCR2_SYNC(1) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
+					| I2S_RCR2_BCD | I2S_RCR2_DIV(1);
+			I2S0_RCR3 = I2S_RCR3_RCE;
+		*/
+			I2S0_RCR4 = I2S_RCR4_FRSZ(1) | I2S_RCR4_SYWD(31) | I2S_RCR4_MF
+					/* | I2S_RCR4_FSE */ | I2S_RCR4_FSP | I2S_RCR4_FSD;
+		/*
+			I2S0_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
 
-        CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
-	*/
-	
-	CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
-	dma.TCD->SADDR = &I2S0_RDR0;
-	dma.TCD->SOFF = 0;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = 0;
-	dma.TCD->DADDR = pdm_buffer;
-	dma.TCD->DOFF = 4;
-	dma.TCD->CITER_ELINKNO = sizeof(pdm_buffer) / 4;
-	dma.TCD->DLASTSGA = -sizeof(pdm_buffer);
-	dma.TCD->BITER_ELINKNO = sizeof(pdm_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+			CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
+		*/
+		
+		CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
+		dma.TCD->SADDR = &I2S0_RDR0;
+		dma.TCD->SOFF = 0;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = 4;
+		dma.TCD->SLAST = 0;
+		dma.TCD->DADDR = pdm_buffer;
+		dma.TCD->DOFF = 4;
+		dma.TCD->CITER_ELINKNO = sizeof(pdm_buffer) / 4;
+		dma.TCD->DLASTSGA = -sizeof(pdm_buffer);
+		dma.TCD->BITER_ELINKNO = sizeof(pdm_buffer) / 4;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
+		dma.enable();
+
+		I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
+		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
+	}
 	update_responsibility = update_setup();
-	dma.enable();
-
-	I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
-	I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
 	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
 }
 #endif
 
@@ -302,6 +320,7 @@ int pdm_filter(const uint32_t *buf)
 	} while (--count > 0);
 	return signed_saturate_rshift(sum, 16, RSHIFT);
 }
+
 
 int pdm_filter(const uint32_t *buf1, unsigned int n, const uint32_t *buf2)
 {
@@ -375,7 +394,7 @@ void AudioInputPDM::isr(void)
 	}
 	if (update_responsibility) AudioStream::update_all();
 	left = block_left;
-	if (left != NULL) {
+	if (AOI2S_Running == dmaState && left != NULL) {
 		// TODO: should find a way to pass the unfiltered data to
 		// the lower priority update.  This burns ~40% of the CPU
 		// time in a high priority interrupt.  Not ideal.  :(
@@ -398,6 +417,7 @@ void AudioInputPDM::isr(void)
 	//digitalWriteFast(14, LOW);
 }
 
+
 void AudioInputPDM::update(void)
 {
 	audio_block_t *new_left, *out_left;
@@ -411,6 +431,7 @@ void AudioInputPDM::update(void)
 		release(out_left);
 	}
 }
+
 
 const int16_t enormous_pdm_filter_table[16384] = {
   -195,  -143,  -143,   -91,  -144,   -92,   -93,   -40,  -145,   -93,   -94,   -41,

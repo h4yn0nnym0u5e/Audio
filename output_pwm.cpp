@@ -91,6 +91,7 @@ AudioOutputPWM::~AudioOutputPWM(void)
 	SAFE_RELEASE(block);
 	block_1st = NULL;
 	block_1st = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 
@@ -374,6 +375,7 @@ AudioOutputPWM::~AudioOutputPWM(void)
 {
 	SAFE_RELEASE(block);
 	block = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 

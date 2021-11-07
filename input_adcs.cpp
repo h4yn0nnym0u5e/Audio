@@ -42,6 +42,7 @@ uint16_t AudioInputAnalogStereo::offset_right = 0;
 int32_t AudioInputAnalogStereo::hpf_y1[2] = { 0, 0 };
 int32_t AudioInputAnalogStereo::hpf_x1[2] = { 0, 0 };
 bool AudioInputAnalogStereo::update_responsibility = false;
+AudioInputAnalogStereo::dmaState_t AudioInputAnalogStereo::dmaState = AOI2S_Stop;
 DMAChannel AudioInputAnalogStereo::dma0(false);
 DMAChannel AudioInputAnalogStereo::dma1(false);
 
@@ -49,95 +50,109 @@ static int analogReadADC1(uint8_t pin);
 
 void AudioInputAnalogStereo::init(uint8_t pin0, uint8_t pin1)
 {
-	uint32_t tmp;
+	if (AOI2S_Stop == dmaState)
+	{	
+		uint32_t tmp;
 
-	//pinMode(32, OUTPUT);
-	//pinMode(33, OUTPUT);
+		//pinMode(32, OUTPUT);
+		//pinMode(33, OUTPUT);
 
-	// Configure the ADC and run at least one software-triggered
-	// conversion.  This completes the self calibration stuff and
-	// leaves the ADC in a state that's mostly ready to use
-	analogReadRes(16);
-	analogReference(INTERNAL); // range 0 to 1.2 volts
+		// Configure the ADC and run at least one software-triggered
+		// conversion.  This completes the self calibration stuff and
+		// leaves the ADC in a state that's mostly ready to use
+		analogReadRes(16);
+		analogReference(INTERNAL); // range 0 to 1.2 volts
 #if F_BUS == 96000000 || F_BUS == 48000000 || F_BUS == 24000000
-	analogReadAveraging(8);
-	ADC1_SC3 = ADC_SC3_AVGE + ADC_SC3_AVGS(1);
+		analogReadAveraging(8);
+		ADC1_SC3 = ADC_SC3_AVGE + ADC_SC3_AVGS(1);
 #else
-	analogReadAveraging(4);
-	ADC1_SC3 = ADC_SC3_AVGE + ADC_SC3_AVGS(0);
+		analogReadAveraging(4);
+		ADC1_SC3 = ADC_SC3_AVGE + ADC_SC3_AVGS(0);
 #endif
 
-    // Note for review:
-    // Probably not useful to spin cycles here stabilizing
-    // since DC blocking is similar to te external analog filters
-    tmp = (uint16_t) analogRead(pin0);
-    tmp = ( ((int32_t) tmp) << 14);
-    hpf_x1[0] = tmp;   // With constant DC level x1 would be x0
-    hpf_y1[0] = 0;     // Output will settle here when stable
+		// Note for review:
+		// Probably not useful to spin cycles here stabilizing
+		// since DC blocking is similar to te external analog filters
+		tmp = (uint16_t) analogRead(pin0);
+		tmp = ( ((int32_t) tmp) << 14);
+		hpf_x1[0] = tmp;   // With constant DC level x1 would be x0
+		hpf_y1[0] = 0;     // Output will settle here when stable
 
-    tmp = (uint16_t) analogReadADC1(pin1);
-    tmp = ( ((int32_t) tmp) << 14);
-    hpf_x1[1] = tmp;   // With constant DC level x1 would be x0
-    hpf_y1[1] = 0;     // Output will settle here when stable
+		tmp = (uint16_t) analogReadADC1(pin1);
+		tmp = ( ((int32_t) tmp) << 14);
+		hpf_x1[1] = tmp;   // With constant DC level x1 would be x0
+		hpf_y1[1] = 0;     // Output will settle here when stable
 
 
-	// set the programmable delay block to trigger the ADC at 44.1 kHz
-	//if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
-	  //|| (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
-	  //|| PDB0_MOD != PDB_PERIOD
-	  //|| PDB0_IDLY != 1
-	  //|| PDB0_CH0C1 != 0x0101) {
-		SIM_SCGC6 |= SIM_SCGC6_PDB;
-		PDB0_IDLY = 1;
-		PDB0_MOD = PDB_PERIOD;
-		PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
-		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
-		PDB0_CH0C1 = 0x0101;
-		PDB0_CH1C1 = 0x0101;
-	//}
+		// set the programmable delay block to trigger the ADC at 44.1 kHz
+		//if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
+		  //|| (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
+		  //|| PDB0_MOD != PDB_PERIOD
+		  //|| PDB0_IDLY != 1
+		  //|| PDB0_CH0C1 != 0x0101) {
+			SIM_SCGC6 |= SIM_SCGC6_PDB;
+			PDB0_IDLY = 1;
+			PDB0_MOD = PDB_PERIOD;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+			PDB0_CH0C1 = 0x0101;
+			PDB0_CH1C1 = 0x0101;
+		//}
 
-	// enable the ADC for hardware trigger and DMA
-	ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
-	ADC1_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
+		// enable the ADC for hardware trigger and DMA
+		ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
+		ADC1_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
 
-	// set up a DMA channel to store the ADC data
-	dma0.begin(true);
-	dma1.begin(true);
-	// ADC0_RA = 0x4003B010
-	// ADC1_RA = 0x400BB010
-	dma0.TCD->SADDR = &ADC0_RA;
-	dma0.TCD->SOFF = 0;
-	dma0.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma0.TCD->NBYTES_MLNO = 2;
-	dma0.TCD->SLAST = 0;
-	dma0.TCD->DADDR = left_buffer;
-	dma0.TCD->DOFF = 2;
-	dma0.TCD->CITER_ELINKNO = sizeof(left_buffer) / 2;
-	dma0.TCD->DLASTSGA = -sizeof(left_buffer);
-	dma0.TCD->BITER_ELINKNO = sizeof(left_buffer) / 2;
-	dma0.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		// set up a DMA channel to store the ADC data
+		dma0.begin(true);
+		dma1.begin(true);
+		// ADC0_RA = 0x4003B010
+		// ADC1_RA = 0x400BB010
+		dma0.TCD->SADDR = &ADC0_RA;
+		dma0.TCD->SOFF = 0;
+		dma0.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma0.TCD->NBYTES_MLNO = 2;
+		dma0.TCD->SLAST = 0;
+		dma0.TCD->DADDR = left_buffer;
+		dma0.TCD->DOFF = 2;
+		dma0.TCD->CITER_ELINKNO = sizeof(left_buffer) / 2;
+		dma0.TCD->DLASTSGA = -sizeof(left_buffer);
+		dma0.TCD->BITER_ELINKNO = sizeof(left_buffer) / 2;
+		dma0.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
-	dma1.TCD->SADDR = &ADC1_RA;
-	dma1.TCD->SOFF = 0;
-	dma1.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma1.TCD->NBYTES_MLNO = 2;
-	dma1.TCD->SLAST = 0;
-	dma1.TCD->DADDR = right_buffer;
-	dma1.TCD->DOFF = 2;
-	dma1.TCD->CITER_ELINKNO = sizeof(right_buffer) / 2;
-	dma1.TCD->DLASTSGA = -sizeof(right_buffer);
-	dma1.TCD->BITER_ELINKNO = sizeof(right_buffer) / 2;
-	dma1.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma1.TCD->SADDR = &ADC1_RA;
+		dma1.TCD->SOFF = 0;
+		dma1.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma1.TCD->NBYTES_MLNO = 2;
+		dma1.TCD->SLAST = 0;
+		dma1.TCD->DADDR = right_buffer;
+		dma1.TCD->DOFF = 2;
+		dma1.TCD->CITER_ELINKNO = sizeof(right_buffer) / 2;
+		dma1.TCD->DLASTSGA = -sizeof(right_buffer);
+		dma1.TCD->BITER_ELINKNO = sizeof(right_buffer) / 2;
+		dma1.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
-	dma0.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
-	//dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC1);
-	dma1.triggerAtTransfersOf(dma0);
-	dma1.triggerAtCompletionOf(dma0);
-	update_responsibility = update_setup();
-	dma0.enable();
-	dma1.enable();
-	dma0.attachInterrupt(isr0);
-	dma1.attachInterrupt(isr1);
+		dma0.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
+		//dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC1);
+		dma1.triggerAtTransfersOf(dma0);
+		dma1.triggerAtCompletionOf(dma0);
+		update_responsibility = update_setup();
+		dma0.enable();
+		dma1.enable();
+		dma0.attachInterrupt(isr0);
+		dma1.attachInterrupt(isr1);
+	}
+	dmaState = AOI2S_Running;
+}
+
+
+AudioInputAnalogStereo::~AudioInputAnalogStereo() 
+{
+	SAFE_RELEASE_MANY(2,block_left,block_right);
+	block_left = NULL;
+	block_right = NULL;
+	update_responsibility = false;
+	dmaState = AOI2S_Paused;
 }
 
 
@@ -163,7 +178,7 @@ void AudioInputAnalogStereo::isr0(void)
 		end = (uint16_t *)&left_buffer[AUDIO_BLOCK_SAMPLES/2];
 		//if (update_responsibility) AudioStream::update_all();
 	}
-	if (block_left != NULL) {
+	if (AOI2S_Running == dmaState && block_left != NULL) {
 		offset = offset_left;
 		if (offset > AUDIO_BLOCK_SAMPLES/2) offset = AUDIO_BLOCK_SAMPLES/2;
 		offset_left = offset + AUDIO_BLOCK_SAMPLES/2;
@@ -197,7 +212,7 @@ void AudioInputAnalogStereo::isr1(void)
 		src = (uint16_t *)&right_buffer[0];
 		end = (uint16_t *)&right_buffer[AUDIO_BLOCK_SAMPLES/2];
 	}
-	if (block_right != NULL) {
+	if (AOI2S_Running == dmaState && block_right != NULL) {
 		offset = offset_right;
 		if (offset > AUDIO_BLOCK_SAMPLES/2) offset = AUDIO_BLOCK_SAMPLES/2;
 		offset_right = offset + AUDIO_BLOCK_SAMPLES/2;

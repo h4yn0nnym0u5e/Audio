@@ -133,6 +133,7 @@ AudioOutputI2SOct::~AudioOutputI2SOct()
 	block_ch7_2nd = NULL;
 	block_ch8_2nd = NULL;		
 
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;		
 }
 

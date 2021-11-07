@@ -35,13 +35,13 @@ class AudioInputI2SOct : public AudioStream
 {
 public:
 	AudioInputI2SOct(void) : AudioStream(0, NULL) { begin(); }
-	~AudioInputI2SOct() {SAFE_RELEASE_MANY(8,block_ch1,block_ch2,block_ch3,block_ch4,
-											 block_ch5,block_ch6,block_ch7,block_ch8);}
-
+	~AudioInputI2SOct();
 	virtual void update(void);
 	void begin(void);
 private:
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 	static audio_block_t *block_ch1; // released in destructor

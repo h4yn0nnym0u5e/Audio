@@ -90,6 +90,7 @@ AudioOutputI2S2::~AudioOutputI2S2()
 	block_right_1st = NULL;
 	block_right_2nd = NULL;
 	
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;	
 }
 
@@ -203,6 +204,7 @@ void AudioOutputI2S2::update(void)
 	}
 }
 
+
 void AudioOutputI2S2::config_i2s(void)
 {
 	CCM_CCGR5 |= CCM_CCGR5_SAI2(CCM_CCGR_ON);
@@ -296,7 +298,6 @@ void AudioOutputI2S2slave::begin(void)
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
 	dmaState = AOI2S_Running;
-
 }
 
 

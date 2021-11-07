@@ -55,6 +55,7 @@ static float bufferL[bufferLength];
 volatile int32_t AsyncAudioInputSPDIF3::buffer_offset = 0;	// read by resample/ written in spdif input isr -> copied at the beginning of 'resmaple' protected by __disable_irq() in resample
 int32_t AsyncAudioInputSPDIF3::resample_offset = 0; // read/written by resample/ read in spdif input isr -> no protection needed?
 
+AsyncAudioInputSPDIF3::dmaState_t AsyncAudioInputSPDIF3::dmaState = AOI2S_Stop;
 DMAChannel AsyncAudioInputSPDIF3::dma(false);
 
 AsyncAudioInputSPDIF3::~AsyncAudioInputSPDIF3(){
@@ -63,7 +64,9 @@ AsyncAudioInputSPDIF3::~AsyncAudioInputSPDIF3(){
 	delete [] _bufferLPFilter.pState;
 	delete quantizer[0];
 	delete quantizer[1];
+	dmaState = AOI2S_Paused;
 }
+
 
 FLASHMEM
 AsyncAudioInputSPDIF3::AsyncAudioInputSPDIF3(bool dither, bool noiseshaping,float attenuation, int32_t minHalfFilterLength, int32_t maxHalfFilterLength):
@@ -77,48 +80,57 @@ AsyncAudioInputSPDIF3::AsyncAudioInputSPDIF3(bool dither, bool noiseshaping,floa
 	quantizer[1]->configure(noiseshaping, dither, factor);
 	begin();
 	}
+	
+	
 FLASHMEM
 void AsyncAudioInputSPDIF3::begin()
 {
 	
 	AudioOutputSPDIF3::config_spdif3();
 		
-	dma.begin(true); // Allocate the DMA channel first
-	const uint32_t noByteMinorLoop=2*4;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = DMA_TCD_NBYTES_MLOFFYES_NBYTES(noByteMinorLoop) | DMA_TCD_NBYTES_SMLOE | 
-						DMA_TCD_NBYTES_MLOFFYES_MLOFF(-8);
-	dma.TCD->SLAST = -8;
-	dma.TCD->DOFF = 4;
-	dma.TCD->CITER_ELINKNO = sizeof(spdif_rx_buffer) / noByteMinorLoop;
-	dma.TCD->DLASTSGA = -sizeof(spdif_rx_buffer);
-	dma.TCD->BITER_ELINKNO = sizeof(spdif_rx_buffer) / noByteMinorLoop;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;	
-	dma.TCD->SADDR = (void *)((uint32_t)&SPDIF_SRL);
-	dma.TCD->DADDR = spdif_rx_buffer;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_RX);
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
+		const uint32_t noByteMinorLoop=2*4;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = DMA_TCD_NBYTES_MLOFFYES_NBYTES(noByteMinorLoop) | DMA_TCD_NBYTES_SMLOE | 
+							DMA_TCD_NBYTES_MLOFFYES_MLOFF(-8);
+		dma.TCD->SLAST = -8;
+		dma.TCD->DOFF = 4;
+		dma.TCD->CITER_ELINKNO = sizeof(spdif_rx_buffer) / noByteMinorLoop;
+		dma.TCD->DLASTSGA = -sizeof(spdif_rx_buffer);
+		dma.TCD->BITER_ELINKNO = sizeof(spdif_rx_buffer) / noByteMinorLoop;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;	
+		dma.TCD->SADDR = (void *)((uint32_t)&SPDIF_SRL);
+		dma.TCD->DADDR = spdif_rx_buffer;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_RX);
 
-	//SPDIF_SCR |=SPDIF_SCR_DMA_RX_EN;		//DMA Receive Request Enable
-	dma.enable();
+		//SPDIF_SCR |=SPDIF_SCR_DMA_RX_EN;		//DMA Receive Request Enable
+		dma.enable();
+	#ifdef DEBUG_SPDIF_IN
+		while (!Serial);
+	#endif
+		_bufferLPFilter.pCoeffs=new float[5];
+		_bufferLPFilter.numStages=1;
+		_bufferLPFilter.pState=new float[2];
+		getCoefficients(_bufferLPFilter.pCoeffs, BiquadType::LOW_PASS, 0., 5., AUDIO_SAMPLE_RATE_EXACT/AUDIO_BLOCK_SAMPLES, 0.5);
+		SPDIF_SCR &=(~SPDIF_SCR_RXFIFO_OFF_ON);	//receive fifo is turned on again
+		
+		SPDIF_SRCD = 0;
+		SPDIF_SCR |= SPDIF_SCR_DMA_RX_EN;
+		CORE_PIN15_CONFIG = 3;
+		IOMUXC_SPDIF_IN_SELECT_INPUT = 0; // GPIO_AD_B1_03_ALT3
+	}
 	dma.attachInterrupt(isr);
-#ifdef DEBUG_SPDIF_IN
-	while (!Serial);
-#endif
-	_bufferLPFilter.pCoeffs=new float[5];
-	_bufferLPFilter.numStages=1;
-	_bufferLPFilter.pState=new float[2];
-	getCoefficients(_bufferLPFilter.pCoeffs, BiquadType::LOW_PASS, 0., 5., AUDIO_SAMPLE_RATE_EXACT/AUDIO_BLOCK_SAMPLES, 0.5);
-	SPDIF_SCR &=(~SPDIF_SCR_RXFIFO_OFF_ON);	//receive fifo is turned on again
-	
-	SPDIF_SRCD = 0;
-	SPDIF_SCR |= SPDIF_SCR_DMA_RX_EN;
-	CORE_PIN15_CONFIG = 3;
-	IOMUXC_SPDIF_IN_SELECT_INPUT = 0; // GPIO_AD_B1_03_ALT3
+	dmaState = AOI2S_Running;
 }
+
+
 bool AsyncAudioInputSPDIF3::isLocked() {
 	return (SPDIF_SRPC & SPDIF_SRPC_LOCK) == SPDIF_SRPC_LOCK;
 }
+
 
 void AsyncAudioInputSPDIF3::resample(int16_t* data_left, int16_t* data_right, int32_t& block_offset){
 	block_offset=0;
@@ -156,6 +168,7 @@ void AsyncAudioInputSPDIF3::resample(int16_t* data_left, int16_t* data_right, in
 	resample_offset=resOffset;
 	__enable_irq();		
 }
+
 
 void AsyncAudioInputSPDIF3::isr(void)
 {
@@ -200,6 +213,8 @@ void AsyncAudioInputSPDIF3::isr(void)
 	}
 #endif
 }
+
+
 double AsyncAudioInputSPDIF3::getNewValidInputFrequ(){
 	//page 2129: FrequMeas[23:0]=FreqMeas_CLK / BUS_CLK * 2^10 * GAIN
 	if (isLocked()){
@@ -214,12 +229,14 @@ double AsyncAudioInputSPDIF3::getNewValidInputFrequ(){
 	return -1.;
 }
 
+
 double AsyncAudioInputSPDIF3::getBufferedTime() const{
 	__disable_irq();
 	double n=_bufferedTime;
 	__enable_irq();
 	return n;
 }
+
 
 void AsyncAudioInputSPDIF3::configure(){
 	if(!isLocked()){
@@ -267,6 +284,7 @@ void AsyncAudioInputSPDIF3::configure(){
 		}
 	}
 }
+
 
 void AsyncAudioInputSPDIF3::monitorResampleBuffer(){
 	if(!_resampler.initialized()){
@@ -327,6 +345,7 @@ void AsyncAudioInputSPDIF3::monitorResampleBuffer(){
 	_bufferedTime=_targetLatencyS+diff;
 }
 
+
 void AsyncAudioInputSPDIF3::update(void)
 {
 	configure();
@@ -365,21 +384,29 @@ void AsyncAudioInputSPDIF3::update(void)
 	}
 #endif
 }
+
+
 double AsyncAudioInputSPDIF3::getInputFrequency() const{
 	__disable_irq();
 	double f=_lastValidInputFrequ;
 	__enable_irq();
 	return isLocked() ? f : 0.;
 }
+
+
 double AsyncAudioInputSPDIF3::getTargetLantency() const {
 	__disable_irq();
 	double l=_targetLatencyS;
 	__enable_irq();
 	return l ;
 }
+
+
 double AsyncAudioInputSPDIF3::getAttenuation() const{
 	return _resampler.getAttenuation();
 }
+
+
 int32_t AsyncAudioInputSPDIF3::getHalfFilterLength() const{
 	return _resampler.getHalfFilterLength();
 }

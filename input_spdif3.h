@@ -37,7 +37,7 @@ class AudioInputSPDIF3 : public AudioStream
 {
 public:
 	AudioInputSPDIF3(void) : AudioStream(0, NULL) { begin(); }
-	~AudioInputSPDIF3() {SAFE_RELEASE_MANY(2,block_left,block_right);}
+	~AudioInputSPDIF3();
 	virtual void update(void);
 	void begin(void);
 	static bool pllLocked(void);
@@ -45,6 +45,8 @@ public:
 protected:
 	//AudioInputSPDIF3(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputSPDIF3slave !!
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 private:

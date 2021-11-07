@@ -39,40 +39,56 @@ audio_block_t * AudioInputSPDIF3::block_left = NULL;
 audio_block_t * AudioInputSPDIF3::block_right = NULL;
 uint16_t AudioInputSPDIF3::block_offset = 0;
 bool AudioInputSPDIF3::update_responsibility = false;
+AudioInputSPDIF3::dmaState_t AudioInputSPDIF3::dmaState = AOI2S_Stop;
 DMAChannel AudioInputSPDIF3::dma(false);
 
 FLASHMEM
 void AudioInputSPDIF3::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
+	if (AOI2S_Stop == dmaState)
+	{
+		dma.begin(true); // Allocate the DMA channel first
 
-	AudioOutputSPDIF3::config_spdif3();
+		AudioOutputSPDIF3::config_spdif3();
 
-	const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
-	dma.TCD->SADDR = &SPDIF_SRL;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = DMA_TCD_NBYTES_MLOFFYES_NBYTES(nbytes_mlno) | DMA_TCD_NBYTES_SMLOE |
-                         DMA_TCD_NBYTES_MLOFFYES_MLOFF(-8);
-	dma.TCD->SLAST = -8;
-	dma.TCD->DADDR = spdif_rx_buffer;
-	dma.TCD->DOFF = 4;
-	dma.TCD->DLASTSGA = -sizeof(spdif_rx_buffer);
-	dma.TCD->CITER_ELINKNO = sizeof(spdif_rx_buffer) / nbytes_mlno;
-	dma.TCD->BITER_ELINKNO = sizeof(spdif_rx_buffer) / nbytes_mlno;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
+		dma.TCD->SADDR = &SPDIF_SRL;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = DMA_TCD_NBYTES_MLOFFYES_NBYTES(nbytes_mlno) | DMA_TCD_NBYTES_SMLOE |
+							 DMA_TCD_NBYTES_MLOFFYES_MLOFF(-8);
+		dma.TCD->SLAST = -8;
+		dma.TCD->DADDR = spdif_rx_buffer;
+		dma.TCD->DOFF = 4;
+		dma.TCD->DLASTSGA = -sizeof(spdif_rx_buffer);
+		dma.TCD->CITER_ELINKNO = sizeof(spdif_rx_buffer) / nbytes_mlno;
+		dma.TCD->BITER_ELINKNO = sizeof(spdif_rx_buffer) / nbytes_mlno;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_RX);
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_RX);
+		dma.enable();
+
+		SPDIF_SRCD = 0;
+		SPDIF_SCR |= SPDIF_SCR_DMA_RX_EN;
+		CORE_PIN15_CONFIG = 3;
+		IOMUXC_SPDIF_IN_SELECT_INPUT = 0; // GPIO_AD_B1_03_ALT3
+	}
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
-	dma.enable();
-
-	SPDIF_SRCD = 0;
-	SPDIF_SCR |= SPDIF_SCR_DMA_RX_EN;
-	CORE_PIN15_CONFIG = 3;
-	IOMUXC_SPDIF_IN_SELECT_INPUT = 0; // GPIO_AD_B1_03_ALT3
+	dmaState = AOI2S_Running;
 	//pinMode(13, OUTPUT);
 }
+
+
+AudioInputSPDIF3::~AudioInputSPDIF3() 
+{
+	SAFE_RELEASE_MANY(2,block_left,block_right);
+	block_left = NULL;
+	block_right = NULL;
+	update_responsibility = false;
+	dmaState = AOI2S_Paused;
+}
+
 
 void AudioInputSPDIF3::isr(void)
 {
@@ -102,7 +118,7 @@ void AudioInputSPDIF3::isr(void)
 	left = AudioInputSPDIF3::block_left;
 	right = AudioInputSPDIF3::block_right;
 
-	if (left != NULL && right != NULL) {
+	if (AOI2S_Running == dmaState && left != NULL && right != NULL) {
 		offset = AudioInputSPDIF3::block_offset;
 		if (offset <= AUDIO_BLOCK_SAMPLES*2) {
 			dest_left = &(left->data[offset]);
@@ -130,7 +146,7 @@ void AudioInputSPDIF3::isr(void)
 			} while (src < end);
 		}
 	}
-	else if (left != NULL) {
+	else if (AOI2S_Running == dmaState && left != NULL) {
 		offset = AudioInputSPDIF3::block_offset;
 		if (offset <= AUDIO_BLOCK_SAMPLES*2) {
 			dest_left = &(left->data[offset]);
@@ -157,7 +173,7 @@ void AudioInputSPDIF3::isr(void)
 			} while (src < end);
 		}		
 	}
-	else if (right != NULL) {
+	else if (AOI2S_Running == dmaState && right != NULL) {
 		offset = AudioInputSPDIF3::block_offset;
 		if (offset <= AUDIO_BLOCK_SAMPLES*2) {
 			dest_right = &(right->data[offset]);
@@ -184,7 +200,6 @@ void AudioInputSPDIF3::isr(void)
 			} while (src < end);
 		}		
 	}
-
 }
 
 

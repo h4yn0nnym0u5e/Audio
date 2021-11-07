@@ -42,7 +42,7 @@ public:
 			init(pin0, pin1);
 		}
 		
-		~AudioInputAnalogStereo() {SAFE_RELEASE_MANY(2,block_left,block_right);}
+		~AudioInputAnalogStereo();
         virtual void update(void);
 private:
         static audio_block_t *block_left;  // released in destructor
@@ -53,6 +53,8 @@ private:
         static int32_t hpf_x1[2];
 
         static bool update_responsibility;
+        enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+        static dmaState_t dmaState;
         static DMAChannel dma0;
         static DMAChannel dma1;
         static void isr0(void);

@@ -147,6 +147,7 @@ AudioOutputI2SQuad::~AudioOutputI2SQuad()
 	block_ch3_2nd = NULL;
 	block_ch4_2nd = NULL;
 	
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 

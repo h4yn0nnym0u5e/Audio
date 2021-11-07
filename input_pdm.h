@@ -35,12 +35,14 @@ class AudioInputPDM : public AudioStream
 {
 public:
 	AudioInputPDM(void) : AudioStream(0, NULL) { begin(); }
-	~AudioInputPDM() {SAFE_RELEASE(block_left);}
+	~AudioInputPDM();
 	virtual void update(void);
 	void begin(void);
 
 protected:
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 private:

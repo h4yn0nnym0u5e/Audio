@@ -36,12 +36,14 @@ class AudioInputI2S2 : public AudioStream
 {
 public:
 	AudioInputI2S2(void) : AudioStream(0, NULL) { begin(); }
-	~AudioInputI2S2(){SAFE_RELEASE_MANY(2,block_left,block_right);}
+	~AudioInputI2S2();
 	virtual void update(void);
 	void begin(void);
 protected:
 	AudioInputI2S2(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 private:

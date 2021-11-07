@@ -90,6 +90,7 @@ AudioOutputAnalog::~AudioOutputAnalog()
 	SAFE_RELEASE_MANY(2,block_left_1st,block_left_2nd);
 	block_left_1st = NULL;
 	block_left_2nd = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_paused;
 }
 

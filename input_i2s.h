@@ -35,7 +35,7 @@ class AudioInputI2S : public AudioStream
 {
 public:
 	AudioInputI2S(void) : AudioStream(0, NULL) { begin(); }
-	~AudioInputI2S() {SAFE_RELEASE_MANY(2,block_left,block_right);}
+	~AudioInputI2S();
 	virtual void update(void);
 	void begin(void);
 protected:	
@@ -43,9 +43,13 @@ protected:
 	static bool update_responsibility;
 
 #if !defined(KINETISL)
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 #else
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma1, dma2;
 	static void isr1(void);
 	static void isr2(void);

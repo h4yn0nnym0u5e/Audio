@@ -126,6 +126,7 @@ void AudioOutputADAT::~AudioOutputADAT(void)
 	block_ch6_1st = NULL;
 	block_ch7_1st = NULL;
 	block_ch8_1st = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 

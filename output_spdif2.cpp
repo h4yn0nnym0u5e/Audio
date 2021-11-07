@@ -97,6 +97,7 @@ AudioOutputSPDIF2::~AudioOutputSPDIF2()
 	block_right_1st = NULL;
 	block_left_2nd = NULL;
 	block_right_2nd = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 

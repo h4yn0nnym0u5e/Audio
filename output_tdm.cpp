@@ -109,6 +109,7 @@ AudioOutputTDM::~AudioOutputTDM()
 	SAFE_RELEASE(block_input,AUDIO_TDM_BLOCKS);
 	for (int i=0; i < AUDIO_TDM_BLOCKS; i++) 
 		block_input[i] = nullptr;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 

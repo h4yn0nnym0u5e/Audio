@@ -98,8 +98,8 @@ AudioOutputAnalogStereo::~AudioOutputAnalogStereo()
 	block_left_2nd = NULL;
 	block_right_1st = NULL;
 	block_right_2nd = NULL;											   
-	dmaState = AOI2S_Paused;
-	
+	update_responsibility = false;
+	dmaState = AOI2S_Paused;	
 }
 
 void AudioOutputAnalogStereo::analogReference(int ref)

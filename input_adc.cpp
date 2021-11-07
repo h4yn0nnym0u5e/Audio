@@ -42,63 +42,77 @@ int32_t AudioInputAnalog::hpf_y1 = 0;
 int32_t AudioInputAnalog::hpf_x1 = 0;
 
 bool AudioInputAnalog::update_responsibility = false;
+AudioInputAnalog::dmaState_t AudioInputAnalog::dmaState = AOI2S_Stop;
 DMAChannel AudioInputAnalog::dma(false);
 
 void AudioInputAnalog::init(uint8_t pin)
 {
-	int32_t tmp;
+	if (AOI2S_Stop == dmaState)
+	{
+		int32_t tmp;
 
-	// Configure the ADC and run at least one software-triggered
-	// conversion.  This completes the self calibration stuff and
-	// leaves the ADC in a state that's mostly ready to use
-	analogReadRes(16);
-	analogReference(INTERNAL); // range 0 to 1.2 volts
-#if F_BUS == 96000000 || F_BUS == 48000000 || F_BUS == 24000000
-	analogReadAveraging(8);
-#else
-	analogReadAveraging(4);
-#endif
-	// Note for review:
-	// Probably not useful to spin cycles here stabilizing
-	// since DC blocking is similar to te external analog filters
-	tmp = (uint16_t) analogRead(pin);
-	tmp = ( ((int32_t) tmp) << 14);
-	hpf_x1 = tmp;   // With constant DC level x1 would be x0
-	hpf_y1 = 0;     // Output will settle here when stable
+		// Configure the ADC and run at least one software-triggered
+		// conversion.  This completes the self calibration stuff and
+		// leaves the ADC in a state that's mostly ready to use
+		analogReadRes(16);
+		analogReference(INTERNAL); // range 0 to 1.2 volts
+	#if F_BUS == 96000000 || F_BUS == 48000000 || F_BUS == 24000000
+		analogReadAveraging(8);
+	#else
+		analogReadAveraging(4);
+	#endif
+		// Note for review:
+		// Probably not useful to spin cycles here stabilizing
+		// since DC blocking is similar to te external analog filters
+		tmp = (uint16_t) analogRead(pin);
+		tmp = ( ((int32_t) tmp) << 14);
+		hpf_x1 = tmp;   // With constant DC level x1 would be x0
+		hpf_y1 = 0;     // Output will settle here when stable
 
-	// set the programmable delay block to trigger the ADC at 44.1 kHz
-	if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
-	  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
-	  || PDB0_MOD != PDB_PERIOD
-	  || PDB0_IDLY != 1
-	  || PDB0_CH0C1 != 0x0101) {
-		SIM_SCGC6 |= SIM_SCGC6_PDB;
-		PDB0_IDLY = 1;
-		PDB0_MOD = PDB_PERIOD;
-		PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
-		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
-		PDB0_CH0C1 = 0x0101;
+		// set the programmable delay block to trigger the ADC at 44.1 kHz
+		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
+		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
+		  || PDB0_MOD != PDB_PERIOD
+		  || PDB0_IDLY != 1
+		  || PDB0_CH0C1 != 0x0101) {
+			SIM_SCGC6 |= SIM_SCGC6_PDB;
+			PDB0_IDLY = 1;
+			PDB0_MOD = PDB_PERIOD;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+			PDB0_CH0C1 = 0x0101;
+		}
+		// enable the ADC for hardware trigger and DMA
+		ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
+
+		// set up a DMA channel to store the ADC data
+		dma.begin(true);
+		dma.TCD->SADDR = &ADC0_RA;
+		dma.TCD->SOFF = 0;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = 0;
+		dma.TCD->DADDR = analog_rx_buffer;
+		dma.TCD->DOFF = 2;
+		dma.TCD->CITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
+		dma.TCD->DLASTSGA = -sizeof(analog_rx_buffer);
+		dma.TCD->BITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
+		dma.enable();
 	}
-	// enable the ADC for hardware trigger and DMA
-	ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
-
-	// set up a DMA channel to store the ADC data
-	dma.begin(true);
-	dma.TCD->SADDR = &ADC0_RA;
-	dma.TCD->SOFF = 0;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = 0;
-	dma.TCD->DADDR = analog_rx_buffer;
-	dma.TCD->DOFF = 2;
-	dma.TCD->CITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
-	dma.TCD->DLASTSGA = -sizeof(analog_rx_buffer);
-	dma.TCD->BITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
 	update_responsibility = update_setup();
-	dma.enable();
 	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;
+}
+
+
+AudioInputAnalog::~AudioInputAnalog() 
+{
+	SAFE_RELEASE(block_left);
+	block_left = NULL;
+	update_responsibility = false;
+	dmaState = AOI2S_Paused;
 }
 
 
@@ -125,7 +139,7 @@ void AudioInputAnalog::isr(void)
 		end = (uint16_t *)&analog_rx_buffer[AUDIO_BLOCK_SAMPLES/2];
 	}
 	left = block_left;
-	if (left != NULL) {
+	if (AOI2S_Running == dmaState && left != NULL) {
 		offset = block_offset;
 		if (offset > AUDIO_BLOCK_SAMPLES/2) offset = AUDIO_BLOCK_SAMPLES/2;
 		dest_left = (uint16_t *)&(left->data[offset]);
@@ -222,6 +236,7 @@ extern "C" void xbar_connect(unsigned int input, unsigned int output);
 
 #define FILTERLEN 15
 
+AudioInputAnalog::dmaState_t AudioInputAnalog::dmaState = AOI2S_Stop;
 DMAChannel AudioInputAnalog::dma(false);
 // TODO: how much extra space is needed to avoid wrap-around timing?  200 seems a safe guess
 static __attribute__((aligned(32))) uint16_t adc_buffer[AUDIO_BLOCK_SAMPLES*4+200];
@@ -300,69 +315,80 @@ void AudioInputAnalog::init(uint8_t pin)
 	const uint8_t adc_channel = adc2_pin_to_channel[pin];
 	if (adc_channel == 255) return;
 
-	// configure a timer to trigger ADC
-	// TODO: sample rate should be slightly lower than 4X AUDIO_SAMPLE_RATE_EXACT
-	//       linear interpolation is supposed to resample it to exactly 4X
-	//       the sample rate, so we avoid artifacts boundaries between captures
-	const int comp1 = ((float)F_BUS_ACTUAL) / (AUDIO_SAMPLE_RATE_EXACT * 4.0f) / 2.0f + 0.5f;
-	TMR4_ENBL &= ~(1<<3);
-	TMR4_SCTRL3 = TMR_SCTRL_OEN | TMR_SCTRL_FORCE;
-	TMR4_CSCTRL3 = TMR_CSCTRL_CL1(1) | TMR_CSCTRL_TCF1EN;
-	TMR4_CNTR3 = 0;
-	TMR4_LOAD3 = 0;
-	TMR4_COMP13 = comp1;
-	TMR4_CMPLD13 = comp1;
-	TMR4_CTRL3 = TMR_CTRL_CM(1) | TMR_CTRL_PCS(8) | TMR_CTRL_LENGTH | TMR_CTRL_OUTMODE(3);
-	TMR4_DMA3 = TMR_DMA_CMPLD1DE;
-	TMR4_CNTR3 = 0;
-	TMR4_ENBL |= (1<<3);
+	if (AOI2S_Stop == dmaState)
+	{
+		// configure a timer to trigger ADC
+		// TODO: sample rate should be slightly lower than 4X AUDIO_SAMPLE_RATE_EXACT
+		//       linear interpolation is supposed to resample it to exactly 4X
+		//       the sample rate, so we avoid artifacts boundaries between captures
+		const int comp1 = ((float)F_BUS_ACTUAL) / (AUDIO_SAMPLE_RATE_EXACT * 4.0f) / 2.0f + 0.5f;
+		TMR4_ENBL &= ~(1<<3);
+		TMR4_SCTRL3 = TMR_SCTRL_OEN | TMR_SCTRL_FORCE;
+		TMR4_CSCTRL3 = TMR_CSCTRL_CL1(1) | TMR_CSCTRL_TCF1EN;
+		TMR4_CNTR3 = 0;
+		TMR4_LOAD3 = 0;
+		TMR4_COMP13 = comp1;
+		TMR4_CMPLD13 = comp1;
+		TMR4_CTRL3 = TMR_CTRL_CM(1) | TMR_CTRL_PCS(8) | TMR_CTRL_LENGTH | TMR_CTRL_OUTMODE(3);
+		TMR4_DMA3 = TMR_DMA_CMPLD1DE;
+		TMR4_CNTR3 = 0;
+		TMR4_ENBL |= (1<<3);
 
-	// connect the timer output the ADC_ETC input
-	const int trigger = 4; // 0-3 for ADC1, 4-7 for ADC2
-	CCM_CCGR2 |= CCM_CCGR2_XBAR1(CCM_CCGR_ON);
-	xbar_connect(XBARA1_IN_QTIMER4_TIMER3, XBARA1_OUT_ADC_ETC_TRIG00 + trigger);
+		// connect the timer output the ADC_ETC input
+		const int trigger = 4; // 0-3 for ADC1, 4-7 for ADC2
+		CCM_CCGR2 |= CCM_CCGR2_XBAR1(CCM_CCGR_ON);
+		xbar_connect(XBARA1_IN_QTIMER4_TIMER3, XBARA1_OUT_ADC_ETC_TRIG00 + trigger);
 
-	// turn on ADC_ETC and configure to receive trigger
-	if (ADC_ETC_CTRL & (ADC_ETC_CTRL_SOFTRST | ADC_ETC_CTRL_TSC_BYPASS)) {
-		ADC_ETC_CTRL = 0; // clears SOFTRST only
-		ADC_ETC_CTRL = 0; // clears TSC_BYPASS
+		// turn on ADC_ETC and configure to receive trigger
+		if (ADC_ETC_CTRL & (ADC_ETC_CTRL_SOFTRST | ADC_ETC_CTRL_TSC_BYPASS)) {
+			ADC_ETC_CTRL = 0; // clears SOFTRST only
+			ADC_ETC_CTRL = 0; // clears TSC_BYPASS
+		}
+		ADC_ETC_CTRL |= ADC_ETC_CTRL_TRIG_ENABLE(1 << trigger) | ADC_ETC_CTRL_DMA_MODE_SEL;
+		ADC_ETC_DMA_CTRL |= ADC_ETC_DMA_CTRL_TRIQ_ENABLE(trigger);
+
+		// configure ADC_ETC trigger4 to make one ADC2 measurement on pin A2
+		const int len = 1;
+		IMXRT_ADC_ETC.TRIG[trigger].CTRL = ADC_ETC_TRIG_CTRL_TRIG_CHAIN(len - 1) |
+			ADC_ETC_TRIG_CTRL_TRIG_PRIORITY(7);
+		IMXRT_ADC_ETC.TRIG[trigger].CHAIN_1_0 = ADC_ETC_TRIG_CHAIN_HWTS0(1) |
+			ADC_ETC_TRIG_CHAIN_CSEL0(adc2_pin_to_channel[pin]) | ADC_ETC_TRIG_CHAIN_B2B0;
+
+		// set up ADC2 for 12 bit mode, hardware trigger
+		//Serial.printf("ADC2_CFG = %08X\n", ADC2_CFG);
+		ADC2_CFG |= ADC_CFG_ADTRG;
+		ADC2_CFG = ADC_CFG_MODE(2) | ADC_CFG_ADSTS(3) | ADC_CFG_ADLSMP | ADC_CFG_ADTRG |
+			ADC_CFG_ADICLK(1) | ADC_CFG_ADIV(0) /*| ADC_CFG_ADHSC*/;
+		ADC2_GC &= ~ADC_GC_AVGE; // single sample, no averaging
+		ADC2_HC0 = ADC_HC_ADCH(16); // 16 = controlled by ADC_ETC
+
+		// use a DMA channel to capture ADC_ETC output
+		dma.begin();
+		dma.TCD->SADDR = &(IMXRT_ADC_ETC.TRIG[4].RESULT_1_0);
+		dma.TCD->SOFF = 0;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = 0;
+		dma.TCD->DADDR = adc_buffer;
+		dma.TCD->DOFF = 2;
+		dma.TCD->CITER_ELINKNO = sizeof(adc_buffer) / 2;
+		dma.TCD->DLASTSGA = -sizeof(adc_buffer);
+		dma.TCD->BITER_ELINKNO = sizeof(adc_buffer) / 2;
+		dma.TCD->CSR = 0;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC_ETC);
+		dma.enable();
 	}
-	ADC_ETC_CTRL |= ADC_ETC_CTRL_TRIG_ENABLE(1 << trigger) | ADC_ETC_CTRL_DMA_MODE_SEL;
-	ADC_ETC_DMA_CTRL |= ADC_ETC_DMA_CTRL_TRIQ_ENABLE(trigger);
-
-	// configure ADC_ETC trigger4 to make one ADC2 measurement on pin A2
-	const int len = 1;
-	IMXRT_ADC_ETC.TRIG[trigger].CTRL = ADC_ETC_TRIG_CTRL_TRIG_CHAIN(len - 1) |
-		ADC_ETC_TRIG_CTRL_TRIG_PRIORITY(7);
-	IMXRT_ADC_ETC.TRIG[trigger].CHAIN_1_0 = ADC_ETC_TRIG_CHAIN_HWTS0(1) |
-		ADC_ETC_TRIG_CHAIN_CSEL0(adc2_pin_to_channel[pin]) | ADC_ETC_TRIG_CHAIN_B2B0;
-
-	// set up ADC2 for 12 bit mode, hardware trigger
-	Serial.printf("ADC2_CFG = %08X\n", ADC2_CFG);
-	ADC2_CFG |= ADC_CFG_ADTRG;
-	ADC2_CFG = ADC_CFG_MODE(2) | ADC_CFG_ADSTS(3) | ADC_CFG_ADLSMP | ADC_CFG_ADTRG |
-		ADC_CFG_ADICLK(1) | ADC_CFG_ADIV(0) /*| ADC_CFG_ADHSC*/;
-	ADC2_GC &= ~ADC_GC_AVGE; // single sample, no averaging
-	ADC2_HC0 = ADC_HC_ADCH(16); // 16 = controlled by ADC_ETC
-
-	// use a DMA channel to capture ADC_ETC output
-	dma.begin();
-	dma.TCD->SADDR = &(IMXRT_ADC_ETC.TRIG[4].RESULT_1_0);
-	dma.TCD->SOFF = 0;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
-	dma.TCD->SLAST = 0;
-	dma.TCD->DADDR = adc_buffer;
-	dma.TCD->DOFF = 2;
-	dma.TCD->CITER_ELINKNO = sizeof(adc_buffer) / 2;
-	dma.TCD->DLASTSGA = -sizeof(adc_buffer);
-	dma.TCD->BITER_ELINKNO = sizeof(adc_buffer) / 2;
-	dma.TCD->CSR = 0;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC_ETC);
-	dma.enable();
-
 	// TODO: configure I2S1 to interrupt every 128 audio samples
 }
+
+
+AudioInputAnalog::~AudioInputAnalog() 
+{
+	SAFE_RELEASE(block_left);
+	block_left = NULL;
+	dmaState = AOI2S_Paused;
+}
+
 
 static int16_t fir(const int16_t *data, const int16_t *impulse, int len)
 {

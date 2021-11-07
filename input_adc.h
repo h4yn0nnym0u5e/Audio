@@ -36,7 +36,7 @@ class AudioInputAnalog : public AudioStream
 public:
         AudioInputAnalog() : AudioStream(0, NULL) { init(A2); }
         AudioInputAnalog(uint8_t pin) : AudioStream(0, NULL) { init(pin); }
-		~AudioInputAnalog() {SAFE_RELEASE(block_left);}
+		~AudioInputAnalog();
         virtual void update(void);
 private:
         static audio_block_t *block_left; // released in destructor
@@ -45,6 +45,8 @@ private:
         static int32_t hpf_x1;
 
         static bool update_responsibility;
+        enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+        static dmaState_t dmaState;
         static DMAChannel dma;
         static void isr(void);
         static void init(uint8_t pin);

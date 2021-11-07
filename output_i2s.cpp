@@ -49,7 +49,7 @@ DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SA
 
 #if defined(__IMXRT1062__)
 #include "utility/imxrt_hw.h"
-#endif
+#endif //defined(__IMXRT1062__)
 
 void AudioOutputI2S::begin(void)
 {
@@ -100,7 +100,7 @@ void AudioOutputI2S::begin(void)
 
 		I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 		I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-#endif
+#endif //defined(__IMXRT1062__)
 	}
 	dmaState = AOI2S_Running;
 	update_responsibility = update_setup();
@@ -115,6 +115,7 @@ AudioOutputI2S::~AudioOutputI2S()
 	block_left_2nd = NULL;
 	block_right_1st = NULL;
 	block_right_2nd = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 
@@ -261,10 +262,8 @@ void AudioOutputI2S::isr(void)
 			dest += 2;
 		} while (dest < end);
 	}
-#endif
+#endif // defined(KINETISK) || defined(__IMXRT1062__)
 }
-
-
 
 
 void AudioOutputI2S::update(void)
@@ -314,6 +313,7 @@ void AudioOutputI2S::update(void)
 		}
 	}
 }
+
 
 #if defined(KINETISK)
 // MCLK needs to be 48e6 / 1088 * 256 = 11.29411765 MHz -> 44.117647 kHz sample rate
@@ -490,7 +490,7 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 		    | I2S_RCR4_FSE | I2S_RCR4_FSP | I2S_RCR4_FSD;
 	I2S1_RCR5 = I2S_RCR5_WNW((32-1)) | I2S_RCR5_W0W((32-1)) | I2S_RCR5_FBT((32-1));
 
-#endif
+#endif // defined(__IMXRT1062__)
 }
 
 
@@ -498,7 +498,6 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 
 void AudioOutputI2Sslave::begin(void)
 {
-
 	if (AOI2S_Stop == dmaState)
 	{
 		dma.begin(true); // Allocate the DMA channel first
@@ -545,13 +544,14 @@ void AudioOutputI2Sslave::begin(void)
 
 		I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 		I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-#endif
+#endif //defined(__IMXRT1062__)
 	}
 	
 	dmaState = AOI2S_Running;
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
 }
+
 
 void AudioOutputI2Sslave::config_i2s(void)
 {
@@ -629,7 +629,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 		| I2S_RCR4_FSE | I2S_RCR4_FSP;
 	I2S1_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
 
-#endif
+#endif //defined(__IMXRT1062__)
 }
 
 
@@ -653,13 +653,16 @@ DMAChannel AudioOutputI2S::dma1(false);
 DMAChannel AudioOutputI2S::dma2(false);
 AudioOutputI2S::dmaState_t AudioOutputI2S::dmaState = AOI2S_Stop;
 
+
 AudioOutputI2S::~AudioOutputI2S()
 {
 	SAFE_RELEASE_MANY(2,block_left,block_right);
 	block_left = NULL;
 	block_right = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
+
 
 void AudioOutputI2S::begin(void)
 {
@@ -700,6 +703,7 @@ void AudioOutputI2S::begin(void)
 	dma1.enable();
 }
 
+
 void AudioOutputI2S::config_i2s(void)
 {
 
@@ -730,11 +734,13 @@ void AudioOutputI2S::config_i2s(void)
 	//CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
 }
 
+
 void AudioOutputI2S::update(void)
 {
 	if (!block_left)  block_left  = receiveReadOnly(0);// input 0 = left channel
 	if (!block_right) block_right = receiveReadOnly(1);// input 1 = right channel
 }
+
 
 inline __attribute__((always_inline, hot))
 static void interleave(const int16_t *dest,const audio_block_t *block_left, const audio_block_t *block_right, const size_t offset)
@@ -787,6 +793,7 @@ static void interleave(const int16_t *dest,const audio_block_t *block_left, cons
 
 }
 
+
 void AudioOutputI2S::isr1(void)
 {	//DMA Channel 1 Interrupt
 
@@ -799,6 +806,7 @@ void AudioOutputI2S::isr1(void)
 	dma1.sourceBuffer(i2s_tx_buffer1, sizeof(i2s_tx_buffer1));
 	interleave(&i2s_tx_buffer1[0], AudioOutputI2S::block_left, AudioOutputI2S::block_right, 0);
 }
+
 
 void __attribute__((interrupt("IRQ"))) AudioOutputI2S::isr2(void)
 {	//DMA Channel 2 Interrupt
@@ -824,6 +832,7 @@ void __attribute__((interrupt("IRQ"))) AudioOutputI2S::isr2(void)
 
 	if (AudioOutputI2S::update_responsibility) AudioStream::update_all();
 }
+
 
 void AudioOutputI2Sslave::begin(void)
 {
@@ -861,6 +870,8 @@ void AudioOutputI2Sslave::begin(void)
 	update_responsibility = update_setup();
 	dma1.enable();
 }
+
+
 void AudioOutputI2Sslave::config_i2s(void)
 {
 	SIM_SCGC6 |= SIM_SCGC6_I2S;//Enable I2S periphal
@@ -889,6 +900,5 @@ void AudioOutputI2Sslave::config_i2s(void)
 	CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK  	!!16MHz!!
 	
 }
-
-#endif
+#endif // !defined(KINETISL)
 

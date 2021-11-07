@@ -54,6 +54,8 @@ public:
 	double getAttenuation() const;
 	int32_t getHalfFilterLength() const;
 protected:	
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 private:

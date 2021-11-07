@@ -120,6 +120,7 @@ AudioOutputPT8211::~AudioOutputPT8211()
 	block_right_1st = NULL;
 	block_left_2nd = NULL;
 	block_right_2nd = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 
@@ -650,6 +651,7 @@ AudioOutputPT8211::~AudioOutputPT8211()
 	SAFE_RELEASE_MANY(2,block_left,block_right);
 	block_left = NULL;
 	block_right = NULL;
+	update_responsibility = false;
 	dmaState = AOI2S_Paused;
 }
 

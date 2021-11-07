@@ -35,11 +35,13 @@ class AudioInputI2SHex : public AudioStream
 {
 public:
 	AudioInputI2SHex(void) : AudioStream(0, NULL) { begin(); }
-	~AudioInputI2SHex() {SAFE_RELEASE_MANY(6,block_ch1,block_ch2,block_ch3,block_ch4,block_ch5,block_ch6);}
+	~AudioInputI2SHex();
 	virtual void update(void);
 	void begin(void);
 private:
 	static bool update_responsibility;
+	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
+	static dmaState_t dmaState;
 	static DMAChannel dma;
 	static void isr(void);
 	static audio_block_t *block_ch1;// released in destructor
