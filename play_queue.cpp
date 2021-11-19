@@ -65,7 +65,7 @@ void AudioPlayQueue::playBuffer(void)
 	while (tail == h) ; // wait until space in the queue
 	queue[h] = userblock;
 	head = h;
-	userblock = NULL;
+	userblock = NULL; // don't double-count our interest in this block
 }
 
 void AudioPlayQueue::play(int16_t data)
@@ -110,7 +110,8 @@ void AudioPlayQueue::update(void)
 		block = queue[t];
 		tail = t;
 		transmit(block);
-		release(block);
+		release(block);	 // we've lost interest in this block...
+		queue[t] = NULL; // ...forget it here, too, for the destructor
 	}
 }
 
