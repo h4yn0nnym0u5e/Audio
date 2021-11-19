@@ -35,7 +35,8 @@ audio_block_t * AudioOutputAnalogStereo::block_left_1st = NULL;
 audio_block_t * AudioOutputAnalogStereo::block_left_2nd = NULL;
 audio_block_t * AudioOutputAnalogStereo::block_right_1st = NULL;
 audio_block_t * AudioOutputAnalogStereo::block_right_2nd = NULL;
-bool AudioOutputAnalogStereo::update_responsibility = false;AudioOutputAnalogStereo::dmaState_t AudioOutputAnalogStereo::dmaState = AOI2S_Stop;
+bool AudioOutputAnalogStereo::update_responsibility = false;
+AudioOutputAnalogStereo::dmaState_t AudioOutputAnalogStereo::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputAnalogStereo::dma(false);
 
 void AudioOutputAnalogStereo::begin(void)
