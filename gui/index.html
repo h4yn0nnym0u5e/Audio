@@ -535,6 +535,7 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioFilterFIR","data":{"defaults":{"name":{"value":"new"}},"shortName":"fir","inputs":1,"outputs":1,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioFilterStateVariable","data":{"defaults":{"name":{"value":"new"}},"shortName":"filter","inputs":2,"outputs":3,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioFilterLadder","data":{"defaults":{"name":{"value":"new"}},"shortName":"ladder","inputs":3,"outputs":1,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioAnalyzeEvent","data":{"defaults":{"name":{"value":"new"}},"shortName":"event","inputs":1,"outputs":1,"category":"analyze-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioAnalyzePeak","data":{"defaults":{"name":{"value":"new"}},"shortName":"peak","inputs":1,"outputs":0,"category":"analyze-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioAnalyzeRMS","data":{"defaults":{"name":{"value":"new"}},"shortName":"rms","inputs":1,"outputs":0,"category":"analyze-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioAnalyzeFFT256","data":{"defaults":{"name":{"value":"new"}},"shortName":"fft256","inputs":1,"outputs":0,"category":"analyze-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -4890,6 +4891,78 @@ double s_freq = .0625;</p>
 		<input type="text" id="node-input-name" placeholder="Name">
 	</div>
 </script>
+
+<!----------------------------------------------------------------------------------------- -->
+<script type="text/x-red" data-help-name="AudioAnalyzeEvent">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Increments a count and optionally triggers an event every time it is executed.  Useful for
+	general troubleshooting, and executing code synchronised with the audio engine.</p>
+	<p>The event is generated using the EventResponder library, so for correct operation
+	loop() must be allowed to exit or the user must ensure some other means of executing yield() 
+	is invoked, e.g. by calling yield() directly, or using delay() etc.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>Signal in</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Signal out</td></tr>
+	</table>
+	The input signal is passed unchanged to the output. Used only to ensure that 
+	the execution happens at a predictable point in the signal flow.
+	
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>getCount</span>();</p>
+	<p class=desc>Returns a count (unsigned 32-bit) of the number of times the object has been executed. 
+	</p>
+	
+	<p class=func><span class=keyword>getMicros</span>();</p>
+	<p class=desc>Returns the micros() timestamp of the last time the object was executed.
+	</p>
+	
+	<p class=func><span class=keyword>setEventFn</span>(EventResponderFunction evFn,void* context);</p>
+	<p class=desc>Creates an event callback to be triggered: this will execute in the 
+	foreground code every time the audio engine is updated. The exact response time
+	will depend on how frequently yield() is being called. 
+	</p>
+	<p class=desc>
+	The EventResponderFunction parameter refers to the function that is to be called: see
+	documentation for the EventResponder class for full details. The function has access to the
+	 the owning AudioAnalyzeEvent instance via getData(), and the configured context pointer
+	 via getContext().
+	</p>
+	<p class=desc>
+	The context pointer parameter may point to anything, or be NULL. It is made available within the 
+	event function using getContext().
+	</p>
+
+	<p class=func><span class=keyword>getData</span>();</p>
+	<p class=desc>Returns a void pointer to the object which has triggered the event function. Mainly used
+	within the event function itself, if it has been set to be triggered from multiple AudioAnalyzeEvent objects.
+	Cast it to AudioAnalyseEvent* before use.
+	</p>
+	
+
+	<p class=func><span class=keyword>getContext</span>();</p>
+	<p class=desc>Returns a void pointer to the context specified when setEventFn() was invoked for the object.
+	Cast it to the correct type before use.
+	</p>
+	
+	<h3>Examples</h3>
+	<p class=exam>File &gt; Examples &gt; Audio &gt; Analysis &gt; AnalyzeEvent</p>
+	</p>
+	<h3>Notes</h3>
+	<p></p>
+</script>
+
+<script type="text/x-red" data-template-name="AudioAnalyzeEvent">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!----------------------------------------------------------------------------------------- -->
 
 <script type="text/x-red" data-help-name="AudioAnalyzeFFT256">
 	<h3>Summary</h3>

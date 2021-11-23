@@ -47,8 +47,6 @@ public:
 	void update(void);
 	uint32_t getCount(void) {return count;}
 	uint32_t getMicros(void) {return tstamp;}
-	void* getContext(void) {return EventResponder::getContext();}
-	void* getData(void) {return EventResponder::getData();}
 	void setEventFn(EventResponderFunction evFn,void* context);
 private:
 	volatile uint32_t count;			//!< count of audio updates
