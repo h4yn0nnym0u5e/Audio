@@ -38,8 +38,6 @@ public:
 	~AudioInputI2S();
 	virtual void update(void);
 	void begin(void);
-	static int dbgCount;
-	static DMAChannel dma;
 protected:	
 	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;
@@ -47,7 +45,7 @@ protected:
 #if !defined(KINETISL)
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
 	static dmaState_t dmaState;
-//	static DMAChannel dma;
+	static DMAChannel dma;
 	static void isr(void);
 #else
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};

@@ -37,26 +37,18 @@ uint16_t AudioInputI2S::block_offset = 0;
 bool AudioInputI2S::update_responsibility = false;
 AudioInputI2S::dmaState_t AudioInputI2S::dmaState = AOI2S_Stop;
 DMAChannel AudioInputI2S::dma(false);
-int AudioInputI2S::dbgCount;
 
 void AudioInputI2S::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
 	{
 		dma.begin(true); // Allocate the DMA channel first
-		Serial.printf("I2S input begin() called, DMA channel %d: update responsibility: ",dma.channel);
-
-		//block_left_1st = NULL;
-		//block_right_1st = NULL;
-
-		// TODO: should we set & clear the I2S_RCSR_SR bit here?
-		// I dunno - let's try it!
-		I2S1_RCSR |= 1<<24; // I2S1_RCSR_SR;
-		// Yes, damn right we should!
 		
 		AudioOutputI2S::config_i2s();
 
 	#if defined(KINETISK)
+		I2S0_RCSR |= I2S1_RCSR; // soft-reset the I2S receiver logic
+
 		CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
 		dma.TCD->SADDR = (void *)((uint32_t)&I2S0_RDR0 + 2);
 		dma.TCD->SOFF = 0;
@@ -75,6 +67,8 @@ void AudioInputI2S::begin(void)
 		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
 
 	#elif defined(__IMXRT1062__)
+		I2S1_RCSR |= I2S1_RCSR; // soft-reset the I2S receiver logic
+
 		CORE_PIN8_CONFIG  = 3;  //1:RX_DATA0
 		IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
 
@@ -96,7 +90,6 @@ void AudioInputI2S::begin(void)
 		dma.enable();
 	}
 	update_responsibility = update_setup();
-	Serial.println(update_responsibility);
 	dma.attachInterrupt(isr);
 	dmaState = AOI2S_Running;
 }
@@ -122,7 +115,6 @@ void AudioInputI2S::isr(void)
 #if defined(KINETISK) || defined(__IMXRT1062__)
 	daddr = (uint32_t)(dma.TCD->DADDR);
 	dma.clearInterrupt();
-	dbgCount++;
 	//Serial.println("isr");
 
 	if (daddr < (uint32_t)i2s_rx_buffer + sizeof(i2s_rx_buffer) / 2) {
