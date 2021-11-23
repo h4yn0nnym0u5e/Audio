@@ -34,6 +34,11 @@
 
 #define AUDIO_TDM_BLOCKS 16
 
+#if !defined(I2S_RCSR_SR) // not always in the master header
+#define I2S_RCSR_SR			((uint32_t)0x01000000)		// Software Reset
+#endif // !defined(I2S_RCSR_SR)
+
+
 class AudioInputTDM2 : public AudioStream
 {
 public:

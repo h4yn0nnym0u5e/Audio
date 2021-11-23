@@ -48,7 +48,8 @@ void AudioInputI2SQuad::begin(void)
 		dma.begin(true); // Allocate the DMA channel first
 
 #if defined(KINETISK)
-		// TODO: should we set & clear the I2S_RCSR_SR bit here?
+		I2S0_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
+
 		AudioOutputI2SQuad::config_i2s();
 
 		CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
@@ -79,6 +80,8 @@ void AudioInputI2SQuad::begin(void)
 
 #elif defined(__IMXRT1062__)
 		const int pinoffset = 0; // TODO: make this configurable...
+		I2S1_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
+
 		AudioOutputI2S::config_i2s();
 		I2S1_RCR3 = I2S_RCR3_RCE_2CH << pinoffset;
 		switch (pinoffset) {
@@ -227,14 +230,29 @@ void AudioInputI2SQuad::update(void)
 		block_offset = 0;
 		__enable_irq();
 		// then transmit the DMA's former blocks
-		transmit(out1, 0);
-		release(out1);
-		transmit(out2, 1);
-		release(out2);
-		transmit(out3, 2);
-		release(out3);
-		transmit(out4, 3);
-		release(out4);
+		if (NULL != out1)
+		{
+			transmit(out1, 0);
+			release(out1);
+		}
+		
+		if (NULL != out2)
+		{
+			transmit(out2, 1);
+			release(out2);
+		}
+		
+		if (NULL != out3)
+		{
+			transmit(out3, 2);
+			release(out3);
+		}
+		if (NULL != out4)
+		{
+			transmit(out4, 3);
+			release(out4);
+		}
+		
 	} else if (new1 != NULL) {
 		// the DMA didn't fill blocks, but we allocated blocks
 		if (block_ch1 == NULL) {

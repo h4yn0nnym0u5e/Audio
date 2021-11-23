@@ -47,6 +47,8 @@ void AudioInputTDM::begin(void)
 		// TODO: should we set & clear the I2S_RCSR_SR bit here?
 		AudioOutputTDM::config_tdm();
 #if defined(KINETISK)
+		I2S0_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
+
 		CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
 		dma.TCD->SADDR = &I2S0_RDR0;
 		dma.TCD->SOFF = 0;
@@ -65,6 +67,8 @@ void AudioInputTDM::begin(void)
 		I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
 #elif defined(__IMXRT1062__)
+		I2S1_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
+
 		CORE_PIN8_CONFIG  = 3;  //RX_DATA0
 		IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
 		dma.TCD->SADDR = &I2S1_RDR0;

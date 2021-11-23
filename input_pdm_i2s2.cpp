@@ -112,6 +112,8 @@ void AudioInputPDM2::begin(void)
 
 	  I2S2_TMR = 0;
 	  //I2S2_TCSR = (1<<25); //Reset
+	  I2S2_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
+
 	  I2S2_TCR1 = I2S_TCR1_RFW(1);
 	  I2S2_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | (I2S_TCR2_BCD | I2S_TCR2_DIV((1)) | I2S_TCR2_MSEL(1)); // sync=0; tx is async;
 	  I2S2_TCR3 = I2S_TCR3_TCE;

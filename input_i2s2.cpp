@@ -48,7 +48,7 @@ void AudioInputI2S2::begin(void)
 		//block_left_1st = NULL;
 		//block_right_1st = NULL;
 
-		// TODO: should we set & clear the I2S_RCSR_SR bit here?
+		I2S2_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
 		AudioOutputI2S2::config_i2s();
 
 		CORE_PIN5_CONFIG = 2;  //EMC_08, 2=SAI2_RX_DATA, page 434
@@ -154,10 +154,17 @@ void AudioInputI2S2::update(void)
 		block_offset = 0;
 		__enable_irq();
 		// then transmit the DMA's former blocks
-		transmit(out_left, 0);
-		release(out_left);
-		transmit(out_right, 1);
-		release(out_right);
+		if (NULL != out_left)
+		{
+			transmit(out_left, 0);
+			release(out_left);
+		}
+		
+		if (NULL != out_right)
+		{
+			transmit(out_right, 1);
+			release(out_right);
+		}
 		//Serial.print(".");
 	} else if (new_left != NULL) {
 		// the DMA didn't fill blocks, but we allocated blocks

@@ -51,7 +51,9 @@ void AudioInputI2SOct::begin(void)
 		dma.begin(true); // Allocate the DMA channel first
 
 		AudioOutputI2S::config_i2s();
+		I2S1_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
 		I2S1_RCR3 = I2S_RCR3_RCE_4CH;
+		
 		CORE_PIN8_CONFIG = 3;
 		CORE_PIN6_CONFIG = 3;
 		CORE_PIN9_CONFIG = 3;
@@ -203,7 +205,7 @@ void AudioInputI2SOct::update(void)
 	}
 	__disable_irq();
 	if (block_offset >= AUDIO_BLOCK_SAMPLES) {
-		// the DMA filled 4 blocks, so grab them and get the
+		// the DMA filled 8 blocks, so grab them and get the
 		// 8 new blocks to the DMA, as quickly as possible
 		out1 = block_ch1;
 		block_ch1 = new1;
@@ -224,22 +226,53 @@ void AudioInputI2SOct::update(void)
 		block_offset = 0;
 		__enable_irq();
 		// then transmit the DMA's former blocks
-		transmit(out1, 0);
-		release(out1);
-		transmit(out2, 1);
-		release(out2);
-		transmit(out3, 2);
-		release(out3);
-		transmit(out4, 3);
-		release(out4);
-		transmit(out5, 4);
-		release(out5);
-		transmit(out6, 5);
-		release(out6);
-		transmit(out7, 6);
-		release(out7);
-		transmit(out8, 7);
-		release(out8);
+		if (NULL != out1)
+		{
+			transmit(out1, 0);
+			release(out1);
+		}
+		
+		if (NULL != out2)
+		{
+			transmit(out2, 1);
+			release(out2);
+		}
+		
+		if (NULL != out3)
+		{
+			transmit(out3, 2);
+			release(out3);
+		}
+		if (NULL != out4)
+		{
+			transmit(out4, 3);
+			release(out4);
+		}
+		
+		if (NULL != out5)
+		{
+			transmit(out5, 4);
+			release(out5);
+		}
+		
+		if (NULL != out6)
+		{
+			transmit(out6, 5);
+			release(out6);
+		}
+		
+		if (NULL != out7)
+		{
+			transmit(out7, 6);
+			release(out7);
+		}
+		
+		if (NULL != out8)
+		{
+			transmit(out8, 7);
+			release(out8);
+		}
+		
 	} else if (new1 != NULL) {
 		// the DMA didn't fill blocks, but we allocated blocks
 		if (block_ch1 == NULL) {

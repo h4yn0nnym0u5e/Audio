@@ -50,6 +50,7 @@ void AudioInputI2SHex::begin(void)
 
 		const int pinoffset = 0; // TODO: make this configurable...
 		AudioOutputI2S::config_i2s();
+		I2S1_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
 		I2S1_RCR3 = I2S_RCR3_RCE_3CH << pinoffset;
 		switch (pinoffset) {
 		  case 0:
@@ -195,8 +196,8 @@ void AudioInputI2SHex::update(void)
 	}
 	__disable_irq();
 	if (block_offset >= AUDIO_BLOCK_SAMPLES) {
-		// the DMA filled 4 blocks, so grab them and get the
-		// 4 new blocks to the DMA, as quickly as possible
+		// the DMA filled 6 blocks, so grab them and get the
+		// 6 new blocks to the DMA, as quickly as possible
 		out1 = block_ch1;
 		block_ch1 = new1;
 		out2 = block_ch2;
@@ -212,18 +213,40 @@ void AudioInputI2SHex::update(void)
 		block_offset = 0;
 		__enable_irq();
 		// then transmit the DMA's former blocks
-		transmit(out1, 0);
-		release(out1);
-		transmit(out2, 1);
-		release(out2);
-		transmit(out3, 2);
-		release(out3);
-		transmit(out4, 3);
-		release(out4);
-		transmit(out5, 4);
-		release(out5);
-		transmit(out6, 5);
-		release(out6);
+		if (NULL != out1)
+		{
+			transmit(out1, 0);
+			release(out1);
+		}
+		
+		if (NULL != out2)
+		{
+			transmit(out2, 1);
+			release(out2);
+		}
+		
+		if (NULL != out3)
+		{
+			transmit(out3, 2);
+			release(out3);
+		}
+		if (NULL != out4)
+		{
+			transmit(out4, 3);
+			release(out4);
+		}
+		
+		if (NULL != out5)
+		{
+			transmit(out5, 4);
+			release(out5);
+		}
+		
+		if (NULL != out6)
+		{
+			transmit(out6, 5);
+			release(out6);
+		}
 	} else if (new1 != NULL) {
 		// the DMA didn't fill blocks, but we allocated blocks
 		if (block_ch1 == NULL) {

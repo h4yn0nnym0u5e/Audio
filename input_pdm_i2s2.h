@@ -31,6 +31,11 @@
 #include "AudioStream.h"
 #include "DMAChannel.h"
 
+#if !defined(I2S_RCSR_SR) // not always in the master header
+#define I2S_RCSR_SR			((uint32_t)0x01000000)		// Software Reset
+#endif // !defined(I2S_RCSR_SR)
+
+
 class AudioInputPDM2 : public AudioStream
 {
 public:

@@ -44,8 +44,8 @@ void AudioInputTDM2::begin(void)
 	{
 		dma.begin(true); // Allocate the DMA channel first
 
-		// TODO: should we set & clear the I2S_RCSR_SR bit here?
 		AudioOutputTDM2::config_tdm();
+		I2S2_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
 
 		CORE_PIN5_CONFIG = 2;  //2:RX_DATA0
 		IOMUXC_SAI2_RX_DATA0_SELECT_INPUT = 0;
