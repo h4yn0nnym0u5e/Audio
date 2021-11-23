@@ -56,6 +56,7 @@ void AudioOutputI2S::begin(void)
 	if (AOI2S_Stop == dmaState)
 	{
 		dma.begin(true); // Allocate the DMA channel first
+		Serial.printf("I2S output begin() called, DMA channel %d: update responsibility: ",dma.channel);
 		config_i2s();
 	
 		block_left_1st = NULL;
@@ -104,6 +105,7 @@ void AudioOutputI2S::begin(void)
 	}
 	dmaState = AOI2S_Running;
 	update_responsibility = update_setup();
+	Serial.println(update_responsibility);
 	dma.attachInterrupt(isr);
 }
 

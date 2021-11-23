@@ -37,18 +37,23 @@ uint16_t AudioInputI2S::block_offset = 0;
 bool AudioInputI2S::update_responsibility = false;
 AudioInputI2S::dmaState_t AudioInputI2S::dmaState = AOI2S_Stop;
 DMAChannel AudioInputI2S::dma(false);
-
+int AudioInputI2S::dbgCount;
 
 void AudioInputI2S::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
 	{
 		dma.begin(true); // Allocate the DMA channel first
+		Serial.printf("I2S input begin() called, DMA channel %d: update responsibility: ",dma.channel);
 
 		//block_left_1st = NULL;
 		//block_right_1st = NULL;
 
 		// TODO: should we set & clear the I2S_RCSR_SR bit here?
+		// I dunno - let's try it!
+		I2S1_RCSR |= 1<<24; // I2S1_RCSR_SR;
+		// Yes, damn right we should!
+		
 		AudioOutputI2S::config_i2s();
 
 	#if defined(KINETISK)
@@ -91,6 +96,7 @@ void AudioInputI2S::begin(void)
 		dma.enable();
 	}
 	update_responsibility = update_setup();
+	Serial.println(update_responsibility);
 	dma.attachInterrupt(isr);
 	dmaState = AOI2S_Running;
 }
@@ -116,6 +122,7 @@ void AudioInputI2S::isr(void)
 #if defined(KINETISK) || defined(__IMXRT1062__)
 	daddr = (uint32_t)(dma.TCD->DADDR);
 	dma.clearInterrupt();
+	dbgCount++;
 	//Serial.println("isr");
 
 	if (daddr < (uint32_t)i2s_rx_buffer + sizeof(i2s_rx_buffer) / 2) {
@@ -174,10 +181,17 @@ void AudioInputI2S::update(void)
 		block_offset = 0;
 		__enable_irq();
 		// then transmit the DMA's former blocks
-		transmit(out_left, 0);
-		release(out_left);
-		transmit(out_right, 1);
-		release(out_right);
+		if (NULL != out_left)
+		{
+			transmit(out_left, 0);
+			release(out_left);
+		}
+		
+		if (NULL != out_right)
+		{
+			transmit(out_right, 1);
+			release(out_right);
+		}
 		//Serial.print(".");
 	} else if (new_left != NULL) {
 		// the DMA didn't fill blocks, but we allocated blocks
