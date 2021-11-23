@@ -47,7 +47,7 @@ void AudioInputI2S::begin(void)
 		AudioOutputI2S::config_i2s();
 
 	#if defined(KINETISK)
-		I2S0_RCSR |= I2S1_RCSR; // soft-reset the I2S receiver logic
+		I2S0_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
 
 		CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
 		dma.TCD->SADDR = (void *)((uint32_t)&I2S0_RDR0 + 2);
@@ -67,7 +67,7 @@ void AudioInputI2S::begin(void)
 		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
 
 	#elif defined(__IMXRT1062__)
-		I2S1_RCSR |= I2S1_RCSR; // soft-reset the I2S receiver logic
+		I2S1_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
 
 		CORE_PIN8_CONFIG  = 3;  //1:RX_DATA0
 		IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
