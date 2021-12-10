@@ -296,7 +296,7 @@ void AudioOutputAnalog::update(void)
 
 
 
-#else
+#else // no analogue capability
 
 void AudioOutputAnalog::begin(void)
 {
@@ -309,4 +309,6 @@ void AudioOutputAnalog::update(void)
 	if (block) release(block);
 }
 
+AudioOutputAnalog::~AudioOutputAnalog() {}
+void AudioOutputAnalog::analogReference(int ref) {(void) ref;}
 #endif // defined(__MK20DX256__)

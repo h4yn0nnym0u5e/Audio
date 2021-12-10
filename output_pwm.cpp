@@ -238,6 +238,11 @@ void AudioOutputPWM::update(void)
 	if (block) release(block);
 }
 
+AudioOutputPWM::~AudioOutputPWM(void)
+{
+}
+
+
 #else
 /*
 * by Frank B

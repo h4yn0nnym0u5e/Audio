@@ -236,6 +236,8 @@ void AudioOutputAnalogStereo::update(void)
 	if (block) release(block);
 }
 
+AudioOutputAnalogStereo::~AudioOutputAnalogStereo() {}
+void AudioOutputAnalogStereo::analogReference(int ref) {(void) ref;}
 #endif
 
 

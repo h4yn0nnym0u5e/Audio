@@ -761,5 +761,15 @@ void AudioOutputADAT::update(void)
 	if (block) release(block);
 }
 
+#else
+void AudioOutputADAT::update(void)
+{
+	for (int i=0;i<8;i++)
+		release(receiveReadOnly(i)); 
+}
+	
+void AudioOutputADAT::begin(void) {}
+AudioOutputADAT::~AudioOutputADAT() {}
+void AudioOutputADAT::mute_PCM(bool mute) {(void) mute;}
 #endif
 

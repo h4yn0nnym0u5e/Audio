@@ -385,5 +385,9 @@ void AudioInputAnalogStereo::update(void)
 {
 }
 
+AudioInputAnalogStereo::~AudioInputAnalogStereo(void)
+{
+}
+
 
 #endif

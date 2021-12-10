@@ -384,8 +384,6 @@ void AudioInputAnalog::init(uint8_t pin)
 
 AudioInputAnalog::~AudioInputAnalog() 
 {
-	SAFE_RELEASE(block_left);
-	block_left = NULL;
 	dmaState = AOI2S_Paused;
 }
 
