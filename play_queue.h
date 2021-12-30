@@ -42,8 +42,8 @@ public:
 	AudioPlayQueue(void) : AudioStream(0, NULL),
 	  userblock(NULL), uptr(0), head(0), tail(0), max_buffers(MAX_BUFFERS) { }
 	~AudioPlayQueue(){SAFE_RELEASE_INPUTS(); SAFE_RELEASE(queue,MAX_BUFFERS); SAFE_RELEASE(userblock); }
-	void play(int16_t data);
-	void play(const int16_t *data, uint32_t len);
+	uint32_t play(int16_t data);
+	uint32_t play(const int16_t *data, uint32_t len);
 	bool available(void);
 	int16_t * getBuffer(void);
 	uint32_t playBuffer(void);
