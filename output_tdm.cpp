@@ -106,6 +106,7 @@ void AudioOutputTDM::begin(void)
 
 AudioOutputTDM::~AudioOutputTDM() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE(block_input,AUDIO_TDM_BLOCKS);
 	for (int i=0; i < AUDIO_TDM_BLOCKS; i++) 
 		block_input[i] = nullptr;

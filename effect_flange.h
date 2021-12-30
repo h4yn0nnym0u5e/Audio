@@ -38,8 +38,8 @@ public AudioStream
 {
 public:
   AudioEffectFlange(void): 
-  AudioStream(1,inputQueueArray) { 
-  }
+	AudioStream(1,inputQueueArray) {}
+  ~AudioEffectFlange() {SAFE_RELEASE_INPUTS();}
 
   boolean begin(short *delayline,int d_length,int delay_offset,int d_depth,float delay_rate);
   boolean voices(int delay_offset,int d_depth,float delay_rate);

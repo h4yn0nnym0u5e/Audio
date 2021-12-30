@@ -35,7 +35,7 @@ class AudioSynthWaveformPWM : public AudioStream
 {
 public:
 	AudioSynthWaveformPWM() : AudioStream(1, inputQueueArray), magnitude(0), elapsed(0) {}
-	~AudioSynthWaveformPWM() {active = false;}
+	~AudioSynthWaveformPWM() {SAFE_RELEASE_INPUTS();}
 	void frequency(float freq) {
 		if (freq < 1.0) freq = 1.0;
 		else if (freq > AUDIO_SAMPLE_RATE_EXACT/4.0f) freq = AUDIO_SAMPLE_RATE_EXACT/4.0f;

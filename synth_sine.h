@@ -101,7 +101,7 @@ class AudioSynthWaveformSineModulated : public AudioStream
 {
 public:
 	AudioSynthWaveformSineModulated() : AudioStream(1, inputQueueArray), magnitude(16384) {}
-	~AudioSynthWaveformSineModulated() {active = false;}
+	~AudioSynthWaveformSineModulated() {SAFE_RELEASE_INPUTS();}
 	// maximum unmodulated carrier frequency is 11025 Hz
 	// input = +1.0 doubles carrier
 	// input = -1.0 DC output

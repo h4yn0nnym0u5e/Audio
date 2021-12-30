@@ -35,7 +35,7 @@ class AudioPlaySdWav : public AudioStream
 {
 public:
 	AudioPlaySdWav(void) : AudioStream(0, NULL), block_left(NULL), block_right(NULL) { begin(); }
-	~AudioPlaySdWav(){SAFE_RELEASE_MANY(2,block_left,block_right);}
+	~AudioPlaySdWav(){SAFE_RELEASE_INPUTS(); SAFE_RELEASE_MANY(2,block_left,block_right);}
 	void begin(void);
 	bool play(const char *filename);
 	void togglePlayPause(void);

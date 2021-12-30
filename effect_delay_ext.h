@@ -48,7 +48,7 @@ public:
 		uint32_t n = (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f;
 		initialize(type, n);
 	}
-	~AudioEffectDelayExternal() {active = false;};
+	~AudioEffectDelayExternal() {SAFE_RELEASE_INPUTS();};
 	
 	void delay(uint8_t channel, float milliseconds) {
 		if (channel >= 8 || memory_type >= AUDIO_MEMORY_UNDEFINED) return;

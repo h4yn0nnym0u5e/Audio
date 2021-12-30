@@ -45,7 +45,7 @@ public:
 		release(300.0f);
 		releaseNoteOn(5.0f);
 	}
-	~AudioEffectEnvelope() {active = false;};
+	~AudioEffectEnvelope() {SAFE_RELEASE_INPUTS();};
 	void noteOn();
 	void noteOff();
 	void delay(float milliseconds) {

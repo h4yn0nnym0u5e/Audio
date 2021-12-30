@@ -74,7 +74,7 @@ public:
     sustain(0.5f);
 		release(300.0f);
 	}
-	~AudioEffectExpEnvelope() {active = false;};
+	~AudioEffectExpEnvelope() {SAFE_RELEASE_INPUTS();};
 
  
  /********* action functions ***************************************************************/

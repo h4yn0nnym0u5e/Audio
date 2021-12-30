@@ -61,13 +61,12 @@ public:
 		prevblocks[2] = NULL;
 #endif
 	}
-	~AudioAnalyzeFFT256() { // active = false; implied by SAFE_RELEASE()
+	~AudioAnalyzeFFT256() { // active = false; implied by SAFE_RELEASE_INPUTS()
+		SAFE_RELEASE_INPUTS(); 
 #if AUDIO_BLOCK_SAMPLES == 128
 		SAFE_RELEASE(prevblock);
 #elif AUDIO_BLOCK_SAMPLES == 64
 		SAFE_RELEASE(prevblocks,3);
-#else
-		active = false;
 #endif
 	}
 	bool available() {

@@ -65,6 +65,7 @@ DMAChannel AudioInputPDM2::dma(false);
 // Works for 3.x and 4.x
 AudioInputPDM2::~AudioInputPDM2() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE(block_left);
 	block_left = NULL;
 	update_responsibility = false;

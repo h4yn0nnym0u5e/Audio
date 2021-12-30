@@ -37,7 +37,7 @@ public:
 		min_sample = 32767;
 		max_sample = -32768;
 	}
-	~AudioAnalyzePeak() {active = false;};
+	~AudioAnalyzePeak() {SAFE_RELEASE_INPUTS();};
 	bool available(void) {
 		__disable_irq();
 		bool flag = new_output;

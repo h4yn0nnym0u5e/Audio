@@ -191,7 +191,7 @@ public:
 		magnitude(0), arbdata(NULL), sample(0), tone_offset(0),
 		tone_type(WAVEFORM_SINE), modulation_type(0) {
 	}
-	~AudioSynthWaveformModulated() {active = false;}
+	~AudioSynthWaveformModulated() {SAFE_RELEASE_INPUTS();}
 
 	void frequency(float freq) {
 		if (freq < 0.0f) {

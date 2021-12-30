@@ -27,7 +27,7 @@ class AudioEffectGranular : public AudioStream
 {
 public:
 	AudioEffectGranular(void): AudioStream(1,inputQueueArray) { }
-	~AudioEffectGranular() {active = false;};
+	~AudioEffectGranular() {SAFE_RELEASE_INPUTS();};
 	void begin(int16_t *sample_bank_def, int16_t max_len_def);
 	void setSpeed(float ratio) {
 		if (ratio < 0.125f) ratio = 0.125f;

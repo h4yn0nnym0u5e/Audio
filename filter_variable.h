@@ -41,7 +41,7 @@ public:
 		state_lowpass = 0;
 		state_bandpass = 0;
 	}
-	~AudioFilterStateVariable() {active = false;}
+	~AudioFilterStateVariable() {SAFE_RELEASE_INPUTS();}
 	void frequency(float freq) {
 		if (freq < 20.0f) freq = 20.0f;
 		else if (freq > AUDIO_SAMPLE_RATE_EXACT/2.5f) freq = AUDIO_SAMPLE_RATE_EXACT/2.5f;

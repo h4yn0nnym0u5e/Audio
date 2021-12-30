@@ -31,7 +31,7 @@ class AudioEffectWaveFolder : public AudioStream
 {
 public:
   AudioEffectWaveFolder() : AudioStream(2, inputQueueArray) {}
-  ~AudioEffectWaveFolder() {active = false;}
+  ~AudioEffectWaveFolder() {SAFE_RELEASE_INPUTS();}
   virtual void update() ;
 
 private:

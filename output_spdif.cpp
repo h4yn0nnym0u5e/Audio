@@ -116,6 +116,7 @@ void AudioOutputSPDIF::begin(void)
 
 AudioOutputSPDIF::~AudioOutputSPDIF()
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
 	block_left_1st = NULL;
 	block_right_1st = NULL;

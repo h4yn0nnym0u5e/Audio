@@ -89,6 +89,7 @@ void AudioInputI2SOct::begin(void)
 
 AudioInputI2SOct::~AudioInputI2SOct() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(8,block_ch1,block_ch2,block_ch3,block_ch4,
 						block_ch5,block_ch6,block_ch7,block_ch8);
 

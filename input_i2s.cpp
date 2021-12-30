@@ -97,6 +97,7 @@ void AudioInputI2S::begin(void)
 
 AudioInputI2S::~AudioInputI2S() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(2,block_left,block_right);
 	block_left = NULL;
 	block_right = NULL;

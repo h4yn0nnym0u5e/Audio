@@ -55,8 +55,7 @@ public:
 	 */
     ~AudioAnalyzeNoteFrequency() // active = false;
 	{
-		__disable_irq(); 
-		active = false;
+		SAFE_RELEASE_INPUTS();
 		release(blocklist1,AUDIO_GUITARTUNER_BLOCKS,false);
 		release(blocklist1,AUDIO_GUITARTUNER_BLOCKS);
 	}

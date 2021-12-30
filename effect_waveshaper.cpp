@@ -27,7 +27,7 @@
 
 AudioEffectWaveshaper::~AudioEffectWaveshaper()
 {
-	active = false;
+	SAFE_RELEASE_INPUTS();
 	if (this->waveshape) 
 	{
 		delete [] this->waveshape;

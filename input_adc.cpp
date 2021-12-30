@@ -109,6 +109,7 @@ void AudioInputAnalog::init(uint8_t pin)
 
 AudioInputAnalog::~AudioInputAnalog() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE(block_left);
 	block_left = NULL;
 	update_responsibility = false;

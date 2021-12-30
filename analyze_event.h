@@ -40,7 +40,7 @@ public:
 	// AudioStream stops IRQs, unlinks, enables IRQs
 	// EventResponder stops IRQs, detaches, enables IRQs
 	~AudioAnalyzeEvent(void) {
-		active = false;				// prevents crash during destruction (?!)
+		SAFE_RELEASE_INPUTS(); 
 		//destructorDisableNVIC(); 	// prevents crash during destruction (?!): a bit brutal, stops everything
 		EventResponder::_function = NULL;
 		};

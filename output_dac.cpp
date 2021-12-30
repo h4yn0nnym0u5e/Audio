@@ -87,6 +87,7 @@ void AudioOutputAnalog::begin(void)
 
 AudioOutputAnalog::~AudioOutputAnalog() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(2,block_left_1st,block_left_2nd);
 	block_left_1st = NULL;
 	block_left_2nd = NULL;
@@ -220,6 +221,7 @@ void AudioOutputAnalog::begin(void)
 
 AudioOutputAnalog::~AudioOutputAnalog() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(2,block_left_1st,block_left_2nd);
 	block_left_1st = NULL;
 	block_left_2nd = NULL;

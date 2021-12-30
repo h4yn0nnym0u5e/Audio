@@ -82,6 +82,7 @@ void AudioInputSPDIF3::begin(void)
 
 AudioInputSPDIF3::~AudioInputSPDIF3() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(2,block_left,block_right);
 	block_left = NULL;
 	block_right = NULL;

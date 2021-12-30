@@ -33,7 +33,7 @@ class AudioEffectFreeverb : public AudioStream
 {
 public:
 	AudioEffectFreeverb();
-	~AudioEffectFreeverb() {active = false;};
+	~AudioEffectFreeverb() {SAFE_RELEASE_INPUTS();};
 	virtual void update();
 	void roomsize(float n) {
 		if (n > 1.0f) n = 1.0f;
@@ -94,7 +94,7 @@ class AudioEffectFreeverbStereo : public AudioStream
 {
 public:
 	AudioEffectFreeverbStereo();
-	~AudioEffectFreeverbStereo() {active = false;};
+	~AudioEffectFreeverbStereo() {SAFE_RELEASE_INPUTS();};
 	virtual void update();
 	void roomsize(float n) {
 		if (n > 1.0f) n = 1.0f;

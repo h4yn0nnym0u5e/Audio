@@ -148,6 +148,7 @@ void AudioInputAnalogStereo::init(uint8_t pin0, uint8_t pin1)
 
 AudioInputAnalogStereo::~AudioInputAnalogStereo() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(2,block_left,block_right);
 	block_left = NULL;
 	block_right = NULL;

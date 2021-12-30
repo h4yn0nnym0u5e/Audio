@@ -52,7 +52,7 @@ class AudioFilterLadder: public AudioStream
 {
 public:
 	AudioFilterLadder() : AudioStream(3, inputQueueArray) { initpoly(); };
-	~AudioFilterLadder() {active = false;}
+	~AudioFilterLadder() {SAFE_RELEASE_INPUTS();}
 	void frequency(float FC);
 	void resonance(float reson);
 	void octaveControl(float octaves);

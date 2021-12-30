@@ -134,6 +134,7 @@ void AudioInputI2SQuad::begin(void)
 
 AudioInputI2SQuad::~AudioInputI2SQuad() 
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(4,block_ch1,block_ch2,block_ch3,block_ch4);
 
 	block_ch1 = NULL;

@@ -42,7 +42,7 @@ public:
 		accum = 0;
 		count = 0;
 	}
-	~AudioAnalyzeRMS(void) {active = false;}
+	~AudioAnalyzeRMS(void) {SAFE_RELEASE_INPUTS();}
 	bool available(void) {
 		return count > 0;
 	}

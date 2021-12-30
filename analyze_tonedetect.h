@@ -41,7 +41,7 @@ public:
 		  * (double)2147483647.999), cycles,
 		  (float)AUDIO_SAMPLE_RATE_EXACT / freq * (float)cycles + 0.5f);
 	}
-	~AudioAnalyzeToneDetect() {active = false;};
+	~AudioAnalyzeToneDetect() {SAFE_RELEASE_INPUTS();};
 	void set_params(int32_t coef, uint16_t cycles, uint16_t len);
 	bool available(void) {
 		__disable_irq();

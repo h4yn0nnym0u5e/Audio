@@ -112,6 +112,7 @@ void AudioOutputI2SHex::begin(void)
 
 AudioOutputI2SHex::~AudioOutputI2SHex()
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(12,block_ch1_1st,block_ch2_1st,block_ch3_1st,block_ch4_1st,
 					  block_ch5_1st,block_ch6_1st,
 					  block_ch1_2nd,block_ch2_2nd,block_ch3_2nd,block_ch4_2nd,

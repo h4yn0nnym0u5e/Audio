@@ -35,7 +35,7 @@ class AudioEffectFade : public AudioStream
 public:
 	AudioEffectFade(void)
 	  : AudioStream(1, inputQueueArray), position(0xFFFFFFFF) {}
-	~AudioEffectFade() {active = false;};
+	~AudioEffectFade() {SAFE_RELEASE_INPUTS();};
 	void fadeIn(uint32_t milliseconds) {
 		uint32_t samples = msToSamples(milliseconds);
 		//Serial.printf("fadeIn, %u samples\n", samples);

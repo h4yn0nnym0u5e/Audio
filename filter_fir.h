@@ -37,7 +37,7 @@ class AudioFilterFIR : public AudioStream
 {
 public:
 	AudioFilterFIR(void): AudioStream(1,inputQueueArray), coeff_p(NULL) {}
-	~AudioFilterFIR() {active = false;}
+	~AudioFilterFIR() {SAFE_RELEASE_INPUTS();}
 	void begin(const short *cp, int n_coeffs) {
 		coeff_p = cp;
 		// Initialize FIR instance (ARM DSP Math Library)

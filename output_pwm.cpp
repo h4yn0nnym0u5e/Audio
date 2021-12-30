@@ -88,6 +88,7 @@ void AudioOutputPWM::begin(void)
 
 AudioOutputPWM::~AudioOutputPWM(void)
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE(block);
 	block_1st = NULL;
 	block_1st = NULL;
@@ -378,6 +379,7 @@ void AudioOutputPWM::begin(uint8_t pin1, uint8_t pin2)
 
 AudioOutputPWM::~AudioOutputPWM(void)
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE(block);
 	block = NULL;
 	update_responsibility = false;

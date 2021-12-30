@@ -40,7 +40,7 @@ class AudioEffectMidSide : public AudioStream
 {
 public:
 	AudioEffectMidSide(void): AudioStream(2,inputQueueArray), encoding(true) { }
-	~AudioEffectMidSide() {active = false;};
+	~AudioEffectMidSide() {SAFE_RELEASE_INPUTS();};
 	void encode() { encoding = true; }
 	void decode() { encoding = false; }
 	virtual void update(void);

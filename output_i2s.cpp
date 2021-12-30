@@ -110,6 +110,7 @@ void AudioOutputI2S::begin(void)
 
 AudioOutputI2S::~AudioOutputI2S()
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(4,block_left_1st,block_left_2nd,block_right_1st,block_right_2nd);
 	block_left_1st = NULL;
 	block_left_2nd = NULL;
@@ -656,6 +657,7 @@ AudioOutputI2S::dmaState_t AudioOutputI2S::dmaState = AOI2S_Stop;
 
 AudioOutputI2S::~AudioOutputI2S()
 {
+	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(2,block_left,block_right);
 	block_left = NULL;
 	block_right = NULL;

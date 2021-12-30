@@ -41,6 +41,7 @@ public:
   AudioEffectChorus(void):
   AudioStream(1,inputQueueArray), num_chorus(2)
   { }
+  ~AudioEffectChorus() {SAFE_RELEASE_INPUTS();}
 
   boolean begin(short *delayline,int delay_length,int n_chorus);
   virtual void update(void);

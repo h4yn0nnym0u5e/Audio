@@ -53,7 +53,7 @@ public:
 	  window(AudioWindowHanning1024), state(0), outputflag(false) {
 		arm_cfft_radix4_init_q15(&fft_inst, 1024, 0, 1);
 	}
-	~AudioAnalyzeFFT1024() {SAFE_RELEASE(blocklist,8);}
+	~AudioAnalyzeFFT1024() {SAFE_RELEASE_INPUTS(); SAFE_RELEASE(blocklist,8);}
 	bool available() {
 		if (outputflag == true) {
 			outputflag = false;

@@ -38,7 +38,7 @@ public:
 	  : AudioStream(1, inputQueueArray),
 	  crushBits(16),sampleStep(1),remaining(0),sampleSqueeze(0) // do nothing is the default
 	  {}
-	~AudioEffectBitcrusher() {active = false;};
+	~AudioEffectBitcrusher() {SAFE_RELEASE_INPUTS();};
 	void bits(uint8_t b) {
 		if (b > 16) b = 16;
 		else if (b == 0) b = 1;
