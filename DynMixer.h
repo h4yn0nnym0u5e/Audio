@@ -34,51 +34,48 @@
 #define SAFE_RELEASE_INPUTS(...)
 #endif // !defined(SAFE_RELEASE_INPUTS)
 
-class AudioMixerX : public AudioStream
+class AudioMixer : public AudioStream
 {
 #if defined(__ARM_ARCH_7EM__)
 public:
-	AudioMixerX(unsigned char ninputs) : // for now this WILL crash if the malloc fails!
+	AudioMixer(unsigned char ninputs) : 
 		AudioStream(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray)),
 		_ninputs(ninputs)
     {
-        //Serial.printf("\nninputs = %d %d\n\n", _ninputs, sizeof(this));
         multiplier = (int32_t*)malloc(_ninputs*sizeof *multiplier);
-		for (int i=0; i<_ninputs; i++) multiplier[i] = 65536;
+		if (NULL != multiplier)
+			for (int i=0; i<_ninputs; i++) multiplier[i] = 65536;
 	}
-    ~AudioMixerX()
+    ~AudioMixer()
     {
 		SAFE_RELEASE_INPUTS();
-        //Serial.println("freeing multipler!");
         free(multiplier);
-        //Serial.println("freeing inputQueueArray!");
         free(inputQueueArray);
-        //Serial.println("freeing all done!");
     }
 	virtual void update(void);
 	void gain(unsigned int channel, float gain) {
-		if (channel >= _ninputs) return;
+		if (channel >= _ninputs || NULL == multiplier) return;
 		if (gain > 32767.0f) gain = 32767.0f;
 		else if (gain < -32767.0f) gain = -32767.0f;
 		multiplier[channel] = gain * 65536.0f; // TODO: proper roundoff?
 	}
+	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
 private:
     unsigned char _ninputs;
 	int32_t* multiplier;
-    //audio_block_t *toBeIgnored[1];
 	audio_block_t **inputQueueArray;
 
 #elif defined(KINETISL)
 public:
-	AudioMixerX(unsigned char ninputs) : // for now this WILL crash if the malloc fails!
+	AudioMixer(unsigned char ninputs) : 
 		AudioStream(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray)),
 		_ninputs(ninputs)
     {
-        //Serial.printf("\nninputs = %d %d\n\n", _ninputs, sizeof(this));
         multiplier = (int32_t*)malloc(_ninputs*sizeof *multiplier);
-		for (int i=0; i<_ninputs; i++) multiplier[i] = 256;
+		if (NULL != multiplier)
+			for (int i=0; i<_ninputs; i++) multiplier[i] = 256;
 	}
-    ~AudioMixerX()
+    ~AudioMixer()
     {
 		SAFE_RELEASE_INPUTS();
         free(multiplier);
@@ -86,11 +83,12 @@ public:
     }
 	virtual void update(void);
 	void gain(unsigned int channel, float gain) {
-		if (channel >= _ninputs) return;
+		if (channel >= _ninputs || NULL == multiplier) return;
 		if (gain > 127.0f) gain = 127.0f;
 		else if (gain < -127.0f) gain = -127.0f;
 		multiplier[channel] = gain * 256.0f; // TODO: proper roundoff?
 	}
+	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
 private:
 	int16_t *multiplier;
 	audio_block_t **inputQueueArray;

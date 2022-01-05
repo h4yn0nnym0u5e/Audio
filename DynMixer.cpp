@@ -105,12 +105,13 @@ static void applyGainThenAdd(int16_t *dst, const int16_t *src, int32_t mult)
 
 #endif
 
-void AudioMixerX::update(void)
+void AudioMixer::update(void)
 {
 	audio_block_t *in, *out=NULL;
 	unsigned int channel;
 
-	for (channel=0; channel < _ninputs; channel++) {
+	// use actual number of channels available
+	for (channel=0; channel < num_inputs; channel++) {
 		if (NULL != out) {
 			in = receiveReadOnly(channel);
 			if (in == NULL) continue;
