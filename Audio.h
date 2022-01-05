@@ -107,6 +107,7 @@
 #include "input_pdm_i2s2.h"
 #include "input_spdif3.h"
 #include "mixer.h"
+#include "DynMixer.h"
 #include "output_dac.h"
 #include "output_dacs.h"
 #include "output_i2s.h"
