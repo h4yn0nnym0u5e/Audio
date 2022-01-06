@@ -29,7 +29,6 @@
 #include "utility/dspinst.h"
 
 #if defined(__ARM_ARCH_7EM__)
-#define MULTI_UNITYGAIN 65536
 
 static void applyGain(int16_t *data, int32_t mult)
 {
@@ -74,7 +73,6 @@ static void applyGainThenAdd(int16_t *data, const int16_t *in, int32_t mult)
 }
 
 #elif defined(KINETISL)
-#define MULTI_UNITYGAIN 256
 
 static void applyGain(int16_t *data, int32_t mult)
 {
@@ -112,20 +110,81 @@ void AudioMixer::update(void)
 
 	// use actual number of channels available
 	for (channel=0; channel < num_inputs; channel++) {
-		if (NULL != out) {
-			in = receiveReadOnly(channel);
-			if (in == NULL) continue;
-            applyGainThenAdd(out->data, in->data, multiplier[channel]);
-			release(in);
-		} else {
-            out = receiveWritable(channel);
-            if (NULL == out) continue;
-            int32_t mult = multiplier[channel];
-			if (mult == MULTI_UNITYGAIN) continue;
-            applyGain(out->data, mult);
+		if (0 != multiplier[channel])
+		{
+			if (NULL != out) {
+				in = receiveReadOnly(channel);
+				if (in == NULL) continue;
+				applyGainThenAdd(out->data, in->data, multiplier[channel]);
+				release(in);
+			} else {
+				out = receiveWritable(channel);
+				if (NULL == out) continue;
+				int32_t mult = multiplier[channel];
+				if (mult == MULTI_UNITYGAIN) continue;
+				applyGain(out->data, mult);
+			}
 		}
 	}
 	if (NULL == out) return;
     transmit(out);
 	release(out);
+}
+
+void AudioMixerStereo::update(void)
+{
+	audio_block_t *in, *outL=NULL, *outR=NULL;
+	unsigned int channel;
+
+	// use actual number of channels available
+	for (channel=0; channel < num_inputs; channel++) 
+	{
+		in = receiveReadOnly(channel); // we need two copies, and this NULLs the inputQueue pointer
+		
+		if (NULL != in)
+		{
+			if (0 != multiplier[channel].mL)
+			{
+				if (NULL != outL) {				
+						applyGainThenAdd(outL->data, in->data, multiplier[channel].mL);
+				} else {
+					outL = allocate();
+					if (NULL != outL)
+					{
+						int32_t mult = multiplier[channel].mL;
+						memcpy(outL->data, in->data, sizeof(outL->data));
+						if (mult != MULTI_UNITYGAIN)
+							applyGain(outL->data, mult);
+					}
+				}
+			}
+			
+			if (0 != multiplier[channel].mR)
+			{
+				if (NULL != outR) {				
+					applyGainThenAdd(outR->data, in->data, multiplier[channel].mR);
+				} else {
+					outR = allocate();
+					if (NULL != outR)
+					{
+						int32_t mult = multiplier[channel].mR;
+						memcpy(outR->data, in->data, sizeof(outR->data));
+						if (mult != MULTI_UNITYGAIN)
+							applyGain(outR->data, mult);
+					}
+				}
+			}		
+			release(in); 
+		}
+	}
+	if (NULL != outL)
+	{
+		transmit(outL);
+		release(outL);
+	}
+	if (NULL != outR)
+	{
+		transmit(outR,1);
+		release(outR);
+	}
 }

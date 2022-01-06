@@ -34,9 +34,22 @@
 #define SAFE_RELEASE_INPUTS(...)
 #endif // !defined(SAFE_RELEASE_INPUTS)
 
+// Avoid having to maintain near-identical blocks of code
+// by using some sensible macro substitutions
+#if defined(__ARM_ARCH_7EM__)
+#define MULTI_UNITYGAIN 65536
+#define MULTI_TYPE int32_t
+#define MAX_GAIN ((float) MULTI_UNITYGAIN / 2.0f - 1.0f)
+#elif defined(KINETISL)
+#define MULTI_UNITYGAIN 256
+#define MULTI_TYPE int16_t
+#endif
+
+#define MAX_GAIN ((float) MULTI_UNITYGAIN / 2.0f - 1.0f)
+#define MAX_PAN 1.0f
+
 class AudioMixer : public AudioStream
 {
-#if defined(__ARM_ARCH_7EM__)
 public:
 	AudioMixer(unsigned char ninputs) : 
 		AudioStream(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray)),
@@ -44,55 +57,102 @@ public:
     {
         multiplier = (int32_t*)malloc(_ninputs*sizeof *multiplier);
 		if (NULL != multiplier)
-			for (int i=0; i<_ninputs; i++) multiplier[i] = 65536;
+			for (int i=0; i<_ninputs; i++) multiplier[i] = MULTI_UNITYGAIN;
 	}
+	
     ~AudioMixer()
     {
 		SAFE_RELEASE_INPUTS();
         free(multiplier);
         free(inputQueueArray);
     }
+	
 	virtual void update(void);
+	
 	void gain(unsigned int channel, float gain) {
 		if (channel >= _ninputs || NULL == multiplier) return;
-		if (gain > 32767.0f) gain = 32767.0f;
-		else if (gain < -32767.0f) gain = -32767.0f;
-		multiplier[channel] = gain * 65536.0f; // TODO: proper roundoff?
+		if (gain > MAX_GAIN) gain = MAX_GAIN;
+		else if (gain < -MAX_GAIN) gain = -MAX_GAIN;
+		multiplier[channel] = gain * (float) MULTI_UNITYGAIN; // TODO: proper roundoff?
 	}
+	
+	void gain(float gain) {
+		if (NULL == multiplier) return;
+		if (gain > MAX_GAIN) gain = MAX_GAIN;
+		else if (gain < -MAX_GAIN) gain = -MAX_GAIN;
+		MULTI_TYPE gainI = gain * (float) MULTI_UNITYGAIN; // TODO: proper roundoff?
+		for (int i=0; i<_ninputs; i++) multiplier[i] = gainI;		
+	}
+	
 	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
 private:
     unsigned char _ninputs;
-	int32_t* multiplier;
+	MULTI_TYPE* multiplier;
 	audio_block_t **inputQueueArray;
+};
 
-#elif defined(KINETISL)
+
+#define MULTI_CENTRED ((MULTI_TYPE) (MULTI_UNITYGAIN*sqrt(0.5f)))
+class AudioMixerStereo : public AudioStream
+{
 public:
-	AudioMixer(unsigned char ninputs) : 
+	AudioMixerStereo(unsigned char ninputs) : 
 		AudioStream(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray)),
 		_ninputs(ninputs)
     {
-        multiplier = (int32_t*)malloc(_ninputs*sizeof *multiplier);
+        multiplier = (mulRec*) malloc(_ninputs*sizeof *multiplier);
 		if (NULL != multiplier)
-			for (int i=0; i<_ninputs; i++) multiplier[i] = 256;
+			for (int i=0; i<_ninputs; i++) multiplier[i] = {1.0f, 0.0f, 0.707f, 0.707f, MULTI_CENTRED,MULTI_CENTRED};
 	}
-    ~AudioMixer()
+	
+    ~AudioMixerStereo()
     {
 		SAFE_RELEASE_INPUTS();
         free(multiplier);
         free(inputQueueArray);
     }
+	
 	virtual void update(void);
+	
 	void gain(unsigned int channel, float gain) {
 		if (channel >= _ninputs || NULL == multiplier) return;
-		if (gain > 127.0f) gain = 127.0f;
-		else if (gain < -127.0f) gain = -127.0f;
-		multiplier[channel] = gain * 256.0f; // TODO: proper roundoff?
+		if (gain > MAX_GAIN) gain = MAX_GAIN;
+		else if (gain < -MAX_GAIN) gain = -MAX_GAIN;
+		
+		setGainPan(channel,gain,multiplier[channel].pan);
 	}
+	
+	void pan(unsigned int channel, float pan) {
+		if (channel >= _ninputs || NULL == multiplier) return;
+		if (pan > MAX_PAN) pan = MAX_PAN;
+		else if (pan < -MAX_PAN) pan = -MAX_PAN;
+		
+		setGainPan(channel,multiplier[channel].gain,pan);
+	}
+	
+	void gain(float gain) {
+		if (NULL == multiplier) return;
+		if (gain > MAX_GAIN) gain = MAX_GAIN;
+		else if (gain < -MAX_GAIN) gain = -MAX_GAIN;
+		
+		for (int i=0; i<_ninputs; i++) 
+			setGainPan(i,gain,multiplier[i].pan);
+	}
+	
 	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
 private:
-	int16_t *multiplier;
+	void setGainPan(unsigned int channel,float gain,float pan) 
+	{
+		multiplier[channel].gain = gain;
+		multiplier[channel].pan  = pan;
+		multiplier[channel].pgL  = sqrt((pan-1.0f)/-2.0f) * gain;
+		multiplier[channel].pgR  = sqrt((pan+1.0f)/ 2.0f) * gain;
+		multiplier[channel].mL   = (MULTI_TYPE) (multiplier[channel].pgL * MULTI_UNITYGAIN); // TODO: proper roundoff?
+		multiplier[channel].mR   = (MULTI_TYPE) (multiplier[channel].pgR * MULTI_UNITYGAIN);
+	}
+    unsigned char _ninputs;
+	struct mulRec {float gain,pan,pgL,pgR; MULTI_TYPE mL,mR; } *multiplier;
 	audio_block_t **inputQueueArray;
-#endif
 };
 
 
