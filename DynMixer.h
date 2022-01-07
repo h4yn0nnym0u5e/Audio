@@ -102,7 +102,7 @@ public:
     {
         multiplier = (mulRec*) malloc(_ninputs*sizeof *multiplier);
 		if (NULL != multiplier)
-			for (int i=0; i<_ninputs; i++) multiplier[i] = {1.0f, 0.0f, 0.707f, 0.707f, MULTI_CENTRED,MULTI_CENTRED};
+			for (int i=0; i<_ninputs; i++) multiplier[i] = {1.0f, 0.0f, -1, MULTI_CENTRED,MULTI_CENTRED};
 	}
 	
     ~AudioMixerStereo()
@@ -143,15 +143,17 @@ public:
 private:
 	void setGainPan(unsigned int channel,float gain,float pan) 
 	{
+		float pgL, pgR;
+		
 		multiplier[channel].gain = gain;
 		multiplier[channel].pan  = pan;
-		multiplier[channel].pgL  = sqrt((pan-1.0f)/-2.0f) * gain;
-		multiplier[channel].pgR  = sqrt((pan+1.0f)/ 2.0f) * gain;
-		multiplier[channel].mL   = (MULTI_TYPE) (multiplier[channel].pgL * MULTI_UNITYGAIN); // TODO: proper roundoff?
-		multiplier[channel].mR   = (MULTI_TYPE) (multiplier[channel].pgR * MULTI_UNITYGAIN);
+		pgL  = sqrt((pan-1.0f)/-2.0f) * gain;
+		pgR  = sqrt((pan+1.0f)/ 2.0f) * gain;
+		multiplier[channel].mL   = (MULTI_TYPE) (pgL * MULTI_UNITYGAIN); // TODO: proper roundoff?
+		multiplier[channel].mR   = (MULTI_TYPE) (pgR * MULTI_UNITYGAIN);
 	}
     unsigned char _ninputs;
-	struct mulRec {float gain,pan,pgL,pgR; MULTI_TYPE mL,mR; } *multiplier;
+	struct mulRec {float gain,pan; short balanceChannel; MULTI_TYPE mL,mR; } *multiplier;
 	audio_block_t **inputQueueArray;
 };
 
