@@ -131,6 +131,52 @@ void AudioMixer::update(void)
 	release(out);
 }
 
+
+/**
+ * Pan a single mono channel to a position in the stereo field, OR
+ * balance a pair of channels in the stereo field.
+ *
+ * If balancing, we're passed either channel number, and work out
+ * which based on how it was originally set up.
+ */
+void AudioMixerStereo::setGainPan(unsigned int channel,float gain,float pan) 
+{
+	float pgL, pgR;
+	short chRight = multiplier[channel].balanceChannel;
+	if (chRight >= 0 && !multiplier[channel].isLeft) //  passed the R channel number
+	{
+		short tmp = channel; // swap everything over
+		channel = chRight;
+		chRight = tmp;
+		pan = -pan;
+	}
+	
+	multiplier[channel].gain = gain;
+	multiplier[channel].pan  = pan;
+	/* 
+	// Tends to be a bit "central"
+	pgL  = sqrt((pan-1.0f)/-2.0f) * gain;
+	pgR  = sqrt((pan+1.0f)/ 2.0f) * gain;
+	*/
+	// Analogue simulation
+	pgL = 1.0f / (-2.0f / (panLaw * (pan - 1.0f) + EPSILON) + 1.0f); pgL = gain * normalise * pgL / (pgL+1.0f);
+	pgR = 1.0f / ( 2.0f / (panLaw * (pan + 1.0f) + EPSILON) + 1.0f); pgR = gain * normalise * pgR / (pgR+1.0f);
+	multiplier[channel].mL   = (MULTI_TYPE) (pgL * MULTI_UNITYGAIN); // TODO: proper roundoff?
+	if (multiplier[channel].balanceChannel < 0) // panning
+		multiplier[channel].mR   = (MULTI_TYPE) (pgR * MULTI_UNITYGAIN);
+	else // we're balancing, not panning
+	{
+		multiplier[channel].mR = 0; // this was left channel, so send nothing to the right from here
+		
+		// other is right, so vice versa
+		multiplier[chRight].gain = gain; // same gain
+		multiplier[chRight].pan  = -pan; // opposite pan
+		multiplier[chRight].mL = 0; 
+		multiplier[chRight].mR   = (MULTI_TYPE) (pgR * MULTI_UNITYGAIN);
+	}
+}
+	
+
 void AudioMixerStereo::update(void)
 {
 	audio_block_t *in, *outL=NULL, *outR=NULL;

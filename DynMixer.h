@@ -47,6 +47,7 @@
 
 #define MAX_GAIN ((float) MULTI_UNITYGAIN / 2.0f - 1.0f)
 #define MAX_PAN 1.0f
+#define EPSILON 0.00001f // very small: prevents division by zero
 
 class AudioMixer : public AudioStream
 {
@@ -102,7 +103,11 @@ public:
     {
         multiplier = (mulRec*) malloc(_ninputs*sizeof *multiplier);
 		if (NULL != multiplier)
-			for (int i=0; i<_ninputs; i++) multiplier[i] = {1.0f, 0.0f, -1, MULTI_CENTRED,MULTI_CENTRED};
+		{
+			for (int i=0; i<_ninputs; i++) 
+				multiplier[i] = {1.0f, 0.0f, -1, false, MULTI_CENTRED,MULTI_CENTRED};
+			setPanLaw(0.22f);
+		}
 	}
 	
     ~AudioMixerStereo()
@@ -114,7 +119,12 @@ public:
 	
 	virtual void update(void);
 	
-	void gain(unsigned int channel, float gain) {
+	
+	/**
+	 * Set gain on a single channel.
+	 */
+	void gain(unsigned int channel, float gain) 
+	{
 		if (channel >= _ninputs || NULL == multiplier) return;
 		if (gain > MAX_GAIN) gain = MAX_GAIN;
 		else if (gain < -MAX_GAIN) gain = -MAX_GAIN;
@@ -122,38 +132,101 @@ public:
 		setGainPan(channel,gain,multiplier[channel].pan);
 	}
 	
-	void pan(unsigned int channel, float pan) {
+	
+	/**
+	 * Pan a single mono channel to a position in the stereo field.
+	 */
+	void pan(unsigned int channel, float pan) 
+	{
 		if (channel >= _ninputs || NULL == multiplier) return;
 		if (pan > MAX_PAN) pan = MAX_PAN;
 		else if (pan < -MAX_PAN) pan = -MAX_PAN;
 		
+		if (multiplier[channel].balanceChannel >= 0) // was used for balance...
+		{
+			short otherChannel = multiplier[channel].balanceChannel;
+			
+			multiplier[channel].balanceChannel = -1;	  // ...revert to pan mode...
+			multiplier[otherChannel].balanceChannel = -1; // ...on both channels
+		}
+		
 		setGainPan(channel,multiplier[channel].gain,pan);
 	}
 	
-	void gain(float gain) {
+	
+	/**
+	 * Balance a pair of channels in the stereo field.
+	 */
+	void balance(unsigned int chLeft, unsigned int chRight, float bal) 
+	{
+		if (chLeft >= _ninputs || chRight >= _ninputs || NULL == multiplier) return;
+		if (bal > MAX_PAN) bal = MAX_PAN;
+		else if (bal < -MAX_PAN) bal = -MAX_PAN;
+		
+		if (multiplier[chLeft].balanceChannel < 0  // haven't set up this channel yet
+ 		 && multiplier[chRight].balanceChannel < 0) // or this one
+		{
+			multiplier[chLeft].balanceChannel = chRight; // tell them they're a pair
+			multiplier[chRight].balanceChannel = chLeft;	
+			multiplier[chLeft].isLeft = true;			 // and which is which
+			multiplier[chRight].isLeft = false;
+		}
+			
+		setGainPan(chLeft,multiplier[chLeft].gain,bal);
+	}
+	
+	/**
+	 * Balance a pair of channels in the stereo field.
+	 * Given only one channel, so use that as left and the next one up as right.
+	 */
+	void balance(unsigned int chLeft, float bal) 
+	{
+		balance(chLeft,chLeft+1,bal);
+	}
+			
+	
+	/**
+	 * Set gain on all channels at once.
+	 */
+	void gain(float gain) 
+	{
 		if (NULL == multiplier) return;
 		if (gain > MAX_GAIN) gain = MAX_GAIN;
 		else if (gain < -MAX_GAIN) gain = -MAX_GAIN;
 		
-		for (int i=0; i<_ninputs; i++) 
-			setGainPan(i,gain,multiplier[i].pan);
+		for (int i=0; i<_ninputs; i++)
+		{	
+			if (multiplier[i].balanceChannel < 0 || multiplier[i].isLeft)
+				setGainPan(i,gain,multiplier[i].pan);
+		}
+	}
+	
+	
+	/**
+	 * Set the "pan law".
+	 * Values from 0.707 down to 0.01 are probably about right, depending.
+	 * Simulates an analogue circuit's behaviour. Sort of.
+	 */
+	void setPanLaw(float law)
+	{
+		panLaw = law;//sqrt(0.5f);
+		normalise = 1.0f/(1.0f / panLaw + 1.0f);
+		normalise = (normalise + 1.0f)/normalise;
+		
+		for (int i=0; i<num_inputs; i++)
+		{	
+			if (multiplier[i].balanceChannel < 0 || multiplier[i].isLeft)
+				setGainPan(i,multiplier[i].gain,multiplier[i].pan);
+		}
 	}
 	
 	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
 private:
-	void setGainPan(unsigned int channel,float gain,float pan) 
-	{
-		float pgL, pgR;
-		
-		multiplier[channel].gain = gain;
-		multiplier[channel].pan  = pan;
-		pgL  = sqrt((pan-1.0f)/-2.0f) * gain;
-		pgR  = sqrt((pan+1.0f)/ 2.0f) * gain;
-		multiplier[channel].mL   = (MULTI_TYPE) (pgL * MULTI_UNITYGAIN); // TODO: proper roundoff?
-		multiplier[channel].mR   = (MULTI_TYPE) (pgR * MULTI_UNITYGAIN);
-	}
+	float panLaw;
+	float normalise;
+	void setGainPan(unsigned int channel,float gain,float pan);
     unsigned char _ninputs;
-	struct mulRec {float gain,pan; short balanceChannel; MULTI_TYPE mL,mR; } *multiplier;
+	struct mulRec {float gain,pan; short balanceChannel; bool isLeft; MULTI_TYPE mL,mR; } *multiplier;
 	audio_block_t **inputQueueArray;
 };
 
