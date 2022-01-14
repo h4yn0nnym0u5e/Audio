@@ -49,7 +49,7 @@ private:
         static dmaState_t dmaState;
         static DMAChannel dma;
         static void isr(void);
-        static void init(uint8_t pin);
+        void init(uint8_t pin);
 
 };
 

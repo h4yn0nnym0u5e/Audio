@@ -20,6 +20,8 @@
  * THE SOFTWARE.
  */
 
+#if defined(__IMXRT1062__)
+
 #ifndef output_SPDIF3_h_
 #define output_SPDIF3_h_
 
@@ -57,4 +59,5 @@ private:
 };
 
 
-#endif
+#endif // output_SPDIF3_h_
+#endif // defined(__IMXRT1062__)

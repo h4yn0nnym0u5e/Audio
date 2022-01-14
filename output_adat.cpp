@@ -111,7 +111,7 @@ void AudioOutputADAT::begin(void)
 }
 
 
-void AudioOutputADAT::~AudioOutputADAT(void)
+AudioOutputADAT::~AudioOutputADAT()
 {
 	SAFE_RELEASE_INPUTS(); 
 	SAFE_RELEASE_MANY(16,block_ch1_1st,block_ch2_1st,block_ch3_1st,block_ch4_1st,

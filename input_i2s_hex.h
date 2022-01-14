@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#if defined(__IMXRT1062__)
+
 #ifndef _input_i2s_hex_h_
 #define _input_i2s_hex_h_
 
@@ -58,4 +60,5 @@ private:
 };
 
 
-#endif
+#endif // _input_i2s_hex_h_
+#endif // hardware capability

@@ -89,7 +89,7 @@ void AudioOutputPWM::begin(void)
 AudioOutputPWM::~AudioOutputPWM(void)
 {
 	SAFE_RELEASE_INPUTS(); 
-	SAFE_RELEASE(block);
+	SAFE_RELEASE_MANY(2,block_1st,block_2nd);
 	block_1st = NULL;
 	block_1st = NULL;
 	update_responsibility = false;

@@ -124,8 +124,8 @@ void AudioInputI2SQuad::begin(void)
 
 		I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 		dma.enable();
-	}
 #endif
+	}
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
 	dmaState = AOI2S_Running;
@@ -283,11 +283,8 @@ void AudioInputI2SQuad::update(void)
 
 #else // not __MK20DX256__
 
-void AudioInputI2SQuad::begin(void)
-{
-}
-
-
+void AudioInputI2SQuad::begin(void) {}
+AudioInputI2SQuad::~AudioInputI2SQuad() {}
 
 #endif
 

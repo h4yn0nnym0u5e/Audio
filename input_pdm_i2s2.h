@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__)
+
 #ifndef _input_pdm_i2s2_h_
 #define _input_pdm_i2s2_h_
 
@@ -53,4 +55,7 @@ private:
 	static audio_block_t *block_left;  // released in destructor
 };
 
-#endif
+#endif // _input_pdm_i2s2_h_
+#endif // defined(__IMXRT1052__) || defined(__IMXRT1062__)
+
+

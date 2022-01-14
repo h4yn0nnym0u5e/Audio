@@ -26,6 +26,8 @@
 
 //Frank Bösing, Ben-Rheinland
 
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__)
+
 #ifndef output_pt8211_2_h_
 #define output_pt8211_2_h_
 
@@ -67,4 +69,5 @@ private:
 	audio_block_t *inputQueueArray[2];
 };
 
-#endif
+#endif // output_pt8211_2_h_
+#endif // hardware capability 

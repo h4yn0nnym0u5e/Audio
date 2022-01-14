@@ -59,7 +59,7 @@ private:
         static DMAChannel dma1;
         static void isr0(void);
         static void isr1(void);
-        static void init(uint8_t pin0, uint8_t pin1);
+        void init(uint8_t pin0, uint8_t pin1);
 };
 
 #endif

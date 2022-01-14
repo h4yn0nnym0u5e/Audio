@@ -24,7 +24,8 @@
  * THE SOFTWARE.
  */
 
-#pragma once
+#ifndef _synth_wavetable_h_
+#define _synth_wavetable_h_
 
 #include "Arduino.h"
 #include "AudioStream.h"
@@ -205,3 +206,4 @@ private:
 	volatile int32_t mod_pitch_offset_scnd = 0;
 };
 
+#endif // _synth_wavetable_h_

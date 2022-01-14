@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#if defined(__IMXRT1062__)
+
 #include <Arduino.h>
 #include "input_i2s_oct.h"
 #include "output_i2s.h"
@@ -41,8 +43,6 @@ uint16_t AudioInputI2SOct::block_offset = 0;
 bool AudioInputI2SOct::update_responsibility = false;
 AudioInputI2SOct::dmaState_t AudioInputI2SOct::dmaState = AOI2S_Stop;
 DMAChannel AudioInputI2SOct::dma(false);
-
-#if defined(__IMXRT1062__)
 
 void AudioInputI2SOct::begin(void)
 {
@@ -309,7 +309,7 @@ void AudioInputI2SOct::update(void)
 	}
 }
 
-#else // not supported
+#elif 0 // #else // not supported
 
 void AudioInputI2SOct::begin(void)
 {

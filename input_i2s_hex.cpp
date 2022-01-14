@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#if defined(__IMXRT1062__)
+
 #include <Arduino.h>
 #include "input_i2s_hex.h"
 #include "output_i2s.h"
@@ -40,7 +42,6 @@ bool AudioInputI2SHex::update_responsibility = false;
 AudioInputI2SHex::dmaState_t AudioInputI2SHex::dmaState = AOI2S_Stop;
 DMAChannel AudioInputI2SHex::dma(false);
 
-#if defined(__IMXRT1062__)
 
 void AudioInputI2SHex::begin(void)
 {
@@ -279,7 +280,7 @@ void AudioInputI2SHex::update(void)
 	}
 }
 
-#else // not supported
+#elif 0 // #else // not supported
 
 void AudioInputI2SHex::begin(void)
 {

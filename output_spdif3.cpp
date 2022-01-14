@@ -307,9 +307,11 @@ void AudioOutputSPDIF3::config_spdif3(void)
 #if defined(__MK66FX1M0__) || defined(__MK64FX512__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
 // empty code to allow compile (but no sound output) on other Teensy models
 
+#if 0 // not needed - .h file excluded and compile will NOT fail silently and puzzle the user!
 void AudioOutputSPDIF3::update(void) { }
 void AudioOutputSPDIF3::begin(void) { }
 void AudioOutputSPDIF3::mute_PCM(const bool mute) { }
 bool AudioOutputSPDIF3::pll_locked(void) { return false; }
+#endif
 
 #endif

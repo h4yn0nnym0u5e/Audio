@@ -43,47 +43,48 @@ void AudioOutputAnalogStereo::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
 	{
-	dma.begin(true); // Allocate the DMA channel first
+		dma.begin(true); // Allocate the DMA channel first
 
-	SIM_SCGC2 |= SIM_SCGC2_DAC0 | SIM_SCGC2_DAC1;
-	DAC0_C0 = DAC_C0_DACEN;                   // 1.2V VDDA is DACREF_2
-	DAC1_C0 = DAC_C0_DACEN;
+		SIM_SCGC2 |= SIM_SCGC2_DAC0 | SIM_SCGC2_DAC1;
+		DAC0_C0 = DAC_C0_DACEN;                   // 1.2V VDDA is DACREF_2
+		DAC1_C0 = DAC_C0_DACEN;
 
-	// slowly ramp up to DC voltage, approx 1/4 second
-	for (int16_t i=0; i<=2048; i+=8) {
-		*(int16_t *)&(DAC0_DAT0L) = i;
-		*(int16_t *)&(DAC1_DAT0L) = i;
-		delay(1);
+		// slowly ramp up to DC voltage, approx 1/4 second
+		for (int16_t i=0; i<=2048; i+=8) {
+			*(int16_t *)&(DAC0_DAT0L) = i;
+			*(int16_t *)&(DAC1_DAT0L) = i;
+			delay(1);
+		}
+
+		// set the programmable delay block to trigger DMA requests
+		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
+		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
+		  || PDB0_MOD != PDB_PERIOD
+		  || PDB0_IDLY != 1
+		  || PDB0_CH0C1 != 0x0101) {
+			SIM_SCGC6 |= SIM_SCGC6_PDB;
+			PDB0_IDLY = 1;
+			PDB0_MOD = PDB_PERIOD;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+			PDB0_CH0C1 = 0x0101;
+		}
+
+		dma.TCD->SADDR = dac_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(DMA_TCD_ATTR_SIZE_32BIT) |
+			DMA_TCD_ATTR_DSIZE(DMA_TCD_ATTR_SIZE_16BIT);
+		dma.TCD->NBYTES_MLNO = DMA_TCD_NBYTES_MLOFFYES_NBYTES(4) | DMA_TCD_NBYTES_DMLOE |
+			DMA_TCD_NBYTES_MLOFFYES_MLOFF((&DAC0_DAT0L - &DAC1_DAT0L) * 2);
+		dma.TCD->SLAST = -sizeof(dac_buffer);
+		dma.TCD->DADDR = &DAC0_DAT0L;
+		dma.TCD->DOFF = &DAC1_DAT0L - &DAC0_DAT0L;
+		dma.TCD->CITER_ELINKNO = sizeof(dac_buffer) / 4;
+		dma.TCD->DLASTSGA = (&DAC0_DAT0L - &DAC1_DAT0L) * 2;
+		dma.TCD->BITER_ELINKNO = sizeof(dac_buffer) / 4;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_PDB);
 	}
-
-	// set the programmable delay block to trigger DMA requests
-	if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
-	  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
-	  || PDB0_MOD != PDB_PERIOD
-	  || PDB0_IDLY != 1
-	  || PDB0_CH0C1 != 0x0101) {
-		SIM_SCGC6 |= SIM_SCGC6_PDB;
-		PDB0_IDLY = 1;
-		PDB0_MOD = PDB_PERIOD;
-		PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
-		PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
-		PDB0_CH0C1 = 0x0101;
-	}
-
-	dma.TCD->SADDR = dac_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(DMA_TCD_ATTR_SIZE_32BIT) |
-		DMA_TCD_ATTR_DSIZE(DMA_TCD_ATTR_SIZE_16BIT);
-	dma.TCD->NBYTES_MLNO = DMA_TCD_NBYTES_MLOFFYES_NBYTES(4) | DMA_TCD_NBYTES_DMLOE |
-		DMA_TCD_NBYTES_MLOFFYES_MLOFF((&DAC0_DAT0L - &DAC1_DAT0L) * 2);
-	dma.TCD->SLAST = -sizeof(dac_buffer);
-	dma.TCD->DADDR = &DAC0_DAT0L;
-	dma.TCD->DOFF = &DAC1_DAT0L - &DAC0_DAT0L;
-	dma.TCD->CITER_ELINKNO = sizeof(dac_buffer) / 4;
-	dma.TCD->DLASTSGA = (&DAC0_DAT0L - &DAC1_DAT0L) * 2;
-	dma.TCD->BITER_ELINKNO = sizeof(dac_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_PDB);
 	update_responsibility = update_setup();
 	dma.enable();
 	dma.attachInterrupt(isr);
