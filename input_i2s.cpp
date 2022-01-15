@@ -281,7 +281,6 @@ audio_block_t * AudioInputI2S::block_left = NULL;
 audio_block_t * AudioInputI2S::block_right = NULL;
 AudioInputI2S::dmaState_t AudioInputI2S::dmaState = AOI2S_Stop;
 DMAChannel AudioInputI2S::dma1(false);
-AudioInputI2S::dmaState_t AudioInputI2S::dmaState = AOI2S_Stop;
 DMAChannel AudioInputI2S::dma2(false);
 bool AudioInputI2S::update_responsibility = false;
 

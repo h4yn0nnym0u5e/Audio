@@ -588,8 +588,9 @@ bool AudioOutputPT8211::update_responsibility = false;
 #define NUM_SAMPLES (AUDIO_BLOCK_SAMPLES / 2)
 
 DMAMEM static int16_t i2s_tx_buffer1[NUM_SAMPLES*2];
-DMAMEM static int16_t i2s_tx_buffer2[NUM_SAMPLES*2];AudioOutputPT8211::dmaState_t AudioOutputPT8211::dmaState = AOI2S_Stop;
-DMAChannel AudioOutputPT8211::dma1(false);AudioOutputPT8211::dmaState_t AudioOutputPT8211::dmaState = AOI2S_Stop;
+DMAMEM static int16_t i2s_tx_buffer2[NUM_SAMPLES*2];
+AudioOutputPT8211::dmaState_t AudioOutputPT8211::dmaState = AOI2S_Stop;
+DMAChannel AudioOutputPT8211::dma1(false);
 DMAChannel AudioOutputPT8211::dma2(false);
 
 
@@ -666,7 +667,7 @@ void AudioOutputPT8211::update(void)
 
 
 inline __attribute__((always_inline, hot))
-void interleave(const int16_t *dest,const audio_block_t *block_left, const audio_block_t *block_right, const size_t offset)
+void AudioOutputPT8211::interleave(const int16_t *dest,const audio_block_t *block_left, const audio_block_t *block_right, const size_t offset)
 {
 
 	uint32_t *p = (uint32_t*)dest;

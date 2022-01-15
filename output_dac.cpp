@@ -214,7 +214,7 @@ void AudioOutputAnalog::begin(void)
 		dma1.enable();
 	}
 	update_responsibility = update_setup();
-	dma.attachInterrupt(isr1);
+	dma1.attachInterrupt(isr1);
 	dmaState = AOI2S_Running;
 }
 

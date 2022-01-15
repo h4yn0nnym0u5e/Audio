@@ -745,7 +745,7 @@ void AudioOutputI2S::update(void)
 
 
 inline __attribute__((always_inline, hot))
-static void interleave(const int16_t *dest,const audio_block_t *block_left, const audio_block_t *block_right, const size_t offset)
+void AudioOutputI2S::interleave(const int16_t *dest,const audio_block_t *block_left, const audio_block_t *block_right, const size_t offset)
 {
 //return;
 	uint32_t *p = (uint32_t*)dest;

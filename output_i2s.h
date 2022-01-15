@@ -103,6 +103,7 @@ protected:
 	static bool update_responsibility;
 	static DMAChannel dma1;
 	static DMAChannel dma2;
+	static void interleave(const int16_t *dest,const audio_block_t *block_left, const audio_block_t *block_right, const size_t offset);
 	static void isr1(void);
 	static void isr2(void);
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};

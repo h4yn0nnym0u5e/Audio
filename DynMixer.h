@@ -56,7 +56,7 @@ public:
 		AudioStream(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray)),
 		_ninputs(ninputs)
     {
-        multiplier = (int32_t*)malloc(_ninputs*sizeof *multiplier);
+        multiplier = (MULTI_TYPE*)malloc(_ninputs*sizeof *multiplier);
 		if (NULL != multiplier)
 			for (int i=0; i<_ninputs; i++) multiplier[i] = MULTI_UNITYGAIN;
 	}
