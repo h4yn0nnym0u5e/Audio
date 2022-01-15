@@ -88,6 +88,7 @@ void AudioOutputAnalogStereo::begin(void)
 	update_responsibility = update_setup();
 	dma.enable();
 	dma.attachInterrupt(isr);
+	dmaState = AOI2S_Running;	
 }
 
 
