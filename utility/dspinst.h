@@ -241,6 +241,15 @@ static inline int32_t signed_multiply_accumulate_32x16b(int32_t sum, int32_t a, 
 	return out;
 }
 
+// computes (sum + ((a[15:0] * b[15:0])))
+static inline int32_t signed_multiply_accumulate_16bx16b(int32_t sum, uint32_t a, uint32_t b) __attribute__((always_inline, unused));
+static inline int32_t signed_multiply_accumulate_16bx16b(int32_t sum, uint32_t a, uint32_t b)
+{
+	int32_t out;
+	asm volatile("smlabb %0, %2, %3, %1" : "=r" (out) : "r" (sum), "r" (a), "r" (b));
+	return out;
+}
+
 // computes (sum + ((a[31:0] * b[31:16]) >> 16))
 static inline int32_t signed_multiply_accumulate_32x16t(int32_t sum, int32_t a, uint32_t b) __attribute__((always_inline, unused));
 static inline int32_t signed_multiply_accumulate_32x16t(int32_t sum, int32_t a, uint32_t b)
@@ -280,6 +289,13 @@ static inline int32_t multiply_16tx16b_add_16bx16t(uint32_t a, uint32_t b)
 static inline int64_t multiply_accumulate_16tx16t_add_16bx16b(int64_t sum, uint32_t a, uint32_t b)
 {
 	asm volatile("smlald %Q0, %R0, %1, %2" : "+r" (sum) : "r" (a), "r" (b));
+	return sum;
+}
+
+// // computes sum += a[31:0] * b[31:0]
+static inline int64_t multiply_accumulate_32x32_add_64(int64_t sum, uint32_t a, uint32_t b)
+{
+	asm volatile("smlal %Q0, %R0, %1, %2" : "+r" (sum) : "r" (a), "r" (b));
 	return sum;
 }
 
