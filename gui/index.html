@@ -493,7 +493,11 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioOutputUSB","data":{"defaults":{"name":{"value":"new"}},"shortName":"usb","inputs":2,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 
 		{"type":"AudioAmplifier","data":{"defaults":{"name":{"value":"new"}},"shortName":"amp","inputs":1,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioMixer4","data":{"defaults":{"name":{"value":"new"}},"shortName":"mixer","inputs":4,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioMixer4","data":{"defaults":{"name":{"value":"new"}},"shortName":"mixer4","inputs":4,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		
+		{"type":"AudioMixer","data":{"defaults":{"name":{"value":"new"}},"shortName":"mixer","inputs":1,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioMixerStereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"mixerS","inputs":1,"outputs":2,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		
 		{"type":"AudioPlayMemory","data":{"defaults":{"name":{"value":"new"}},"shortName":"playMem","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlaySdWav","data":{"defaults":{"name":{"value":"new"}},"shortName":"playSdWav","inputs":0,"outputs":2,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlaySdRaw","data":{"defaults":{"name":{"value":"new"}},"shortName":"playSdRaw","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -2550,6 +2554,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</div>
 </script>
 
+<!-------------------------------------------------------------------------- -->
 <script type="text/x-red" data-help-name="AudioMixer4">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
@@ -2599,6 +2604,145 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		<input type="text" id="node-input-name" placeholder="Name">
 	</div>
 </script>
+<!-------------------------------------------------------------------------- -->
+
+
+<!-------------------------------------------------------------------------- -->
+<script type="text/x-red" data-help-name="AudioMixer">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Combine up to 255 audio signals together, each with adjustable gain.
+		All channels support signal attenuation or amplification.</p>
+	<p> REQUIRES Audio System Design Tool++</p>
+	<p>In order to add an input, drop the connecting "cable" onto the body of the
+	mixer, rather than onto an existing input node: a new node will be added
+	and the connection made to that.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In N</td><td>Input signal #N</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Sum of all inputs</td></tr>
+	</table>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>gain</span>(channel, level);</p>
+	<p class=desc>Adjust the amplification or attenuation.  "channel" must
+		be 0 to N-1.  "level" may be any floating point number from 0 to 32767.0.
+		1.0 passes the signal through directly.  Level of 0 shuts the channel
+		off completely.  Between 0 to 1.0 attenuates the signal, and above
+		1.0 amplifies it.  Negative numbers may also be used, to invert the
+		signal.  All channels have separate gain settings.
+	</p>
+	<p class=func><span class=keyword>gain</span>(level);</p>
+	<p class=desc>Adjust the amplification or attenuation for all channels at once.
+	</p>
+	<p class=func><span class=keyword>setSoftKnee</span>(startPoint);</p>
+	<p class=desc>Changes the "overload" characteristic of the mixer to provide a
+	soft roll-off at high amplitude. startPoint should be set to a value between 0.0 and 
+	0.97 to enable this: values outside this range will revert to the original
+	overload behaviour.<br/><br/>
+	When the summed amplitude is above the "startPoint" level, it is scaled back using 
+	a quadratic curve so the saturation point is reached more gradually. Because the initial
+	mixing is done using 32-bit rather than 16-bit accumulation, this can result in 
+	radically different output.
+	</p>
+	<p align=center><img src="img/mixer-soft-knee.png"><br><small>Example with triangle wave</small></p>
+	<h3>Examples</h3>
+	TBD
+	</p>
+	<h3>Notes</h3>
+	<p>Signal clipping can occur when any channel has gain greater than 1.0,
+		or when multiple signals add together to greater than 1.0. The "soft knee"
+		behaviour may be used to smooth the transition.
+		</p>
+</script>
+<script type="text/x-red" data-template-name="AudioMixer4">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-------------------------------------------------------------------------- -->
+
+<!-------------------------------------------------------------------------- -->
+<script type="text/x-red" data-help-name="AudioMixerStereo">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Combine up to 255 audio signals together, each with adjustable gain, to
+	a stereo output.
+		All channels support signal attenuation or amplification, pan or balance.</p>
+	<p> REQUIRES Audio System Design Tool++</p>
+	<p>In order to add an input, drop the connecting "cable" onto the body of the
+	mixer, rather than onto an existing input node: a new node will be added
+	and the connection made to that.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In N</td><td>Input signal #N</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Left output channel</td></tr>
+		<tr class=odd><td align=center>Out 1</td><td>Right output channel</td></tr>
+	</table>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>gain</span>(channel, level);</p>
+	<p class=desc>Adjust the amplification or attenuation.  "channel" must
+		be 0 to N-1.  "level" may be any floating point number from 0 to 32767.0.
+		1.0 passes the signal through directly.  Level of 0 shuts the channel
+		off completely.  Between 0 to 1.0 attenuates the signal, and above
+		1.0 amplifies it.  Negative numbers may also be used, to invert the
+		signal.  All channels have separate gain settings.
+	</p>
+	<p class=func><span class=keyword>gain</span>(level);</p>
+	<p class=desc>Adjust the amplification or attenuation for all channels at once.
+	</p>
+	<p class=func><span class=keyword>setSoftKnee</span>(startPoint);</p>
+	<p class=desc>Changes the "overload" characteristic of the mixer to provide a
+	soft roll-off at high amplitude. startPoint should be set to a value between 0.0 and 
+	0.97 to enable this: values outside this range will revert to the original
+	overload behaviour.<br/><br/>
+	When the summed amplitude is above the "startPoint" level, it is scaled back using 
+	a quadratic curve so the saturation point is reached more gradually. Because the initial
+	mixing is done using 32-bit rather than 16-bit accumulation, this can result in 
+	radically different output.
+	</p>
+	<p align=center><img src="img/mixer-soft-knee.png"><br><small>Example with triangle wave</small></p>
+	<p class=func><span class=keyword>pan</span>(channel, position);</p>
+	<p class=desc>Pan a mono input channel to an apparent position in the stereo field. The 
+	position parameter should be between -1.0 (fully left) and +1.0 (fully right).
+	<p class=func><span class=keyword>balance</span>(chLeft, chRight, position);</p>
+	<p class=desc>Balance a pair of input channels within the stereo field. Note that unlike
+	the pan() control, none of the left channel signal ever appears on the right output, and vice versa.
+	</p>
+	<p class=func><span class=keyword>balance</span>(chLeft, position);</p>
+	<p class=desc>Balance a pair of input channels within the stereo field. The right channel is 
+	taken from the next channel number up from the left channel parameter.
+	</p>
+	<p class=func><span class=keyword>setPanLaw</span>(law);</p>
+	<p class=desc>Changes the mapping between pan position value and the relative (linear) levels
+	of the left and right outputs. A small "law" value will push a given "position" value wider
+	in the stereo field. Defaults to 0.22, values between 0.70 and 0.01 seem to give reasonable
+	results.
+	<h3>Examples</h3>
+	TBD
+	</p>
+	<h3>Notes</h3>
+	<p>Signal clipping can occur when any channel has gain greater than 1.0,
+		or when multiple signals add together to greater than 1.0. The "soft knee"
+		behaviour may be used to smooth the transition.
+		</p>
+	An input channel can either be regarded as a panned mono channel, or 
+	one channel of a balanced stereo pair, but not both at the same time.
+</script>
+<script type="text/x-red" data-template-name="AudioMixer4">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-------------------------------------------------------------------------- -->
+
 
 <script type="text/x-red" data-help-name="AudioPlayMemory">
 	<h3>Summary</h3>
