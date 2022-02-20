@@ -104,7 +104,7 @@ static void applyGainThenAdd(int16_t *dst, const int16_t *src, int32_t mult)
 #endif
 
 
-void AudioMixer::setSoftKnee(float startPoint)
+void AudioMixerBase::setSoftKnee(float startPoint)
 {
 	if (startPoint < 0.0f || startPoint > 0.97f)
 		softKneeEnabled = false;
@@ -311,47 +311,102 @@ void AudioMixerStereo::update(void)
 	audio_block_t *in, *outL=NULL, *outR=NULL;
 	unsigned int channel;
 
-	// use actual number of channels available
-	for (channel=0; channel < num_inputs; channel++) 
+	if (softKneeEnabled)
 	{
-		in = receiveReadOnly(channel); // we need two copies, and this NULLs the inputQueue pointer
+		int32_t* dstL = (int32_t*) alloca(AUDIO_BLOCK_SAMPLES*sizeof(int32_t));
+		int32_t* dstR = (int32_t*) alloca(AUDIO_BLOCK_SAMPLES*sizeof(int32_t));
 		
-		if (NULL != in)
+		// use actual number of channels available
+		for (channel=0; channel < num_inputs; channel++) 
 		{
-			if (0 != multiplier[channel].mL)
-			{
-				if (NULL != outL) {				
-						applyGainThenAdd(outL->data, in->data, multiplier[channel].mL);
-				} else {
-					outL = allocate();
-					if (NULL != outL)
-					{
-						int32_t mult = multiplier[channel].mL;
-						memcpy(outL->data, in->data, sizeof(outL->data));
-						if (mult != MULTI_UNITYGAIN)
-							applyGain(outL->data, mult);
-					}
-				}
-			}
+			in = receiveReadOnly(channel); // we need two copies, and this NULLs the inputQueue pointer
 			
-			if (0 != multiplier[channel].mR)
+			if (NULL != in)
 			{
-				if (NULL != outR) {				
-					applyGainThenAdd(outR->data, in->data, multiplier[channel].mR);
-				} else {
-					outR = allocate();
-					if (NULL != outR)
-					{
-						int32_t mult = multiplier[channel].mR;
-						memcpy(outR->data, in->data, sizeof(outR->data));
-						if (mult != MULTI_UNITYGAIN)
-							applyGain(outR->data, mult);
+				if (0 != multiplier[channel].mL)
+				{
+					if (NULL != outL) {				
+						applyGainThenAddSK(dstL, in->data, multiplier[channel].mL);
+					} else {
+						outL = allocate();
+						if (NULL != outL)
+						{
+							int32_t mult = multiplier[channel].mL;
+							memcpy(outL->data, in->data, sizeof(outL->data));
+							if (mult != MULTI_UNITYGAIN)
+								applyGainSK(dstL,outL->data, mult);
+						}
 					}
 				}
-			}		
-			release(in); 
+				
+				if (0 != multiplier[channel].mR)
+				{
+					if (NULL != outR) {				
+						applyGainThenAddSK(dstR, in->data, multiplier[channel].mR);
+					} else {
+						outR = allocate();
+						if (NULL != outR)
+						{
+							int32_t mult = multiplier[channel].mR;
+							memcpy(outR->data, in->data, sizeof(outR->data));
+							if (mult != MULTI_UNITYGAIN)
+								applyGainSK(dstR,outR->data, mult);
+						}
+					}
+				}		
+				release(in); 
+			}
+		}
+		if (NULL != outL)
+			applySoftKnee(outL->data,dstL);
+		if (NULL != outR)
+			applySoftKnee(outR->data,dstR);
+	}
+	else
+	{
+		// use actual number of channels available
+		for (channel=0; channel < num_inputs; channel++) 
+		{
+			in = receiveReadOnly(channel); // we need two copies, and this NULLs the inputQueue pointer
+			
+			if (NULL != in)
+			{
+				if (0 != multiplier[channel].mL)
+				{
+					if (NULL != outL) {				
+							applyGainThenAdd(outL->data, in->data, multiplier[channel].mL);
+					} else {
+						outL = allocate();
+						if (NULL != outL)
+						{
+							int32_t mult = multiplier[channel].mL;
+							memcpy(outL->data, in->data, sizeof(outL->data));
+							if (mult != MULTI_UNITYGAIN)
+								applyGain(outL->data, mult);
+						}
+					}
+				}
+				
+				if (0 != multiplier[channel].mR)
+				{
+					if (NULL != outR) {				
+						applyGainThenAdd(outR->data, in->data, multiplier[channel].mR);
+					} else {
+						outR = allocate();
+						if (NULL != outR)
+						{
+							int32_t mult = multiplier[channel].mR;
+							memcpy(outR->data, in->data, sizeof(outR->data));
+							if (mult != MULTI_UNITYGAIN)
+								applyGain(outR->data, mult);
+						}
+					}
+				}		
+				release(in); 
+			}
 		}
 	}
+	
 	if (NULL != outL)
 	{
 		transmit(outL);

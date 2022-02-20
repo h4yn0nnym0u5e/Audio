@@ -69,6 +69,7 @@ protected:
 	audio_block_t **inputQueueArray;
 	
 	// soft knee operation
+	void setSoftKnee(float startPoint);//!< set soft knee operation start point
 	void applySoftKnee(int16_t *dst, const int32_t *in);
 	bool softKneeEnabled; //!< soft knee operation enabled
 	float softKneeStart;  //!< soft knee response start point (0.0 to 0.97)
@@ -114,7 +115,7 @@ public:
 	}
 	
 	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
-	void setSoftKnee(float startPoint);	// set soft knee operation start point
+	void setSoftKnee(float startPoint) {AudioMixerBase::setSoftKnee(startPoint);}	
 private:	
 	MULTI_TYPE* multiplier;
 };
@@ -247,7 +248,7 @@ public:
 	}
 	
 	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
-	void setSoftKnee(float startPoint);	// set soft knee operation start point
+	void setSoftKnee(float startPoint) {AudioMixerBase::setSoftKnee(startPoint);}	
 private:
 	float panLaw;
 	float normalise;
