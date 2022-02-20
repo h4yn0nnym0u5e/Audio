@@ -103,26 +103,155 @@ static void applyGainThenAdd(int16_t *dst, const int16_t *src, int32_t mult)
 
 #endif
 
+
+void AudioMixerBase::setSoftKnee(float startPoint)
+{
+	if (startPoint < 0.0f || startPoint > 0.97f)
+		softKneeEnabled = false;
+	else
+	{
+		int32_t k = (int32_t) (startPoint * AMSK_LIMIT);
+		
+		softKneeStart = startPoint; // record for later (?)
+		skStart = k; // record for later
+		amax = AMSK_LIMIT*2 - k;
+		
+		// set up coefficients which soften the response above
+		// the starttPoint amplitude, using a quadratic curve
+		skA = AMSK_LIMIT*AMSK_SCALE/2/(k-AMSK_LIMIT);
+		skB = AMSK_SCALE-skA*k/AMSK_LIMIT;
+		skC = (AMSK_SCALE - skB)*k/2;
+		
+		softKneeEnabled = true;
+	}
+	Serial.printf("%f: %d, %d; %d,%d,%d\n", startPoint,skStart,amax,skA,skB,skC);
+}
+
+
+static void applyGainSK(int32_t *data, const int16_t *in, int32_t mult)
+{
+	uint32_t *p = (uint32_t *) in;
+	const int32_t *end = data + AUDIO_BLOCK_SAMPLES;
+
+	do {
+		uint32_t tmp32 = *p; // read 2 samples from *in
+		*data++ = signed_multiply_32x16b(mult, tmp32);
+		*data++ = signed_multiply_32x16t(mult, tmp32);
+		p++;
+	} while (data < end);
+}
+
+
+static void applyGainThenAddSK(int32_t *dst, const int16_t *in, int32_t mult)
+{
+	const uint32_t *src = (uint32_t *)in;
+	const int32_t *end = dst + AUDIO_BLOCK_SAMPLES;
+
+	if (mult == MULTI_UNITYGAIN) {
+		do {
+			uint32_t tmp32 = *src++;
+			*dst++ += (int16_t) (tmp32 & 0xFFFF);
+			*dst++ += (int16_t) (tmp32 >> 16);
+		} while (dst < end);
+	} else {
+		do {
+			uint32_t tmp32 = *src++; // read 2 samples from *in
+			*dst++  += signed_multiply_32x16b(mult, tmp32);
+			*dst++  += signed_multiply_32x16t(mult, tmp32);
+			//*dst++ = signed_saturate_rshift(val1, 16, 0);
+			//*dst++ = signed_saturate_rshift(val2, 16, 0);
+		} while (dst < end);
+	}
+}
+
+
+void AudioMixerBase::applySoftKnee(int16_t *dst, const int32_t *in)
+{
+	const int16_t *end = dst + AUDIO_BLOCK_SAMPLES;
+	
+	do
+	{
+		int32_t x = *in++,y;
+		if (x <= skStart && x >= -skStart)
+			y = x;
+		else
+		{
+			if (x > 0)
+			{
+				if (x > amax)
+					y = AMSK_LIMIT;
+				else
+				{
+					y = signed_multiply_accumulate_32x16b(skB,x,skA);  		 // ax+b
+					y = (int32_t) multiply_accumulate_32x32_add_64(skC,y,x); // yx+c
+					y = signed_saturate_rshift(y,16,AMSK_SHIFT);	
+				}
+			}
+			else
+			{
+				if (x < -amax)
+					y = -AMSK_LIMIT;
+				else
+				{
+					y = signed_multiply_accumulate_32x16b(-skB,x,skA);  		 // ax+b
+					y = (int32_t) multiply_accumulate_32x32_add_64(-skC,-y,x); // yx+c
+					y = signed_saturate_rshift(y,16,AMSK_SHIFT);	
+				}
+			}
+		}
+		*dst++ = y;
+	} while (dst < end);
+}
+
+
 void AudioMixer::update(void)
 {
 	audio_block_t *in, *out=NULL;
 	unsigned int channel;
 
-	// use actual number of channels available
-	for (channel=0; channel < num_inputs; channel++) {
-		if (0 != multiplier[channel])
-		{
-			if (NULL != out) {
-				in = receiveReadOnly(channel);
-				if (in == NULL) continue;
-				applyGainThenAdd(out->data, in->data, multiplier[channel]);
-				release(in);
-			} else {
-				out = receiveWritable(channel);
-				if (NULL == out) continue;
-				int32_t mult = multiplier[channel];
-				if (mult == MULTI_UNITYGAIN) continue;
-				applyGain(out->data, mult);
+	if (softKneeEnabled)
+	{
+		int32_t* dst = (int32_t*) alloca(AUDIO_BLOCK_SAMPLES*sizeof(int32_t));
+		
+		// use actual number of channels available
+		for (channel=0; channel < num_inputs; channel++) {
+			if (0 != multiplier[channel])
+			{
+				if (NULL != out) {
+					in = receiveReadOnly(channel);
+					if (in == NULL) continue;
+					applyGainThenAddSK(dst, in->data, multiplier[channel]);
+					release(in);
+				} else {
+					out = receiveWritable(channel);
+					if (NULL == out) continue;
+					int32_t mult = multiplier[channel];
+					//if (mult == MULTI_UNITYGAIN) continue;
+					applyGainSK(dst,out->data, mult);
+				}
+			}
+		}
+		if (NULL != out)
+			applySoftKnee(out->data,dst);
+	}
+	else
+	{
+		// use actual number of channels available
+		for (channel=0; channel < num_inputs; channel++) {
+			if (0 != multiplier[channel])
+			{
+				if (NULL != out) {
+					in = receiveReadOnly(channel);
+					if (in == NULL) continue;
+					applyGainThenAdd(out->data, in->data, multiplier[channel]);
+					release(in);
+				} else {
+					out = receiveWritable(channel);
+					if (NULL == out) continue;
+					int32_t mult = multiplier[channel];
+					if (mult == MULTI_UNITYGAIN) continue;
+					applyGain(out->data, mult);
+				}
 			}
 		}
 	}
@@ -182,47 +311,102 @@ void AudioMixerStereo::update(void)
 	audio_block_t *in, *outL=NULL, *outR=NULL;
 	unsigned int channel;
 
-	// use actual number of channels available
-	for (channel=0; channel < num_inputs; channel++) 
+	if (softKneeEnabled)
 	{
-		in = receiveReadOnly(channel); // we need two copies, and this NULLs the inputQueue pointer
+		int32_t* dstL = (int32_t*) alloca(AUDIO_BLOCK_SAMPLES*sizeof(int32_t));
+		int32_t* dstR = (int32_t*) alloca(AUDIO_BLOCK_SAMPLES*sizeof(int32_t));
 		
-		if (NULL != in)
+		// use actual number of channels available
+		for (channel=0; channel < num_inputs; channel++) 
 		{
-			if (0 != multiplier[channel].mL)
-			{
-				if (NULL != outL) {				
-						applyGainThenAdd(outL->data, in->data, multiplier[channel].mL);
-				} else {
-					outL = allocate();
-					if (NULL != outL)
-					{
-						int32_t mult = multiplier[channel].mL;
-						memcpy(outL->data, in->data, sizeof(outL->data));
-						if (mult != MULTI_UNITYGAIN)
-							applyGain(outL->data, mult);
-					}
-				}
-			}
+			in = receiveReadOnly(channel); // we need two copies, and this NULLs the inputQueue pointer
 			
-			if (0 != multiplier[channel].mR)
+			if (NULL != in)
 			{
-				if (NULL != outR) {				
-					applyGainThenAdd(outR->data, in->data, multiplier[channel].mR);
-				} else {
-					outR = allocate();
-					if (NULL != outR)
-					{
-						int32_t mult = multiplier[channel].mR;
-						memcpy(outR->data, in->data, sizeof(outR->data));
-						if (mult != MULTI_UNITYGAIN)
-							applyGain(outR->data, mult);
+				if (0 != multiplier[channel].mL)
+				{
+					if (NULL != outL) {				
+						applyGainThenAddSK(dstL, in->data, multiplier[channel].mL);
+					} else {
+						outL = allocate();
+						if (NULL != outL)
+						{
+							int32_t mult = multiplier[channel].mL;
+							memcpy(outL->data, in->data, sizeof(outL->data));
+							if (mult != MULTI_UNITYGAIN)
+								applyGainSK(dstL,outL->data, mult);
+						}
 					}
 				}
-			}		
-			release(in); 
+				
+				if (0 != multiplier[channel].mR)
+				{
+					if (NULL != outR) {				
+						applyGainThenAddSK(dstR, in->data, multiplier[channel].mR);
+					} else {
+						outR = allocate();
+						if (NULL != outR)
+						{
+							int32_t mult = multiplier[channel].mR;
+							memcpy(outR->data, in->data, sizeof(outR->data));
+							if (mult != MULTI_UNITYGAIN)
+								applyGainSK(dstR,outR->data, mult);
+						}
+					}
+				}		
+				release(in); 
+			}
+		}
+		if (NULL != outL)
+			applySoftKnee(outL->data,dstL);
+		if (NULL != outR)
+			applySoftKnee(outR->data,dstR);
+	}
+	else
+	{
+		// use actual number of channels available
+		for (channel=0; channel < num_inputs; channel++) 
+		{
+			in = receiveReadOnly(channel); // we need two copies, and this NULLs the inputQueue pointer
+			
+			if (NULL != in)
+			{
+				if (0 != multiplier[channel].mL)
+				{
+					if (NULL != outL) {				
+							applyGainThenAdd(outL->data, in->data, multiplier[channel].mL);
+					} else {
+						outL = allocate();
+						if (NULL != outL)
+						{
+							int32_t mult = multiplier[channel].mL;
+							memcpy(outL->data, in->data, sizeof(outL->data));
+							if (mult != MULTI_UNITYGAIN)
+								applyGain(outL->data, mult);
+						}
+					}
+				}
+				
+				if (0 != multiplier[channel].mR)
+				{
+					if (NULL != outR) {				
+						applyGainThenAdd(outR->data, in->data, multiplier[channel].mR);
+					} else {
+						outR = allocate();
+						if (NULL != outR)
+						{
+							int32_t mult = multiplier[channel].mR;
+							memcpy(outR->data, in->data, sizeof(outR->data));
+							if (mult != MULTI_UNITYGAIN)
+								applyGain(outR->data, mult);
+						}
+					}
+				}		
+				release(in); 
+			}
 		}
 	}
+	
 	if (NULL != outL)
 	{
 		transmit(outL);

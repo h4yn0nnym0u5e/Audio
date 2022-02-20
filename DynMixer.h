@@ -49,12 +49,41 @@
 #define MAX_PAN 1.0f
 #define EPSILON 0.00001f // very small: prevents division by zero
 
-class AudioMixer : public AudioStream
+// Soft knee settings
+#define AMSK_SHIFT 10				//!< bit shift for quadratic coeffs
+#define AMSK_SCALE (1<<AMSK_SHIFT)	//!< scale factor for quadratic coeffs
+#define AMSK_LIMIT 32767			//!< maximum amplitude of audio signal
+
+class AudioMixerBase : public AudioStream
+{
+	AudioMixerBase(unsigned char ninputs,audio_block_t ** iq) :
+		AudioStream(ninputs,inputQueueArray = iq),
+		_ninputs(ninputs), inputQueueArray(iq), softKneeEnabled(false)
+		{}
+	
+protected:
+	friend class AudioMixer;
+	friend class AudioMixerStereo;
+	
+    unsigned char _ninputs;
+	audio_block_t **inputQueueArray;
+	
+	// soft knee operation
+	void setSoftKnee(float startPoint);//!< set soft knee operation start point
+	void applySoftKnee(int16_t *dst, const int32_t *in);
+	bool softKneeEnabled; //!< soft knee operation enabled
+	float softKneeStart;  //!< soft knee response start point (0.0 to 0.97)
+	int32_t skStart;	  //!< same value as integer
+	int32_t skA,skB,skC;  //!< soft knee quadratic response parameters
+	int32_t amax;		  //!< above this value, map to saturated (±32767)	
+};
+
+
+class AudioMixer : public AudioMixerBase
 {
 public:
 	AudioMixer(unsigned char ninputs) : 
-		AudioStream(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray)),
-		_ninputs(ninputs)
+		AudioMixerBase(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray))
     {
         multiplier = (MULTI_TYPE*)malloc(_ninputs*sizeof *multiplier);
 		if (NULL != multiplier)
@@ -86,20 +115,18 @@ public:
 	}
 	
 	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
-private:
-    unsigned char _ninputs;
+	void setSoftKnee(float startPoint) {AudioMixerBase::setSoftKnee(startPoint);}	
+private:	
 	MULTI_TYPE* multiplier;
-	audio_block_t **inputQueueArray;
 };
 
 
 #define MULTI_CENTRED ((MULTI_TYPE) (MULTI_UNITYGAIN*sqrt(0.5f)))
-class AudioMixerStereo : public AudioStream
+class AudioMixerStereo : public AudioMixerBase
 {
 public:
 	AudioMixerStereo(unsigned char ninputs) : 
-		AudioStream(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray)),
-		_ninputs(ninputs)
+		AudioMixerBase(ninputs, inputQueueArray = (audio_block_t **) malloc(ninputs * sizeof *inputQueueArray))
     {
         multiplier = (mulRec*) malloc(_ninputs*sizeof *multiplier);
 		if (NULL != multiplier)
@@ -221,13 +248,13 @@ public:
 	}
 	
 	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
+	void setSoftKnee(float startPoint) {AudioMixerBase::setSoftKnee(startPoint);}	
 private:
 	float panLaw;
 	float normalise;
+	
 	void setGainPan(unsigned int channel,float gain,float pan);
-    unsigned char _ninputs;
 	struct mulRec {float gain,pan; short balanceChannel; bool isLeft; MULTI_TYPE mL,mR; } *multiplier;
-	audio_block_t **inputQueueArray;
 };
 
 
