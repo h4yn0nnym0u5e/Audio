@@ -52,7 +52,7 @@ public:
 	~AudioOutputPWM(void);
 	virtual void update(void);
 private:
-	static bool update_responsibility;
+	static volatile bool update_responsibility;
 	audio_block_t *inputQueueArray[1];
 	static void isr(void);
 	void begin(void);
@@ -70,7 +70,7 @@ public:
 	AudioOutputPWM(uint8_t pin1, uint8_t pin2) : AudioStream(1, inputQueueArray) { begin(pin1, pin2); }
 private: 
 	void begin(uint8_t pin1, uint8_t pin2); //FlexPWM pins only
-	static audio_block_t *block; // released in destructor
+	static volatile audio_block_t *block; // released in destructor
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
 	static dmaState_t dmaState;
 	static DMAChannel dma[2];
