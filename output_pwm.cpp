@@ -358,7 +358,7 @@ void AudioOutputPWM::begin(uint8_t pin1, uint8_t pin2)
 AudioOutputPWM::~AudioOutputPWM(void)
 {
 	SAFE_RELEASE_INPUTS(); 
-	SAFE_RELEASE(block);
+	SAFE_RELEASE((audio_block_t*) block);
 	block = NULL;
 	update_responsibility = false;
 	dmaState = AOI2S_Paused;
@@ -406,7 +406,7 @@ void AudioOutputPWM::isr(void)
 		arm_dcache_flush_delete(dest, sizeof(pwm_tx_buffer[0]) / 2 );
 		arm_dcache_flush_delete(dest1, sizeof(pwm_tx_buffer[1]) / 2 );
 		
-		AudioStream::release(block);
+		AudioStream::release((audio_block_t*) block);
 		block = NULL;
 	} else {
 		//Serial.println(".");
@@ -438,7 +438,7 @@ void AudioOutputPWM::update(void)
 	audio_block_t * new_block = receiveReadOnly();
 	audio_block_t * old_block ;
 	__disable_irq();
-	old_block = block ;
+	old_block = (audio_block_t*) block ;
 	block = new_block ;
 	__enable_irq();
 	if (old_block)
