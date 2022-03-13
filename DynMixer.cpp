@@ -124,7 +124,7 @@ void AudioMixerBase::setSoftKnee(float startPoint)
 		
 		softKneeEnabled = true;
 	}
-	Serial.printf("%f: %d, %d; %d,%d,%d\n", startPoint,skStart,amax,skA,skB,skC);
+	//Serial.printf("%f: %d, %d; %d,%d,%d\n", startPoint,skStart,amax,skA,skB,skC);
 }
 
 
