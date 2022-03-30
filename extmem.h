@@ -24,49 +24,42 @@
  * THE SOFTWARE.
  */
 
-#ifndef effect_delay_ext_h_
-#define effect_delay_ext_h_
+#ifndef _extmem_h_
+#define _extmem_h_
 #include "Arduino.h"
-#include "AudioStream.h"
 #include "spi_interrupt.h"
-#include "extmem.h"
 
-
-class AudioEffectDelayExternal : public AudioStream, AudioExtMem
-{
-public:
-	AudioEffectDelayExternal(AudioEffectDelayMemoryType_t type, float milliseconds=1e6)
-	  : AudioStream(1, inputQueueArray), 
-		AudioExtMem(type, (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f),
-		activemask(0)
-		{}
-	AudioEffectDelayExternal() : AudioEffectDelayExternal(AUDIO_MEMORY_23LC1024, 65536) {}
-	
-	~AudioEffectDelayExternal() {SAFE_RELEASE_INPUTS();};
-	
-	void delay(uint8_t channel, float milliseconds) {
-		if (channel >= 8 || memory_type >= AUDIO_MEMORY_UNDEFINED) return;
-		if (milliseconds < 0.0f) milliseconds = 0.0f;
-		uint32_t n = (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f;
-		n += AUDIO_BLOCK_SAMPLES;
-		if (n > memory_length - AUDIO_BLOCK_SAMPLES)
-			n = memory_length - AUDIO_BLOCK_SAMPLES;
-		delay_length[channel] = n;
-		uint8_t mask = activemask;
-		if (activemask == 0) AudioStartUsingSPI();
-		activemask = mask | (1<<channel);
-	}
-	void disable(uint8_t channel) {
-		if (channel >= 8) return;
-		uint8_t mask = activemask & ~(1<<channel);
-		activemask = mask;
-		if (mask == 0) AudioStopUsingSPI();
-	}
-	virtual void update(void);
-private:
-	uint32_t delay_length[8]; // # of sample delay for each channel (128 = no delay)
-	uint8_t  activemask;      // which output channels are active
-	audio_block_t *inputQueueArray[1];
+enum AudioEffectDelayMemoryType_t {
+	AUDIO_MEMORY_23LC1024 = 0,	// 128k x 8 S-RAM
+	AUDIO_MEMORY_MEMORYBOARD = 1,	
+	AUDIO_MEMORY_CY15B104 = 2,	// 512k x 8 F-RAM	
+	AUDIO_MEMORY_UNDEFINED = 3
 };
 
-#endif
+
+class AudioExtMem
+{
+public:
+	AudioExtMem(AudioEffectDelayMemoryType_t type, float milliseconds=1e6)
+	{
+		uint32_t n = (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f;
+		initialize(type, n);
+	}
+	AudioExtMem() :	AudioExtMem(AUDIO_MEMORY_23LC1024, 65536) {}
+	~AudioExtMem();
+	
+protected:
+	void initialize(AudioEffectDelayMemoryType_t type, uint32_t samples);
+	void read(uint32_t address, uint32_t count, int16_t *data);
+	void write(uint32_t address, uint32_t count, const int16_t *data);
+	void zero(uint32_t address, uint32_t count) {
+		write(address, count, NULL);
+	}
+	uint32_t memory_begin;    // the first address in the memory we're using
+	uint32_t memory_length;   // the amount of memory we're using
+	uint32_t head_offset;     // head index (incoming) data into external memory
+	uint8_t  memory_type;     // 0=23LC1024, 1=Frank's Memoryboard
+	static uint32_t allocated[2];
+};
+
+#endif // _extmem_h_
