@@ -48,18 +48,20 @@ public:
 	}
 	AudioExtMem() :	AudioExtMem(AUDIO_MEMORY_23LC1024, 65536) {}
 	~AudioExtMem();
+	float getMaxDelay(void) {return (float) memory_length * 1000.0f / AUDIO_SAMPLE_RATE_EXACT;}
 	
 // private:	
 	void initialize(AudioEffectDelayMemoryType_t type, uint32_t samples);
 	inline static void SPIreadMany(int16_t* data, uint32_t samples);
 	inline static void SPIwriteMany(const int16_t* data, uint32_t samples);
-	static uint32_t allocated[AUDIO_MEMORY_UNDEFINED];
+	//static uint32_t allocated[AUDIO_MEMORY_UNDEFINED];
 	const static uint32_t memSizeSamples[AUDIO_MEMORY_UNDEFINED];
 	static AudioExtMem* first[AUDIO_MEMORY_UNDEFINED]; // linked lists of all SPI memory types
 	AudioExtMem* next; // next allocation after this one
 	void linkIn(void);  // link new AudioExtMem object into allocation chain
 	void linkOut(void); // unlink this AudioExtMem object from allocation chain
 	static uint32_t findSpace(AudioEffectDelayMemoryType_t memory_type, uint32_t samples); // find a space for a delay buffer
+	static uint32_t findMaxSpace(AudioEffectDelayMemoryType_t memory_type); // find max available space for a delay buffer
 	uint32_t memory_begin;    // the first address in the memory we're using
 	
 // protected:

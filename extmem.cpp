@@ -52,7 +52,7 @@
 
 static const uint32_t NOT_ENOUGH_MEMORY = 0xFFFFFFFF;
 
-uint32_t AudioExtMem::allocated[AUDIO_MEMORY_UNDEFINED] = {0};
+//uint32_t AudioExtMem::allocated[AUDIO_MEMORY_UNDEFINED] = {0};
 const uint32_t AudioExtMem::memSizeSamples[] = {65536,393216,262144,4194304,8000};
 AudioExtMem* AudioExtMem::first[AUDIO_MEMORY_UNDEFINED] = {nullptr};
 
@@ -98,6 +98,7 @@ void AudioExtMem::linkOut(void)
 	}
 }
 
+
 /**
  * Find space for given number of samples. This MUST be called before the
  * newly-created AudioExtMem object is linked into the allocation list.
@@ -142,9 +143,50 @@ uint32_t AudioExtMem::findSpace(AudioEffectDelayMemoryType_t memory_type, uint32
 }
 
 
+/**
+ * Find maximum contiguous space in a memory.
+ */
+uint32_t AudioExtMem::findMaxSpace(AudioEffectDelayMemoryType_t memory_type)
+{
+	uint32_t result = 0;
+	uint32_t samples = 0;
+	
+	if (memory_type < AUDIO_MEMORY_UNDEFINED) // This Never Happens...
+	{
+		AudioExtMem** ppEM = &first[memory_type]; 
+		
+		do
+		{
+			uint32_t next_start;
+			if (nullptr == *ppEM) // end of list, or first memory allocation
+				next_start = memSizeSamples[memory_type];
+			else // we've found an object using memory
+			{
+				AudioExtMem* nextObj = (*ppEM)->next;
+				result = (*ppEM)->memory_begin + (*ppEM)->memory_length; // end of object's allocation
+				if (nullptr != nextObj)
+					next_start = nextObj->memory_begin;
+				else
+					next_start = memSizeSamples[memory_type];
+				
+				ppEM = &((*ppEM)->next);
+			}
+			
+			// if space is bigger, bump the answer
+			if (samples <= (next_start - result))
+				samples  = (next_start - result);
+			
+		} while (nullptr != *ppEM);
+	}	
+	
+	return samples;
+}
+
+
 void AudioExtMem::initialize(AudioEffectDelayMemoryType_t type, uint32_t samples)
 {
-	uint32_t memsize, avail;
+	//uint32_t memsize, avail;
+	uint32_t avail;
 #if defined(INTERNAL_TEST)
 	type = AUDIO_MEMORY_INTERNAL;
 #endif // defined(INTERNAL_TEST)
@@ -157,9 +199,8 @@ void AudioExtMem::initialize(AudioEffectDelayMemoryType_t type, uint32_t samples
 	SPI.setSCK(SPIRAM_SCK_PIN);
 
 	SPI.begin();
-	memsize = memSizeSamples[type];
+	//memsize = memSizeSamples[type];
 	Serial.printf("Requested %d samples\n",samples);
-	Serial.printf("findSpace says we could use %08lX\n",findSpace(type,samples));
 	
 	switch (type)
 	{
@@ -200,6 +241,14 @@ void AudioExtMem::initialize(AudioEffectDelayMemoryType_t type, uint32_t samples
 	memory_begin = allocated[type];
 	allocated[type] += samples;
 #else
+	// Emulate old behaviour: allocate biggest possible chunk
+	// of delay memory if asked for more than is available.
+	// Slightly different in dynamic system because of fragmentation,
+	// but should be the same if used with legacy static design.
+	avail = findMaxSpace(type);
+	if (samples > avail)
+		samples = avail;
+	Serial.printf("findSpace says we could use %08lX\n",findSpace(type,samples));
 	memory_begin = findSpace(type,samples);
 	if (NOT_ENOUGH_MEMORY == memory_begin)
 		memory_type = AUDIO_MEMORY_UNDEFINED;
