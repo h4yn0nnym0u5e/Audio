@@ -30,36 +30,47 @@
 #include "spi_interrupt.h"
 
 enum AudioEffectDelayMemoryType_t {
-	AUDIO_MEMORY_23LC1024 = 0,	// 128k x 8 S-RAM
-	AUDIO_MEMORY_MEMORYBOARD = 1,	
-	AUDIO_MEMORY_CY15B104 = 2,	// 512k x 8 F-RAM	
-	AUDIO_MEMORY_UNDEFINED = 3
+	AUDIO_MEMORY_23LC1024 = 0,	// 128k x 8 S-RAM (1.48s @ 44kHz / 16 bit)
+	AUDIO_MEMORY_MEMORYBOARD = 1, // 6x 128k x 8 (8.9s @ 44kHz / 16 bit)
+	AUDIO_MEMORY_CY15B104 = 2,	// 512k x 8 F-RAM	(5.9s @ 44kHz / 16 bit)
+	AUDIO_MEMORY_PSRAM64 = 3,	// 64Mb / 8MB PSRAM (95s @ 44kHz / 16 bit)
+	AUDIO_MEMORY_INTERNAL = 4,  // 8000 samples (181ms), for test only!
+	AUDIO_MEMORY_UNDEFINED
 };
 
 
 class AudioExtMem
 {
 public:
-	AudioExtMem(AudioEffectDelayMemoryType_t type, float milliseconds=1e6)
+	AudioExtMem(AudioEffectDelayMemoryType_t type, uint32_t samples = AUDIO_SAMPLE_RATE_EXACT)
 	{
-		uint32_t n = (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f;
-		initialize(type, n);
+		initialize(type, samples);
 	}
 	AudioExtMem() :	AudioExtMem(AUDIO_MEMORY_23LC1024, 65536) {}
 	~AudioExtMem();
 	
-protected:
+// private:	
 	void initialize(AudioEffectDelayMemoryType_t type, uint32_t samples);
+	inline static void SPIreadMany(int16_t* data, uint32_t samples);
+	inline static void SPIwriteMany(const int16_t* data, uint32_t samples);
+	static uint32_t allocated[AUDIO_MEMORY_UNDEFINED];
+	const static uint32_t memSizeSamples[AUDIO_MEMORY_UNDEFINED];
+	static AudioExtMem* first[AUDIO_MEMORY_UNDEFINED]; // linked lists of all SPI memory types
+	AudioExtMem* next; // next allocation after this one
+	void linkIn(void);  // link new AudioExtMem object into allocation chain
+	void linkOut(void); // unlink this AudioExtMem object from allocation chain
+	static uint32_t findSpace(AudioEffectDelayMemoryType_t memory_type, uint32_t samples); // find a space for a delay buffer
+	uint32_t memory_begin;    // the first address in the memory we're using
+	
+// protected:
 	void read(uint32_t address, uint32_t count, int16_t *data);
 	void write(uint32_t address, uint32_t count, const int16_t *data);
 	void zero(uint32_t address, uint32_t count) {
 		write(address, count, NULL);
 	}
-	uint32_t memory_begin;    // the first address in the memory we're using
 	uint32_t memory_length;   // the amount of memory we're using
 	uint32_t head_offset;     // head index (incoming) data into external memory
-	uint8_t  memory_type;     // 0=23LC1024, 1=Frank's Memoryboard
-	static uint32_t allocated[2];
+	AudioEffectDelayMemoryType_t  memory_type;     // 0=23LC1024, 1=Frank's Memoryboard, etc.
 };
 
 #endif // _extmem_h_

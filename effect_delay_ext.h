@@ -32,7 +32,7 @@
 #include "extmem.h"
 
 
-class AudioEffectDelayExternal : public AudioStream, AudioExtMem
+class AudioEffectDelayExternal : public AudioStream, public AudioExtMem
 {
 public:
 	AudioEffectDelayExternal(AudioEffectDelayMemoryType_t type, float milliseconds=1e6)
@@ -40,7 +40,7 @@ public:
 		AudioExtMem(type, (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f),
 		activemask(0)
 		{}
-	AudioEffectDelayExternal() : AudioEffectDelayExternal(AUDIO_MEMORY_23LC1024, 65536) {}
+	AudioEffectDelayExternal() : AudioEffectDelayExternal(AUDIO_MEMORY_23LC1024) {}
 	
 	~AudioEffectDelayExternal() {SAFE_RELEASE_INPUTS();};
 	
