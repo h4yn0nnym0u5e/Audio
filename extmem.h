@@ -29,12 +29,22 @@
 #include "Arduino.h"
 #include "spi_interrupt.h"
 
+// A quick experiment with a Teensy 4.1 
+// suggests a 1-input 3-tap delay line uses:
+// mem type		CPU%
+// Heap			<tiny%>
+// EXTMEM		1.3%
+// SPI PSRAM	12% (40MHz SPI clock)
+// SPI PSRAM	19% (20MHz SPI clock)
+
 enum AudioEffectDelayMemoryType_t {
 	AUDIO_MEMORY_23LC1024 = 0,	// 128k x 8 S-RAM (1.48s @ 44kHz / 16 bit)
 	AUDIO_MEMORY_MEMORYBOARD = 1, // 6x 128k x 8 (8.9s @ 44kHz / 16 bit)
 	AUDIO_MEMORY_CY15B104 = 2,	// 512k x 8 F-RAM	(5.9s @ 44kHz / 16 bit)
 	AUDIO_MEMORY_PSRAM64 = 3,	// 64Mb / 8MB PSRAM (95s @ 44kHz / 16 bit)
 	AUDIO_MEMORY_INTERNAL = 4,  // 8000 samples (181ms), for test only!
+	AUDIO_MEMORY_HEAP,
+	AUDIO_MEMORY_EXTMEM,
 	AUDIO_MEMORY_UNDEFINED
 };
 
@@ -43,6 +53,7 @@ class AudioExtMem
 {
 public:
 	AudioExtMem(AudioEffectDelayMemoryType_t type, uint32_t samples = AUDIO_SAMPLE_RATE_EXACT)
+		: memory_begin(0)
 	{
 		initialize(type, samples);
 	}
@@ -50,7 +61,7 @@ public:
 	~AudioExtMem();
 	float getMaxDelay(void) {return (float) memory_length * 1000.0f / AUDIO_SAMPLE_RATE_EXACT;}
 	
-// private:	
+private:	
 	void initialize(AudioEffectDelayMemoryType_t type, uint32_t samples);
 	inline static void SPIreadMany(int16_t* data, uint32_t samples);
 	inline static void SPIwriteMany(const int16_t* data, uint32_t samples);
@@ -64,7 +75,7 @@ public:
 	static uint32_t findMaxSpace(AudioEffectDelayMemoryType_t memory_type); // find max available space for a delay buffer
 	uint32_t memory_begin;    // the first address in the memory we're using
 	
-// protected:
+protected:
 	void read(uint32_t address, uint32_t count, int16_t *data);
 	void write(uint32_t address, uint32_t count, const int16_t *data);
 	void zero(uint32_t address, uint32_t count) {

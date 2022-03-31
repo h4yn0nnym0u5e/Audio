@@ -37,7 +37,7 @@
 //
 // Timing analysis and info is here:
 // https://forum.pjrc.com/threads/29276-Limits-of-delay-effect-in-audio-library?p=97506&viewfull=1#post97506
-#define SPISETTING SPISettings(20000000, MSBFIRST, SPI_MODE0)
+#define SPISETTING SPISettings(40000000, MSBFIRST, SPI_MODE0)
 
 // Use these with the audio adaptor board  (should be adjustable by the user...)
 #define SPIRAM_MOSI_PIN  7
@@ -50,6 +50,8 @@
 #define MEMBOARD_CS1_PIN 3
 #define MEMBOARD_CS2_PIN 4
 
+#define SIZEOF_SAMPLE (sizeof(((audio_block_t*) 0)->data[0]))
+
 static const uint32_t NOT_ENOUGH_MEMORY = 0xFFFFFFFF;
 
 //uint32_t AudioExtMem::allocated[AUDIO_MEMORY_UNDEFINED] = {0};
@@ -57,7 +59,25 @@ const uint32_t AudioExtMem::memSizeSamples[] = {65536,393216,262144,4194304,8000
 AudioExtMem* AudioExtMem::first[AUDIO_MEMORY_UNDEFINED] = {nullptr};
 
 
-AudioExtMem::~AudioExtMem() {linkOut();}
+AudioExtMem::~AudioExtMem() 
+{
+	switch (memory_type)
+	{
+		case AUDIO_MEMORY_HEAP:
+			free((void*) memory_begin);
+			break;
+			
+		case AUDIO_MEMORY_EXTMEM:
+			extmem_free((void*) memory_begin);
+			break;
+			
+		// audio SPI memory is tracked by AudioExtMem 
+		// objects thenselves - no need to free	
+		default:
+			break;		
+	}
+	linkOut();
+}
 
 void AudioExtMem::linkIn(void)
 {
@@ -187,6 +207,8 @@ void AudioExtMem::initialize(AudioEffectDelayMemoryType_t type, uint32_t samples
 {
 	//uint32_t memsize, avail;
 	uint32_t avail;
+	void* mem;
+	
 #if defined(INTERNAL_TEST)
 	type = AUDIO_MEMORY_INTERNAL;
 #endif // defined(INTERNAL_TEST)
@@ -200,7 +222,7 @@ void AudioExtMem::initialize(AudioEffectDelayMemoryType_t type, uint32_t samples
 
 	SPI.begin();
 	//memsize = memSizeSamples[type];
-	Serial.printf("Requested %d samples\n",samples);
+	//Serial.printf("Requested %d samples\n",samples);
 	
 	switch (type)
 	{
@@ -223,6 +245,8 @@ void AudioExtMem::initialize(AudioEffectDelayMemoryType_t type, uint32_t samples
 			break;
 			
 		case AUDIO_MEMORY_INTERNAL:
+		case AUDIO_MEMORY_HEAP:
+		case AUDIO_MEMORY_EXTMEM:
 			break;
 			
 		default:
@@ -241,15 +265,46 @@ void AudioExtMem::initialize(AudioEffectDelayMemoryType_t type, uint32_t samples
 	memory_begin = allocated[type];
 	allocated[type] += samples;
 #else
-	// Emulate old behaviour: allocate biggest possible chunk
-	// of delay memory if asked for more than is available.
-	// Slightly different in dynamic system because of fragmentation,
-	// but should be the same if used with legacy static design.
-	avail = findMaxSpace(type);
-	if (samples > avail)
-		samples = avail;
-	Serial.printf("findSpace says we could use %08lX\n",findSpace(type,samples));
-	memory_begin = findSpace(type,samples);
+	switch (type)
+	{
+		// SPI memory
+		// Emulate old behaviour: allocate biggest possible chunk
+		// of delay memory if asked for more than is available.
+		// Slightly different in dynamic system because of fragmentation,
+		// but should be the same if used with legacy static design.
+		case AUDIO_MEMORY_PSRAM64:
+		case AUDIO_MEMORY_23LC1024:
+		case AUDIO_MEMORY_CY15B104:
+		case AUDIO_MEMORY_MEMORYBOARD:
+			avail = findMaxSpace(type);
+			if (samples > avail)
+				samples = avail;
+			//Serial.printf("findSpace says we could use %08lX\n",findSpace(type,samples));
+			memory_begin = findSpace(type,samples);
+			break;
+			
+		// processor heap: could be useful on Teensy 4.x etc.
+		// In this case don't fill heap if asked for too much
+		case AUDIO_MEMORY_HEAP:
+			mem = malloc(samples * SIZEOF_SAMPLE);
+			if (nullptr != mem)
+				memory_begin = (uint32_t) mem;
+			else
+				memory_begin = NOT_ENOUGH_MEMORY;
+			break;
+			
+		// PSRAM external memory
+		case AUDIO_MEMORY_EXTMEM:
+			mem = extmem_malloc(samples * SIZEOF_SAMPLE);
+			if (nullptr != mem)
+				memory_begin = (uint32_t) mem;
+			else
+				memory_begin = NOT_ENOUGH_MEMORY;
+			break;
+			
+		default:
+			break;
+	}
 	if (NOT_ENOUGH_MEMORY == memory_begin)
 		memory_type = AUDIO_MEMORY_UNDEFINED;
 #endif // defined(OLD_ALLOCATE)
@@ -305,37 +360,52 @@ void AudioExtMem::read(uint32_t offset, uint32_t count, int16_t *data)
 #ifdef INTERNAL_TEST
 	if (nullptr != data) while (count) { *data++ = testmem[addr++]; count--; } // testing only
 #else
-	if (memory_type == AUDIO_MEMORY_23LC1024 || 
-		memory_type == AUDIO_MEMORY_PSRAM64 || 
-		memory_type == AUDIO_MEMORY_CY15B104) {
-		addr *= 2;
-		SPI.beginTransaction(SPISETTING);
-		digitalWriteFast(SPIRAM_CS_PIN, LOW);
-		SPI.transfer16((0x03 << 8) | (addr >> 16));
-		SPI.transfer16(addr & 0xFFFF);
-		SPIreadMany(data,count);
-		digitalWriteFast(SPIRAM_CS_PIN, HIGH);
-		SPI.endTransaction();
-	} else if (memory_type == AUDIO_MEMORY_MEMORYBOARD) {
-		SPI.beginTransaction(SPISETTING);
-		while (count) {
-			uint32_t chip = (addr >> 16) + 1;
-			digitalWriteFast(MEMBOARD_CS0_PIN, chip & 1);
-			digitalWriteFast(MEMBOARD_CS1_PIN, chip & 2);
-			digitalWriteFast(MEMBOARD_CS2_PIN, chip & 4);
-			uint32_t chipaddr = (addr & 0xFFFF) << 1;
-			SPI.transfer16((0x03 << 8) | (chipaddr >> 16));
-			SPI.transfer16(chipaddr & 0xFFFF);
-			uint32_t num = 0x10000 - (addr & 0xFFFF);
-			if (num > count) num = count;
-			count -= num;
-			addr += num;
-			SPIreadMany(data,num);
-		}
-		digitalWriteFast(MEMBOARD_CS0_PIN, LOW);
-		digitalWriteFast(MEMBOARD_CS1_PIN, LOW);
-		digitalWriteFast(MEMBOARD_CS2_PIN, LOW);
-		SPI.endTransaction();
+	switch (memory_type)
+	{
+		case AUDIO_MEMORY_23LC1024:
+		case AUDIO_MEMORY_PSRAM64: 
+		case AUDIO_MEMORY_CY15B104:
+			addr *= SIZEOF_SAMPLE;
+			SPI.beginTransaction(SPISETTING);
+			digitalWriteFast(SPIRAM_CS_PIN, LOW);
+			SPI.transfer16((0x03 << 8) | (addr >> 16));
+			SPI.transfer16(addr & 0xFFFF);
+			SPIreadMany(data,count);
+			digitalWriteFast(SPIRAM_CS_PIN, HIGH);
+			SPI.endTransaction();
+			break;
+		
+		case AUDIO_MEMORY_MEMORYBOARD:
+			SPI.beginTransaction(SPISETTING);
+			while (count) {
+				uint32_t chip = (addr >> 16) + 1;
+				digitalWriteFast(MEMBOARD_CS0_PIN, chip & 1);
+				digitalWriteFast(MEMBOARD_CS1_PIN, chip & 2);
+				digitalWriteFast(MEMBOARD_CS2_PIN, chip & 4);
+				uint32_t chipaddr = (addr & 0xFFFF) * SIZEOF_SAMPLE;
+				SPI.transfer16((0x03 << 8) | (chipaddr >> 16));
+				SPI.transfer16(chipaddr & 0xFFFF);
+				uint32_t num = 0x10000 - (addr & 0xFFFF);
+				if (num > count) num = count;
+				count -= num;
+				addr += num;
+				SPIreadMany(data,num);
+			}
+			digitalWriteFast(MEMBOARD_CS0_PIN, LOW);
+			digitalWriteFast(MEMBOARD_CS1_PIN, LOW);
+			digitalWriteFast(MEMBOARD_CS2_PIN, LOW);
+			SPI.endTransaction();
+			break;
+			
+		case AUDIO_MEMORY_HEAP:
+		case AUDIO_MEMORY_EXTMEM:
+			addr = memory_begin + offset*SIZEOF_SAMPLE;
+			if (nullptr != data)
+				memcpy(data,(void*) addr,count*SIZEOF_SAMPLE);
+			break;
+			
+		default:
+			break;
 	}
 #endif
 }
@@ -347,50 +417,69 @@ void AudioExtMem::write(uint32_t offset, uint32_t count, const int16_t *data)
 #ifdef INTERNAL_TEST
 	while (count) { testmem[addr++] = *data++; count--; } // testing only
 #else
-	if (memory_type == AUDIO_MEMORY_23LC1024
-	 || memory_type == AUDIO_MEMORY_PSRAM64) {
-		addr *= 2;
-		SPI.beginTransaction(SPISETTING);
-		digitalWriteFast(SPIRAM_CS_PIN, LOW);
-		SPI.transfer16((0x02 << 8) | (addr >> 16));
-		SPI.transfer16(addr & 0xFFFF);
-		SPIwriteMany(data,count);
-		digitalWriteFast(SPIRAM_CS_PIN, HIGH);
-		SPI.endTransaction();
-	} else if (memory_type == AUDIO_MEMORY_CY15B104) {
-		addr *= 2;
+	switch (memory_type)
+	{
+		case AUDIO_MEMORY_23LC1024:
+		case AUDIO_MEMORY_PSRAM64:
+			addr *= SIZEOF_SAMPLE;
+			SPI.beginTransaction(SPISETTING);
+			digitalWriteFast(SPIRAM_CS_PIN, LOW);
+			SPI.transfer16((0x02 << 8) | (addr >> 16));
+			SPI.transfer16(addr & 0xFFFF);
+			SPIwriteMany(data,count);
+			digitalWriteFast(SPIRAM_CS_PIN, HIGH);
+			SPI.endTransaction();
+			break;
+			
+		case AUDIO_MEMORY_CY15B104:
+			addr *= SIZEOF_SAMPLE;
 
-		SPI.beginTransaction(SPISETTING);
-		digitalWriteFast(SPIRAM_CS_PIN, LOW);
-		SPI.transfer(0x06); //write-enable before every write
-		digitalWriteFast(SPIRAM_CS_PIN, HIGH);
-		asm volatile ("NOP\n NOP\n NOP\n NOP\n NOP\n NOP\n");
-		digitalWriteFast(SPIRAM_CS_PIN, LOW);
-		SPI.transfer16((0x02 << 8) | (addr >> 16));
-		SPI.transfer16(addr & 0xFFFF);
-		SPIwriteMany(data,count);
-		digitalWriteFast(SPIRAM_CS_PIN, HIGH);
-		SPI.endTransaction();	
-	} else if (memory_type == AUDIO_MEMORY_MEMORYBOARD) {		
-		SPI.beginTransaction(SPISETTING);
-		while (count) {
-			uint32_t chip = (addr >> 16) + 1;
-			digitalWriteFast(MEMBOARD_CS0_PIN, chip & 1);
-			digitalWriteFast(MEMBOARD_CS1_PIN, chip & 2);
-			digitalWriteFast(MEMBOARD_CS2_PIN, chip & 4);
-			uint32_t chipaddr = (addr & 0xFFFF) << 1;
-			SPI.transfer16((0x02 << 8) | (chipaddr >> 16));
-			SPI.transfer16(chipaddr & 0xFFFF);
-			uint32_t num = 0x10000 - (addr & 0xFFFF);
-			if (num > count) num = count;
-			count -= num;
-			addr += num;
-			SPIwriteMany(data,num);
-		}
-		digitalWriteFast(MEMBOARD_CS0_PIN, LOW);
-		digitalWriteFast(MEMBOARD_CS1_PIN, LOW);
-		digitalWriteFast(MEMBOARD_CS2_PIN, LOW);
-		SPI.endTransaction();
+			SPI.beginTransaction(SPISETTING);
+			digitalWriteFast(SPIRAM_CS_PIN, LOW);
+			SPI.transfer(0x06); //write-enable before every write
+			digitalWriteFast(SPIRAM_CS_PIN, HIGH);
+			asm volatile ("NOP\n NOP\n NOP\n NOP\n NOP\n NOP\n");
+			digitalWriteFast(SPIRAM_CS_PIN, LOW);
+			SPI.transfer16((0x02 << 8) | (addr >> 16));
+			SPI.transfer16(addr & 0xFFFF);
+			SPIwriteMany(data,count);
+			digitalWriteFast(SPIRAM_CS_PIN, HIGH);
+			SPI.endTransaction();	
+			break;
+			
+		case AUDIO_MEMORY_MEMORYBOARD:		
+			SPI.beginTransaction(SPISETTING);
+			while (count) {
+				uint32_t chip = (addr >> 16) + 1;
+				digitalWriteFast(MEMBOARD_CS0_PIN, chip & 1);
+				digitalWriteFast(MEMBOARD_CS1_PIN, chip & 2);
+				digitalWriteFast(MEMBOARD_CS2_PIN, chip & 4);
+				uint32_t chipaddr = (addr & 0xFFFF) * SIZEOF_SAMPLE;
+				SPI.transfer16((0x02 << 8) | (chipaddr >> 16));
+				SPI.transfer16(chipaddr & 0xFFFF);
+				uint32_t num = 0x10000 - (addr & 0xFFFF);
+				if (num > count) num = count;
+				count -= num;
+				addr += num;
+				SPIwriteMany(data,num);
+			}
+			digitalWriteFast(MEMBOARD_CS0_PIN, LOW);
+			digitalWriteFast(MEMBOARD_CS1_PIN, LOW);
+			digitalWriteFast(MEMBOARD_CS2_PIN, LOW);
+			SPI.endTransaction();
+			break;
+			
+		case AUDIO_MEMORY_HEAP:
+		case AUDIO_MEMORY_EXTMEM:
+			addr = memory_begin + offset*SIZEOF_SAMPLE;
+			if (nullptr != data)
+				memcpy((void*) addr,data,count*SIZEOF_SAMPLE);
+			else
+				memset((void*) addr,0,count*SIZEOF_SAMPLE);
+			break;	
+			
+		default:
+			break;
 	}
 #endif
 }
