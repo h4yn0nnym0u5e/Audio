@@ -56,12 +56,13 @@ static int32_t SPDIF_tx_buffer[AUDIO_BLOCK_SAMPLES * 4];
 #define SPDIF_DPLL_GAIN SPDIF_DPLL_GAIN8 //Actual Gain
 static const uint8_t spdif_gain[8] = {24, 16, 12, 8, 6, 4, 3, 1};
 
+
 FLASHMEM
 void AudioOutputSPDIF3::begin(void)
 {
-
 	if (AOI2S_Stop == dmaState)
 	{
+		memset(SPDIF_tx_buffer,0,sizeof SPDIF_tx_buffer); // ensure we start with silence
 		dma.begin(true); // Allocate the DMA channel first
 
 		block_left_1st = nullptr;
@@ -95,7 +96,6 @@ void AudioOutputSPDIF3::begin(void)
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
 	dmaState = AOI2S_Running;
-//	pinMode(13, OUTPUT);
 }
 
 
@@ -143,25 +143,29 @@ void AudioOutputSPDIF3::isr(void)
 	src_right = (const int16_t *)(block_right->data);
 
 	do {
+		*dest++ = (*src_left++) << 8;
+		*dest++ = (*src_right++) << 8;
+
+		*dest++ = (*src_left++) << 8;
+		*dest++ = (*src_right++) << 8;
+
+		*dest++ = (*src_left++) << 8;
+		*dest++ = (*src_right++) << 8;
+
+		*dest++ = (*src_left++) << 8;
+		*dest++ = (*src_right++) << 8;
+	
+		// Flush the cache every 32 bytes as we go along, as suggested in forum post 
+		// https://forum.pjrc.com/threads/54711-Teensy-4-0-First-Beta-Test?p=194676&viewfull=1#post194676
+		// Experience suggests it works better to flush 
+		// after the copy, rather than before...
 		#if IMXRT_CACHE_ENABLED >= 2
-		SCB_CACHE_DCCIMVAC = (uintptr_t) dest;
+		SCB_CACHE_DCCIMVAC = (uintptr_t) &(dest[-8]);
 		asm volatile("dsb");
 		#endif
-		
-		*dest++ = (*src_left++) << 8;
-		*dest++ = (*src_right++) << 8;
-
-		*dest++ = (*src_left++) << 8;
-		*dest++ = (*src_right++) << 8;
-
-		*dest++ = (*src_left++) << 8;
-		*dest++ = (*src_right++) << 8;
-
-		*dest++ = (*src_left++) << 8;
-		*dest++ = (*src_right++) << 8;
 
 	} while (dest < end);
-
+	
 	if (block_left != &silentBlock) {
 		release(block_left);
 		block_left_1st = block_left_2nd;
@@ -174,7 +178,6 @@ void AudioOutputSPDIF3::isr(void)
 	}
 
 	if (update_responsibility) update_all();
-	//digitalWriteFast(13,!digitalReadFast(13));
 }
 
 void AudioOutputSPDIF3::update(void)
