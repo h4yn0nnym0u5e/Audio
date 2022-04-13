@@ -78,6 +78,10 @@ AsyncAudioInputSPDIF3::AsyncAudioInputSPDIF3(bool dither, bool noiseshaping,floa
 	quantizer[0]->configure(noiseshaping, dither, factor);
 	quantizer[1]=new Quantizer(AUDIO_SAMPLE_RATE_EXACT);
 	quantizer[1]->configure(noiseshaping, dither, factor);
+	
+	buffer_offset = 0;
+	resample_offset = 0;
+	
 	begin();
 	}
 	
@@ -111,10 +115,6 @@ void AsyncAudioInputSPDIF3::begin()
 	#ifdef DEBUG_SPDIF_IN
 		while (!Serial);
 	#endif
-		_bufferLPFilter.pCoeffs=new float[5];
-		_bufferLPFilter.numStages=1;
-		_bufferLPFilter.pState=new float[2];
-		getCoefficients(_bufferLPFilter.pCoeffs, BiquadType::LOW_PASS, 0., 5., AUDIO_SAMPLE_RATE_EXACT/AUDIO_BLOCK_SAMPLES, 0.5);
 		SPDIF_SCR &=(~SPDIF_SCR_RXFIFO_OFF_ON);	//receive fifo is turned on again
 		
 		SPDIF_SRCD = 0;
@@ -122,6 +122,12 @@ void AsyncAudioInputSPDIF3::begin()
 		CORE_PIN15_CONFIG = 3;
 		IOMUXC_SPDIF_IN_SELECT_INPUT = 0; // GPIO_AD_B1_03_ALT3
 	}
+	
+	_bufferLPFilter.pCoeffs=new float[5];
+	_bufferLPFilter.numStages=1;
+	_bufferLPFilter.pState=new float[2];
+	getCoefficients(_bufferLPFilter.pCoeffs, BiquadType::LOW_PASS, 0., 5., AUDIO_SAMPLE_RATE_EXACT/AUDIO_BLOCK_SAMPLES, 0.5);
+	
 	dma.attachInterrupt(isr);
 	dmaState = AOI2S_Running;
 }
