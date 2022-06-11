@@ -160,10 +160,8 @@ void AudioOutputSPDIF3::isr(void)
 		// Experience suggests it works better to flush 
 		// after the copy, rather than before...
 		#if IMXRT_CACHE_ENABLED >= 2
-		SCB_CACHE_DCCIMVAC = (uintptr_t) &(dest[-8]);
-		asm volatile("dsb");
+		arm_dcache_flush(dest-8,8 * sizeof *dest);
 		#endif
-
 	} while (dest < end);
 	
 	if (block_left != &silentBlock) {
