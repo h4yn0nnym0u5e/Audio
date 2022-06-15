@@ -44,6 +44,7 @@ bool AudioInputAnalog::update_responsibility = false;
 AudioInputAnalog::dmaState_t AudioInputAnalog::dmaState = AOI2S_Stop;
 DMAChannel AudioInputAnalog::dma(false);
 
+FLASHMEM
 void AudioInputAnalog::init(uint8_t pin)
 {
 	if (AOI2S_Stop == dmaState)
@@ -68,6 +69,27 @@ void AudioInputAnalog::init(uint8_t pin)
 		hpf_x1 = tmp;   // With constant DC level x1 would be x0
 		hpf_y1 = 0;     // Output will settle here when stable
 
+		// set up a DMA channel to store the ADC data
+		dma.begin(true);
+		
+		dma.TCD->SADDR = &ADC0_RA;
+		dma.TCD->SOFF = 0;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+		dma.TCD->NBYTES_MLNO = 2;
+		dma.TCD->SLAST = 0;
+		dma.TCD->DADDR = analog_rx_buffer;
+		dma.TCD->DOFF = 2;
+		dma.TCD->CITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
+		dma.TCD->DLASTSGA = -sizeof(analog_rx_buffer);
+		dma.TCD->BITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
+		dma.enable();
+		
 		// set the programmable delay block to trigger the ADC at 44.1 kHz
 		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
 		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
@@ -82,26 +104,11 @@ void AudioInputAnalog::init(uint8_t pin)
 			PDB0_CH0C1 = 0x0101;
 		}
 		// enable the ADC for hardware trigger and DMA
-		ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;
-
-		// set up a DMA channel to store the ADC data
-		dma.begin(true);
-		dma.TCD->SADDR = &ADC0_RA;
-		dma.TCD->SOFF = 0;
-		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-		dma.TCD->NBYTES_MLNO = 2;
-		dma.TCD->SLAST = 0;
-		dma.TCD->DADDR = analog_rx_buffer;
-		dma.TCD->DOFF = 2;
-		dma.TCD->CITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
-		dma.TCD->DLASTSGA = -sizeof(analog_rx_buffer);
-		dma.TCD->BITER_ELINKNO = sizeof(analog_rx_buffer) / 2;
-		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
-		dma.enable();
+		ADC0_SC2 |= ADC_SC2_ADTRG | ADC_SC2_DMAEN;	
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+		
 	dmaState = AOI2S_Running;
 }
 
@@ -313,6 +320,7 @@ static const int16_t filter[] = {
 
 static int16_t capture_buffer[AUDIO_BLOCK_SAMPLES*4+FILTERLEN];
 
+FLASHMEM
 void AudioInputAnalog::init(uint8_t pin)
 {
 	if (pin >= sizeof(adc2_pin_to_channel)) return;
@@ -392,7 +400,10 @@ void AudioInputAnalog::init(uint8_t pin)
 		dma.TCD->DLASTSGA = -sizeof(adc_buffer);
 		dma.TCD->BITER_ELINKNO = sizeof(adc_buffer) / 2;
 		dma.TCD->CSR = 0;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC_ETC);
+		// this implementation can't have update responsibility,
+		// and doesn't use DMA interrupts
 		dma.enable();
 	}
 	// TODO: configure I2S1 to interrupt every 128 audio samples, run 1st half of update

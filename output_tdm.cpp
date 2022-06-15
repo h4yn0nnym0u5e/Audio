@@ -41,7 +41,7 @@ static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 DMAMEM __attribute__((aligned(32)))
 static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*AUDIO_TDM_BLOCKS];
 
-
+FLASHMEM
 void AudioOutputTDM::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
@@ -72,6 +72,8 @@ void AudioOutputTDM::begin(void)
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
 
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
 
 		I2S0_TCSR = I2S_TCSR_SR;
@@ -92,14 +94,17 @@ void AudioOutputTDM::begin(void)
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
 
 		I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 		I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 #endif
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 
@@ -256,6 +261,7 @@ void AudioOutputTDM::update(void)
 #endif
 #endif
 
+FLASHMEM
 void AudioOutputTDM::config_tdm(void)
 {
 #if defined(KINETISK)

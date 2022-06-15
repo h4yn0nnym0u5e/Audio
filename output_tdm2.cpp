@@ -40,6 +40,7 @@ DMAMEM __attribute__((aligned(32)))
 static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*AUDIO_TDM_BLOCKS];
 
 
+FLASHMEM
 void AudioOutputTDM2::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
@@ -66,16 +67,17 @@ void AudioOutputTDM2::begin(void)
 		dma.TCD->DLASTSGA = 0;
 		dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
 
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
 
 		//I2S2_RCSR |= I2S_RCSR_RE;
 		I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
 	dmaState = AOI2S_Running;
 }
 
@@ -175,6 +177,7 @@ void AudioOutputTDM2::update(void)
 	}
 }
 
+FLASHMEM
 void AudioOutputTDM2::config_tdm(void)
 {
 	CCM_CCGR5 |= CCM_CCGR5_SAI2(CCM_CCGR_ON);

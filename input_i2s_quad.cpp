@@ -41,6 +41,8 @@ DMAChannel AudioInputI2SQuad::dma(false);
 
 #if defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(__IMXRT1062__)
 
+
+FLASHMEM
 void AudioInputI2SQuad::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
@@ -59,7 +61,6 @@ void AudioInputI2SQuad::begin(void)
 		CORE_PIN38_CONFIG = PORT_PCR_MUX(4); // pin 38, PTC11, I2S0_RXD1
 #endif
 
-#if defined(KINETISK)
 		dma.TCD->SADDR = &I2S0_RDR0;
 		dma.TCD->SOFF = 4;
 		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_SMOD(3) | DMA_TCD_ATTR_DSIZE(1);
@@ -71,8 +72,11 @@ void AudioInputI2SQuad::begin(void)
 		dma.TCD->DLASTSGA = -sizeof(i2s_rx_buffer);
 		dma.TCD->BITER_ELINKNO = sizeof(i2s_rx_buffer) / 4;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-#endif
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
 
 		I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
@@ -83,6 +87,7 @@ void AudioInputI2SQuad::begin(void)
 		I2S1_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
 
 		AudioOutputI2S::config_i2s();
+		
 		I2S1_RCR3 = I2S_RCR3_RCE_2CH << pinoffset;
 		switch (pinoffset) {
 		  case 0:
@@ -104,6 +109,7 @@ void AudioInputI2SQuad::begin(void)
 			IOMUXC_SAI1_RX_DATA3_SELECT_INPUT = 1; // GPIO_B0_12_ALT3, pg 875
 			break;
 		}
+		
 		dma.TCD->SADDR = (void *)((uint32_t)&I2S1_RDR0 + 2 + pinoffset * 4);
 		dma.TCD->SOFF = 4;
 		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
@@ -117,17 +123,22 @@ void AudioInputI2SQuad::begin(void)
 		dma.TCD->DLASTSGA = -sizeof(i2s_rx_buffer);
 		dma.TCD->BITER_ELINKNO = AUDIO_BLOCK_SAMPLES * 2;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
 
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
+		dma.enable();
+		
 		I2S1_RCSR = 0;
 		I2S1_RCR3 = I2S_RCR3_RCE_2CH << pinoffset;
 
 		I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
-		dma.enable();
 #endif
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 

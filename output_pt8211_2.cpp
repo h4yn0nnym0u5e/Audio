@@ -76,14 +76,19 @@ void AudioOutputPT8211_2::begin(void)
 		dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 		dma.TCD->DADDR = (void *)((uint32_t)&I2S2_TDR0);
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
+		dma.enable();
 
 		I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
-		dma.enable();
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 
@@ -403,9 +408,8 @@ void AudioOutputPT8211_2::update(void)
 	}
 }
 
-// using FLASHMEM here causes issues, but why?
-// https://forum.pjrc.com/threads/69224?p=306968&viewfull=1#post306968
-//FLASHMEM
+
+FLASHMEM
 void AudioOutputPT8211_2::config_i2s(void)
 {
 

@@ -44,6 +44,7 @@ DMAMEM __attribute__((aligned(32)))
 static uint32_t I2S3_tx_buffer[AUDIO_BLOCK_SAMPLES];
 
 
+FLASHMEM
 void AudioOutputMQS::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
@@ -69,13 +70,18 @@ void AudioOutputMQS::begin(void)
 		dma.TCD->BITER_ELINKNO = sizeof(I2S3_tx_buffer) / 2;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 		dma.TCD->DADDR = (void *)((uint32_t)&I2S3_TDR0 + 0);
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI3_TX);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
+		dma.enable();
 
 		I2S3_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-		dma.enable();
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 
@@ -204,6 +210,7 @@ void AudioOutputMQS::update(void)
 }
 
 
+FLASHMEM
 void AudioOutputMQS::config_i2s(void)
 {
 	CCM_CCGR5 |= CCM_CCGR5_SAI3(CCM_CCGR_ON);

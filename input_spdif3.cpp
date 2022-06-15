@@ -66,6 +66,9 @@ void AudioInputSPDIF3::begin(void)
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_RX);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
 
 		SPDIF_SRCD = 0;
@@ -73,8 +76,9 @@ void AudioInputSPDIF3::begin(void)
 		CORE_PIN15_CONFIG = 3;
 		IOMUXC_SPDIF_IN_SELECT_INPUT = 0; // GPIO_AD_B1_03_ALT3
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 	//pinMode(13, OUTPUT);
 }

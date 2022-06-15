@@ -38,6 +38,7 @@ AudioInputTDM2::dmaState_t AudioInputTDM2::dmaState = AOI2S_Stop;
 DMAChannel AudioInputTDM2::dma(false);
 
 
+FLASHMEM
 void AudioInputTDM2::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
@@ -60,14 +61,19 @@ void AudioInputTDM2::begin(void)
 		dma.TCD->DLASTSGA = -sizeof(tdm_rx_buffer);
 		dma.TCD->BITER_ELINKNO = sizeof(tdm_rx_buffer) / 4;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_RX);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
 
 		I2S2_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 		I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE;	
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 

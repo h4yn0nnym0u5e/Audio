@@ -47,6 +47,8 @@ DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SA
 AudioOutputPT8211::dmaState_t AudioOutputPT8211::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputPT8211::dma(false);
 
+
+FLASHMEM
 void AudioOutputPT8211::begin(void)
 {
 
@@ -77,7 +79,11 @@ void AudioOutputPT8211::begin(void)
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
+		
 		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
 
@@ -99,16 +105,20 @@ void AudioOutputPT8211::begin(void)
 		dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 		dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0);
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
+
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
+		dma.enable();
 
 		I2S1_RCSR |= I2S_RCSR_RE;
 		I2S1_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-
-		dma.enable();
 #endif
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 
@@ -480,6 +490,7 @@ void AudioOutputPT8211::update(void)
 #endif
 #endif
 
+FLASHMEM
 void AudioOutputPT8211::config_i2s(void)
 {
 #if defined(KINETISK)
@@ -636,14 +647,17 @@ void AudioOutputPT8211::begin(void)
 		dma2.interruptAtCompletion();
 		dma2.disableOnCompletion();
 
+		update_responsibility = update_setup();
+		dma1.attachInterrupt(isr1);
+		dma2.attachInterrupt(isr2);
 		dma1.enable();
 
 		I2S0_TCSR = I2S_TCSR_SR;
 		I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FWDE;
 	}
-	update_responsibility = update_setup();
-	dma1.attachInterrupt(isr1);
-	dma2.attachInterrupt(isr2);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 	

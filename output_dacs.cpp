@@ -56,20 +56,6 @@ void AudioOutputAnalogStereo::begin(void)
 			delay(1);
 		}
 
-		// set the programmable delay block to trigger DMA requests
-		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
-		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
-		  || PDB0_MOD != PDB_PERIOD
-		  || PDB0_IDLY != 1
-		  || PDB0_CH0C1 != 0x0101) {
-			SIM_SCGC6 |= SIM_SCGC6_PDB;
-			PDB0_IDLY = 1;
-			PDB0_MOD = PDB_PERIOD;
-			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
-			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
-			PDB0_CH0C1 = 0x0101;
-		}
-
 		dma.TCD->SADDR = dac_buffer;
 		dma.TCD->SOFF = 4;
 		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(DMA_TCD_ATTR_SIZE_32BIT) |
@@ -83,11 +69,31 @@ void AudioOutputAnalogStereo::begin(void)
 		dma.TCD->DLASTSGA = (&DAC0_DAT0L - &DAC1_DAT0L) * 2;
 		dma.TCD->BITER_ELINKNO = sizeof(dac_buffer) / 4;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_PDB);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
+		dma.enable();
+
+		// set the programmable delay block to trigger DMA requests
+		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
+		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
+		  || PDB0_MOD != PDB_PERIOD
+		  || PDB0_IDLY != 1
+		  || PDB0_CH0C1 != 0x0101) 
+		{
+			SIM_SCGC6 |= SIM_SCGC6_PDB;
+			PDB0_IDLY = 1;
+			PDB0_MOD = PDB_PERIOD;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+			PDB0_CH0C1 = 0x0101;
+		}
 	}
-	update_responsibility = update_setup();
-	dma.enable();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;	
 }
 

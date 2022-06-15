@@ -51,20 +51,6 @@ void AudioOutputAnalog::begin(void)
 			delay(1);
 		}
 
-		// set the programmable delay block to trigger DMA requests
-		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
-		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
-		  || PDB0_MOD != PDB_PERIOD
-		  || PDB0_IDLY != 1
-		  || PDB0_CH0C1 != 0x0101) {
-			SIM_SCGC6 |= SIM_SCGC6_PDB;
-			PDB0_IDLY = 1;
-			PDB0_MOD = PDB_PERIOD;
-			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
-			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
-			PDB0_CH0C1 = 0x0101;
-		}
-
 		dma.TCD->SADDR = dac_buffer;
 		dma.TCD->SOFF = 2;
 		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
@@ -76,11 +62,31 @@ void AudioOutputAnalog::begin(void)
 		dma.TCD->DLASTSGA = 0;
 		dma.TCD->BITER_ELINKNO = sizeof(dac_buffer) / 2;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_PDB);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
+		
+		// set the programmable delay block to trigger DMA requests
+		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)
+		  || (PDB0_SC & PDB_CONFIG) != PDB_CONFIG
+		  || PDB0_MOD != PDB_PERIOD
+		  || PDB0_IDLY != 1
+		  || PDB0_CH0C1 != 0x0101) 
+		{
+			SIM_SCGC6 |= SIM_SCGC6_PDB;
+			PDB0_IDLY = 1;
+			PDB0_MOD = PDB_PERIOD;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+			PDB0_CH0C1 = 0x0101;
+		}
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 
@@ -198,12 +204,6 @@ void AudioOutputAnalog::begin(void)
 			delay(1);
 		}
 
-		// commandeer FTM1 for timing (PWM on pin 3 & 4 will become 22 kHz)
-		FTM1_SC = 0;
-		FTM1_CNT = 0;
-		FTM1_MOD = (uint32_t)((F_PLL/2) / 44117.64706/*AUDIO_SAMPLE_RATE_EXACT*/ + 0.5);
-		FTM1_SC = FTM_SC_CLKS(1) | FTM_SC_DMA;
-
 		dma1.sourceBuffer(dac_buffer1, sizeof(dac_buffer1));
 		dma1.destination(*(int16_t *)&DAC0_DAT0L);
 		dma1.interruptAtCompletion();
@@ -211,10 +211,20 @@ void AudioOutputAnalog::begin(void)
 		dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_FTM1_OV);
 
 		// Enable DMA transfers on timer
+		update_responsibility = update_setup();
+		dma1.attachInterrupt(isr1);
 		dma1.enable();
+		
+		// commandeer FTM1 for timing (PWM on pin 3 & 4 will become 22 kHz)
+		FTM1_SC = 0;
+		FTM1_CNT = 0;
+		FTM1_MOD = (uint32_t)((F_PLL/2) / 44117.64706/*AUDIO_SAMPLE_RATE_EXACT*/ + 0.5);
+		FTM1_SC = FTM_SC_CLKS(1) | FTM_SC_DMA;
+
 	}
-	update_responsibility = update_setup();
-	dma1.attachInterrupt(isr1);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
 

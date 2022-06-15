@@ -38,6 +38,8 @@ bool AudioInputI2S::update_responsibility = false;
 AudioInputI2S::dmaState_t AudioInputI2S::dmaState = AOI2S_Stop;
 DMAChannel AudioInputI2S::dma(false);
 
+
+FLASHMEM
 void AudioInputI2S::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
@@ -50,6 +52,7 @@ void AudioInputI2S::begin(void)
 		I2S0_RCSR |= I2S_RCSR_SR; // soft-reset the I2S receiver logic
 
 		CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
+		
 		dma.TCD->SADDR = (void *)((uint32_t)&I2S0_RDR0 + 2);
 		dma.TCD->SOFF = 0;
 		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
@@ -61,8 +64,13 @@ void AudioInputI2S::begin(void)
 		dma.TCD->DLASTSGA = -sizeof(i2s_rx_buffer);
 		dma.TCD->BITER_ELINKNO = sizeof(i2s_rx_buffer) / 2;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
 
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
+		dma.enable();
+		
 		I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
 
@@ -83,14 +91,19 @@ void AudioInputI2S::begin(void)
 		dma.TCD->DLASTSGA = -sizeof(i2s_rx_buffer);
 		dma.TCD->BITER_ELINKNO = sizeof(i2s_rx_buffer) / 2;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
 
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
+		dma.enable();
+		
 		I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 	#endif
-		dma.enable();
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+	
 	dmaState = AOI2S_Running;
 }
 
@@ -213,6 +226,7 @@ void AudioInputI2S::update(void)
 /******************************************************************/
 
 
+FLASHMEM
 void AudioInputI2Sslave::begin(void)
 {
 	if (AOI2S_Stop == dmaState)
@@ -236,6 +250,9 @@ void AudioInputI2Sslave::begin(void)
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
 
 		I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
@@ -256,17 +273,24 @@ void AudioInputI2Sslave::begin(void)
 		dma.TCD->DLASTSGA = -sizeof(i2s_rx_buffer);
 		dma.TCD->BITER_ELINKNO = sizeof(i2s_rx_buffer) / 2;
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
+		
+		update_responsibility = update_setup();
+		dma.attachInterrupt(isr);
 		dma.enable();
 
 		I2S1_RCSR = 0;
 		I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 #endif
 	}
-	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
+
 	dmaState = AOI2S_Running;
 }
+
+// derives from AudioInputI2S so no destructor needed
 
 #elif defined(KINETISL)
 
@@ -284,39 +308,59 @@ DMAChannel AudioInputI2S::dma1(false);
 DMAChannel AudioInputI2S::dma2(false);
 bool AudioInputI2S::update_responsibility = false;
 
+
+FLASHMEM
 void AudioInputI2S::begin(void)
 {
-	memset(i2s_rx_buffer1, 0, sizeof( i2s_rx_buffer1 ) );
-	memset(i2s_rx_buffer2, 0, sizeof( i2s_rx_buffer2 ) );
+	if (AOI2S_Stop == dmaState)
+	{
+		memset(i2s_rx_buffer1, 0, sizeof( i2s_rx_buffer1 ) );
+		memset(i2s_rx_buffer2, 0, sizeof( i2s_rx_buffer2 ) );
 
-	dma1.begin(true);
-	dma2.begin(true);
+		dma1.begin(true);
+		dma2.begin(true);
 
-	AudioOutputI2S::config_i2s();
-	CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
+		AudioOutputI2S::config_i2s();
+		CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
 
-	//configure both DMA channels
-	dma1.CFG->SAR = (void *)((uint32_t)&I2S0_RDR0 + 2);
-	dma1.CFG->DCR = (dma1.CFG->DCR & 0xF08E0FFF) | DMA_DCR_SSIZE(2);
-	dma1.destinationBuffer(i2s_rx_buffer1, sizeof(i2s_rx_buffer1));
-	dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
-	dma1.interruptAtCompletion();
-	dma1.disableOnCompletion();
-	dma1.attachInterrupt(isr1);
+		//configure both DMA channels
+		dma1.CFG->SAR = (void *)((uint32_t)&I2S0_RDR0 + 2);
+		dma1.CFG->DCR = (dma1.CFG->DCR & 0xF08E0FFF) | DMA_DCR_SSIZE(2);
+		dma1.destinationBuffer(i2s_rx_buffer1, sizeof(i2s_rx_buffer1));
+		dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
+		dma1.interruptAtCompletion();
+		dma1.disableOnCompletion();
+		dma1.attachInterrupt(isr1);
 
-	dma2.CFG->SAR = dma1.CFG->SAR;
-	dma2.CFG->DCR = dma1.CFG->DCR;
-	dma2.destinationBuffer(i2s_rx_buffer2, sizeof(i2s_rx_buffer2));
-	dma2.interruptAtCompletion();
-	dma2.disableOnCompletion();
-	dma2.attachInterrupt(isr2);
+		dma2.CFG->SAR = dma1.CFG->SAR;
+		dma2.CFG->DCR = dma1.CFG->DCR;
+		dma2.destinationBuffer(i2s_rx_buffer2, sizeof(i2s_rx_buffer2));
+		dma2.interruptAtCompletion();
+		dma2.disableOnCompletion();
+		
+		update_responsibility = update_setup();
+		dma2.attachInterrupt(isr2);
+		dma1.enable();
 
-	I2S0_RCSR = 0;
-	I2S0_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FWDE | I2S_RCSR_FR;
-	I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
+		I2S0_RCSR = 0;
+		I2S0_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FWDE | I2S_RCSR_FR;
+		I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
+	}
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
 
-	update_responsibility = update_setup();
-	dma1.enable();
+	dmaState = AOI2S_Running;
+}
+
+
+AudioInputI2S::~AudioInputI2S() 
+{
+	SAFE_RELEASE_INPUTS(); 
+	SAFE_RELEASE_MANY(2,block_left,block_right);
+	block_left = NULL;
+	block_right = NULL;
+	update_responsibility = false;
+	dmaState = AOI2S_Paused;
 }
 
 void AudioInputI2S::update(void)
@@ -394,38 +438,46 @@ void AudioInputI2S::isr2(void)
 
 void AudioInputI2Sslave::begin(void)
 {
-	memset(i2s_rx_buffer1, 0, sizeof( i2s_rx_buffer1 ) );
-	memset(i2s_rx_buffer2, 0, sizeof( i2s_rx_buffer2 ) );
+	if (AOI2S_Stop == dmaState)
+	{
+		memset(i2s_rx_buffer1, 0, sizeof( i2s_rx_buffer1 ) );
+		memset(i2s_rx_buffer2, 0, sizeof( i2s_rx_buffer2 ) );
 
-	dma1.begin(true);
-	dma2.begin(true);
+		dma1.begin(true);
+		dma2.begin(true);
 
-	AudioOutputI2Sslave::config_i2s();
-	CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
+		AudioOutputI2Sslave::config_i2s();
+		CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
 
-	//configure both DMA channels
-	dma1.CFG->SAR = (void *)((uint32_t)&I2S0_RDR0 + 2);
-	dma1.CFG->DCR = (dma1.CFG->DCR & 0xF08E0FFF) | DMA_DCR_SSIZE(2);
-	dma1.destinationBuffer(i2s_rx_buffer1, sizeof(i2s_rx_buffer1));
-	dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
-	dma1.interruptAtCompletion();
-	dma1.disableOnCompletion();
-	dma1.attachInterrupt(isr1);
+		//configure both DMA channels
+		dma1.CFG->SAR = (void *)((uint32_t)&I2S0_RDR0 + 2);
+		dma1.CFG->DCR = (dma1.CFG->DCR & 0xF08E0FFF) | DMA_DCR_SSIZE(2);
+		dma1.destinationBuffer(i2s_rx_buffer1, sizeof(i2s_rx_buffer1));
+		dma1.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
+		dma1.interruptAtCompletion();
+		dma1.disableOnCompletion();
+		dma1.attachInterrupt(isr1);
 
-	dma2.CFG->SAR = dma1.CFG->SAR;
-	dma2.CFG->DCR = dma1.CFG->DCR;
-	dma2.destinationBuffer(i2s_rx_buffer2, sizeof(i2s_rx_buffer2));
-	dma2.interruptAtCompletion();
-	dma2.disableOnCompletion();
-	dma2.attachInterrupt(isr2);
+		dma2.CFG->SAR = dma1.CFG->SAR;
+		dma2.CFG->DCR = dma1.CFG->DCR;
+		dma2.destinationBuffer(i2s_rx_buffer2, sizeof(i2s_rx_buffer2));
+		dma2.interruptAtCompletion();
+		dma2.disableOnCompletion();
+		
+		update_responsibility = update_setup();
+		dma2.attachInterrupt(isr2);
+		dma1.enable();
 
+		I2S0_RCSR = 0;
+		I2S0_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FWDE | I2S_RCSR_FR;
 
-	I2S0_RCSR = 0;
-	I2S0_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FWDE | I2S_RCSR_FR;
+	}
+	else if (AOI2S_Paused == dmaState) // started then destroyed: just re-start
+		update_responsibility = update_setup();
 
-	update_responsibility = update_setup();
-	dma1.enable();
-
+	dmaState = AOI2S_Running;
 }
+
+// derives from AudioInputI2S so no destructor needed
 
 #endif

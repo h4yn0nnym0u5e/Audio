@@ -89,12 +89,13 @@ AsyncAudioInputSPDIF3::AsyncAudioInputSPDIF3(bool dither, bool noiseshaping,floa
 FLASHMEM
 void AsyncAudioInputSPDIF3::begin()
 {
-	
-	AudioOutputSPDIF3::config_spdif3();
 		
 	if (AOI2S_Stop == dmaState)
 	{
 		dma.begin(true); // Allocate the DMA channel first
+		
+		AudioOutputSPDIF3::config_spdif3();
+		
 		const uint32_t noByteMinorLoop=2*4;
 		dma.TCD->SOFF = 4;
 		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
@@ -108,10 +109,15 @@ void AsyncAudioInputSPDIF3::begin()
 		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;	
 		dma.TCD->SADDR = (void *)((uint32_t)&SPDIF_SRL);
 		dma.TCD->DADDR = spdif_rx_buffer;
+		
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_RX);
 
 		//SPDIF_SCR |=SPDIF_SCR_DMA_RX_EN;		//DMA Receive Request Enable
+		// This input cannot have update responsibility as it's 
+		// asynchronous to the rest of the audio engine
+		dma.attachInterrupt(isr);
 		dma.enable();
+		
 	#ifdef DEBUG_SPDIF_IN
 		while (!Serial);
 	#endif
@@ -122,13 +128,12 @@ void AsyncAudioInputSPDIF3::begin()
 		CORE_PIN15_CONFIG = 3;
 		IOMUXC_SPDIF_IN_SELECT_INPUT = 0; // GPIO_AD_B1_03_ALT3
 	}
-	
+		
 	_bufferLPFilter.pCoeffs=new float[5];
 	_bufferLPFilter.numStages=1;
 	_bufferLPFilter.pState=new float[2];
 	getCoefficients(_bufferLPFilter.pCoeffs, BiquadType::LOW_PASS, 0., 5., AUDIO_SAMPLE_RATE_EXACT/AUDIO_BLOCK_SAMPLES, 0.5);
 	
-	dma.attachInterrupt(isr);
 	dmaState = AOI2S_Running;
 }
 
