@@ -36,7 +36,6 @@ public:
 	AudioOutputSPDIF2(void) : AudioStream(2, inputQueueArray) { begin(); }
 	~AudioOutputSPDIF2();
 	virtual void update(void);
-	void begin(void);
 	//friend class AudioInputSPDIF;
 	static void mute_PCM(const bool mute);
 protected:
@@ -50,6 +49,7 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
+	void begin(void);
 	static uint32_t vucp;
 	static audio_block_t *block_left_2nd; // released in destructor
 	static audio_block_t *block_right_2nd; // released in destructor

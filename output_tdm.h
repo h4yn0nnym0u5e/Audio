@@ -39,7 +39,6 @@ public:
 	AudioOutputTDM(void) : AudioStream(AUDIO_TDM_BLOCKS, inputQueueArray) { begin(); }
 	~AudioOutputTDM();
 	virtual void update(void);
-	void begin(void);
 	friend class AudioInputTDM;
 protected:
 	static void config_tdm(void);
@@ -50,6 +49,7 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
+	void begin(void);
 	audio_block_t *inputQueueArray[AUDIO_TDM_BLOCKS];
 };
 

@@ -42,7 +42,6 @@ public:
 	AudioInputPDM(void) : AudioStream(0, NULL) { begin(); }
 	~AudioInputPDM();
 	virtual void update(void);
-	void begin(void);
 
 protected:
 	static bool update_responsibility;
@@ -51,6 +50,7 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
+	void begin(void);
 	static audio_block_t *block_left;  // released in destructor
 };
 

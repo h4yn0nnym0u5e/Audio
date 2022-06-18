@@ -37,9 +37,9 @@ public:
 	AudioOutputAnalog(void) : AudioStream(1, inputQueueArray) { begin(); }
 	~AudioOutputAnalog();
 	virtual void update(void);
-	void begin(void);
 	void analogReference(int ref);
 private:
+	void begin(void);
 	static audio_block_t *block_left_1st; // released in destructor
 	static audio_block_t *block_left_2nd; // released in destructor
 	static bool update_responsibility;

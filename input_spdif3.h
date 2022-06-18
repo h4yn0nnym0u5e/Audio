@@ -39,7 +39,6 @@ public:
 	AudioInputSPDIF3(void) : AudioStream(0, NULL) { begin(); }
 	~AudioInputSPDIF3();
 	virtual void update(void);
-	void begin(void);
 	static bool pllLocked(void);
 	static unsigned int sampleRate(void);
 protected:
@@ -50,6 +49,7 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
+	void begin(void);
 	static audio_block_t *block_left;  // released in destructor
 	static audio_block_t *block_right; // released in destructor
 	static uint16_t block_offset;

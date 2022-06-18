@@ -43,8 +43,8 @@ public:
 	AudioInputI2SOct(void) : AudioStream(0, NULL) { begin(); }
 	~AudioInputI2SOct();
 	virtual void update(void);
-	void begin(void);
 private:
+	void begin(void);
 	static bool update_responsibility;
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
 	static dmaState_t dmaState;

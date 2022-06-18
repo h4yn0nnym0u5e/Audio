@@ -49,7 +49,6 @@ public:
 	AudioOutputPT8211(void) : AudioStream(2, inputQueueArray) { begin(); }
 	~AudioOutputPT8211();
 	virtual void update(void);
-	void begin(void);
 protected:
 	static void config_i2s(void);
 	static audio_block_t *block_left_1st; // released in destructor
@@ -64,6 +63,7 @@ protected:
 	#endif
 	;
 private:
+	void begin(void);
 	static audio_block_t *block_left_2nd; // released in destructor
 	static audio_block_t *block_right_2nd; // released in destructor
 	static uint16_t block_left_offset;
@@ -78,11 +78,11 @@ private:
 ***************************************************************************************/
 class AudioOutputPT8211 : public AudioStream
 {
+	void begin(void);
 public:
 	AudioOutputPT8211(void) : AudioStream(2, inputQueueArray) { begin(); }
 	~AudioOutputPT8211();
 	virtual void update(void);
-	void begin(void);
 	
 protected:	
 	static audio_block_t *block_left; // released in destructor

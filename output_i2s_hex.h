@@ -37,8 +37,8 @@ public:
 	AudioOutputI2SHex(void) : AudioStream(6, inputQueueArray) { begin(); }
 	~AudioOutputI2SHex();
 	virtual void update(void);
-	void begin(void);
 private:
+	void begin(void);
 	static audio_block_t *block_ch1_1st; // released in destructor
 	static audio_block_t *block_ch2_1st; // released in destructor
 	static audio_block_t *block_ch3_1st; // released in destructor

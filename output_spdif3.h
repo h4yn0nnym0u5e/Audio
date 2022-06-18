@@ -35,7 +35,6 @@ public:
 	AudioOutputSPDIF3(void) : AudioStream(2, inputQueueArray) { begin(); }
 	~AudioOutputSPDIF3();
 	virtual void update(void);
-	void begin(void);
 	friend class AudioInputSPDIF3;
 	friend class AsyncAudioInputSPDIF3;
 	static void mute_PCM(const bool mute);
@@ -51,6 +50,7 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);	
 private:
+	void begin(void);
 	static uint32_t dpll_Gain() __attribute__ ((const));
 	static audio_block_t *block_left_2nd; // released in destructor
 	static audio_block_t *block_right_2nd; // released in destructor

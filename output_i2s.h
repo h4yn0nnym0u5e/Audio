@@ -40,7 +40,6 @@ public:
 	AudioOutputI2S(void) : AudioStream(2, inputQueueArray) { begin(); }
 	~AudioOutputI2S();
 	virtual void update(void);
-	void begin(void);
 	friend class AudioInputI2S;
 	friend class AudioInputPDM;
 #if defined(__IMXRT1062__)
@@ -62,6 +61,7 @@ protected:
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
 	static dmaState_t dmaState;
 private:
+	void begin(void);
 	static audio_block_t *block_left_2nd;  // released in destructor
 	static audio_block_t *block_right_2nd; // released in destructor
 	static uint16_t block_left_offset;
@@ -72,9 +72,9 @@ private:
 
 class AudioOutputI2Sslave : public AudioOutputI2S
 {
+	void begin(void);
 public:
 	AudioOutputI2Sslave(void) : AudioOutputI2S(0) { begin(); } ;
-	void begin(void);
 	friend class AudioInputI2Sslave;
 	friend void dma_ch0_isr(void);
 protected:
@@ -93,7 +93,6 @@ public:
 	AudioOutputI2S(void) : AudioStream(2, inputQueueArray) { begin(); }
 	~AudioOutputI2S();
 	virtual void update(void);
-	void begin(void);
 	friend class AudioInputI2S;
 protected:
 	AudioOutputI2S(int dummy): AudioStream(2, inputQueueArray) {} // to be used only inside AudioOutputI2Sslave !!
@@ -109,15 +108,16 @@ protected:
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
 	static dmaState_t dmaState;
 private:
+	void begin(void);
 	audio_block_t *inputQueueArray[2];
 };
 
 
 class AudioOutputI2Sslave : public AudioOutputI2S
 {
+	void begin(void);
 public:
 	AudioOutputI2Sslave(void) : AudioOutputI2S(0) { begin(); } ;
-	void begin(void);
 	friend class AudioInputI2Sslave;
 	friend void dma_ch0_isr(void);
 	friend void dma_ch1_isr(void);

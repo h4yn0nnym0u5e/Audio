@@ -37,8 +37,8 @@ public:
 	AudioOutputI2SOct(void) : AudioStream(8, inputQueueArray) { begin(); }
 	~AudioOutputI2SOct();
 	virtual void update(void);
-	void begin(void);
 private:
+	void begin(void);
 	static audio_block_t *block_ch1_1st; // released in destructor
 	static audio_block_t *block_ch2_1st; // released in destructor
 	static audio_block_t *block_ch3_1st; // released in destructor

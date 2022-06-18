@@ -35,7 +35,6 @@ public:
 	~AudioOutputADAT();
 	
 	virtual void update(void);
-	void begin(void);
 	static void mute_PCM(const bool mute);
 protected:
 	AudioOutputADAT(int dummy): AudioStream(8, inputQueueArray) {}
@@ -55,6 +54,7 @@ protected:
 	static void isr(void);
 	static void setI2SFreq(int freq);
 private:
+	void begin(void);
 	//static uint32_t vucp;
 	static audio_block_t *block_ch1_2nd;  // released in destructor
 	static audio_block_t *block_ch2_2nd;  // released in destructor

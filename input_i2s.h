@@ -41,7 +41,6 @@ public:
 	AudioInputI2S(void) : AudioStream(0, NULL) { begin(); }
 	~AudioInputI2S();
 	virtual void update(void);
-	void begin(void);
 protected:	
 	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;
@@ -60,6 +59,7 @@ protected:
 #endif
 
 private:
+	void begin(void);
 	static audio_block_t *block_left;   // released in destructor
 	static audio_block_t *block_right;  // released in destructor
 #if !defined(KINETISL)	
@@ -70,9 +70,9 @@ private:
 
 class AudioInputI2Sslave : public AudioInputI2S
 {
+	void begin(void);	
 public:
 	AudioInputI2Sslave(void) : AudioInputI2S(0) { begin(); }
-	void begin(void);	
 };
 
 #endif

@@ -37,9 +37,9 @@ public:
 	AudioOutputI2SQuad(void) : AudioStream(4, inputQueueArray) { begin(); }
 	~AudioOutputI2SQuad();
 	virtual void update(void);
-	void begin(void);
 	friend class AudioInputI2SQuad;
 private:
+	void begin(void);
 	static void config_i2s(void);
 	static audio_block_t *block_ch1_1st; // released in destructor
 	static audio_block_t *block_ch2_1st; // released in destructor

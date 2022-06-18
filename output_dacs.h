@@ -37,9 +37,9 @@ public:
 	AudioOutputAnalogStereo(void) : AudioStream(2, inputQueueArray) { begin(); }
 	~AudioOutputAnalogStereo();
 	virtual void update(void);
-	void begin(void);
 	void analogReference(int ref);
 private:
+	void begin(void);
 	static audio_block_t *block_left_1st;  // released in destructor
 	static audio_block_t *block_left_2nd;  // released in destructor
 	static audio_block_t *block_right_1st;  // released in destructor

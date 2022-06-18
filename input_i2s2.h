@@ -43,7 +43,6 @@ public:
 	AudioInputI2S2(void) : AudioStream(0, NULL) { begin(); }
 	~AudioInputI2S2();
 	virtual void update(void);
-	void begin(void);
 protected:
 	AudioInputI2S2(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;
@@ -52,6 +51,7 @@ protected:
 	static DMAChannel dma;
 	static void isr(void);
 private:
+	void begin(void);
 	static audio_block_t *block_left;  // released in destructor
 	static audio_block_t *block_right; // released in destructor
 	static uint16_t block_offset;
@@ -60,9 +60,9 @@ private:
 
 class AudioInputI2S2slave : public AudioInputI2S2
 {
+	void begin(void);
 public:
 	AudioInputI2S2slave(void) : AudioInputI2S2(0) { begin(); }
-	void begin(void);
 	friend void dma_ch1_isr(void);
 };
 
