@@ -28,6 +28,7 @@
 #define AudioControl_h_
 
 #include <stdint.h>
+#include "Wire.h"
 
 // A base class for all Codecs, DACs and ADCs, so at least the
 // most basic functionality is consistent.
@@ -43,6 +44,27 @@ public:
 	virtual bool volume(float volume) = 0;      // volume 0.0 to 1.0
 	virtual bool inputLevel(float volume) = 0;  // volume 0.0 to 1.0
 	virtual bool inputSelect(int n) = 0;
+};
+
+class AudioControlI2C : public AudioControl
+{
+	public:
+		AudioControlI2C(TwoWire& _wire, uint8_t a, uint8_t b, uint8_t s, uint8_t m) :
+			wire(&_wire), i2c_base(b), i2c_step(s), i2c_max(m)
+			{ setAddress(a); }
+		void setAddress(uint8_t addr); // include-in-OSC
+		void setWire(uint8_t wnum, uint8_t addr); // include-in-OSC
+		void setWire(TwoWire& wref, uint8_t addr);
+		void setWire(uint8_t wnum) { setWire(wnum,i2c_addr); }
+		void setWire(TwoWire& wref) { setWire(wref,i2c_addr); }
+	protected:
+		uint8_t i2c_addr;	// configured address
+		TwoWire* wire;
+	private:
+		uint8_t i2c_base;	// lowest valid address
+		uint8_t i2c_step;	// step between addresses
+		uint8_t i2c_max;	// max step value
+		static TwoWire* wires[];
 };
 
 #endif

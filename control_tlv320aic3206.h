@@ -57,6 +57,8 @@
 #include "AudioControl.h"
 #include <Arduino.h>
 
+#define AIC3206_I2C_ADDR                                             0x18
+
 //convenience names to use with inputSelect() to set whnch analog inputs to use
 #define AIC3206_INPUT_IN1            1   //uses IN1
 #define AIC3206_INPUT_IN2      		 2   //uses IN2 analog inputs
@@ -80,14 +82,18 @@
 #define AIC3206_LEFT_CHAN 1
 #define AIC3206_RIGHT_CHAN 2
 
-class AudioControlTLV320AIC3206: public AudioControl
+class AudioControlTLV320AIC3206: public AudioControlI2C
 {
 	public:
 		//GUI: inputs:0, outputs:0  //this line used for automatic generation of GUI node
-		AudioControlTLV320AIC3206(void) { debugToSerial = false; };
-		AudioControlTLV320AIC3206(bool _debugToSerial) { debugToSerial = _debugToSerial; };
-		AudioControlTLV320AIC3206(int _resetPin) { debugToSerial = false; resetPinAIC = _resetPin; }
-		AudioControlTLV320AIC3206(int _resetPin, bool _debugToSerial) {  resetPinAIC = _resetPin; debugToSerial = _debugToSerial; };
+		AudioControlTLV320AIC3206(int _resetPin = 21, bool _debugToSerial = false) : 
+								AudioControlI2C(Wire,0,AIC3206_I2C_ADDR,1,0), 
+								debugToSerial(_debugToSerial), 
+								resetPinAIC(_resetPin) 
+								{}
+		//AudioControlTLV320AIC3206(void) : AudioControlTLV320AIC3206(21,false) {};
+		//AudioControlTLV320AIC3206(bool _debugToSerial) { debugToSerial = _debugToSerial; };
+		//AudioControlTLV320AIC3206(int _resetPin) { debugToSerial = false; resetPinAIC = _resetPin; }
 		bool enable(void);
 		bool disable(void);
 		bool outputSelect(int n);  //use AIC3206_OUTPUT_HEADPHONE_JACK_OUT or one of other choices defined earlier
@@ -117,7 +123,7 @@ class AudioControlTLV320AIC3206: public AudioControl
 	  bool aic_writeAddress(uint16_t address, uint8_t val);
 	  bool aic_goToPage(uint8_t page);
 	  int prevMicDetVal = -1;
-	  int resetPinAIC = 21;  //AIC reset pin, Tympan Rev C
+	  int resetPinAIC;  //AIC reset pin, Tympan Rev C
 	  float HP_cutoff_Hz = 0.0f;
 	  float sample_rate_Hz = 44100; //only used with HP_cutoff_Hz to design HP filter on ADC, if used
 	  void setIIRCoeffOnADC_Left(uint32_t *coeff);

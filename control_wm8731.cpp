@@ -26,10 +26,6 @@
 
 #include <Arduino.h>
 #include "control_wm8731.h"
-#include "Wire.h"
-
-#define WM8731_I2C_ADDR 0x1A
-//#define WM8731_I2C_ADDR 0x1B
 
 #define WM8731_REG_LLINEIN	0
 #define WM8731_REG_RLINEIN	1
@@ -45,7 +41,7 @@
 
 bool AudioControlWM8731::enable(void)
 {
-	Wire.begin();
+	wire->begin();
 	delay(5);
 #if 1
 	if (!write(WM8731_REG_RESET, 0)) {
@@ -88,10 +84,10 @@ bool AudioControlWM8731::write(unsigned int reg, unsigned int val)
 	int attempt=0;
 	while (1) {
 		attempt++;
-		Wire.beginTransmission(WM8731_I2C_ADDR);
-		Wire.write((reg << 1) | ((val >> 8) & 1));
-		Wire.write(val & 0xFF);
-		int status = Wire.endTransmission();
+		wire->beginTransmission(i2c_addr);
+		wire->write((reg << 1) | ((val >> 8) & 1));
+		wire->write(val & 0xFF);
+		int status = wire->endTransmission();
 		if (status == 0) {
 			//Serial.printf("WM8731 write ok, %d tries\n", attempt);
 			return true;
@@ -146,7 +142,7 @@ bool AudioControlWM8731::inputSelect(int n)
 
 bool AudioControlWM8731master::enable(void)
 {
-	Wire.begin();
+	wire->begin();
 	delay(5);
 	//write(WM8731_REG_RESET, 0);
 

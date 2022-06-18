@@ -30,13 +30,10 @@
 #include "AudioControl.h"
 #include <math.h>
 
-class AudioControlCS42448 : public AudioControl
+class AudioControlCS42448 : public AudioControlI2C
 {
 public:
-	AudioControlCS42448(void) : i2c_addr(0x48), muted(true) { }
-	void setAddress(uint8_t addr) {
-		i2c_addr = 0x48 | (addr & 3);
-	}
+	AudioControlCS42448(void) : AudioControlI2C(Wire,0,0x48,1,3), muted(true) { }
 	bool enable(void);
 	bool disable(void) {
 		return false;
@@ -81,7 +78,6 @@ private:
 	}
 	bool write(uint32_t address, uint32_t data);
 	bool write(uint32_t address, const void *data, uint32_t len);
-	uint8_t i2c_addr;
 	bool muted;
 };
 

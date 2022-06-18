@@ -35,13 +35,20 @@
 #define AUDIO_HEADPHONE_DAC 0
 #define AUDIO_HEADPHONE_LINEIN 1
 
-class AudioControlSGTL5000 : public AudioControl
+#define SGTL5000_I2C_ADDR_CS_LOW	0x0A  // CTRL_ADR0_CS pin low (normal configuration)
+#define SGTL5000_I2C_ADDR_CS_HIGH	0x2A // CTRL_ADR0_CS  pin high
+
+class AudioControlSGTL5000 : public AudioControlI2C
 {
 public:
-	AudioControlSGTL5000(void) : i2c_addr(0x0A), wire{wires[0]} { }
-	void setAddress(uint8_t level);
-	void setWire(uint8_t wnum = 0, uint8_t level = LOW);
-	void setWire(TwoWire& wref = Wire, uint8_t level = LOW);
+	AudioControlSGTL5000(void) : AudioControlI2C(Wire,
+									0,
+									SGTL5000_I2C_ADDR_CS_LOW,
+									SGTL5000_I2C_ADDR_CS_HIGH - SGTL5000_I2C_ADDR_CS_LOW,
+									1) { }
+	// void setAddress(uint8_t level);
+	// void setWire(uint8_t wnum = 0, uint8_t level = LOW);
+	// void setWire(TwoWire& wref = Wire, uint8_t level = LOW);
 	bool enable(void);//For Teensy LC the SGTL acts as master, for all other Teensys as slave.
 	bool enable(const unsigned extMCLK, const uint32_t pllFreq = (4096.0l * AUDIO_SAMPLE_RATE_EXACT) ); //With extMCLK > 0, the SGTL acts as Master
 	bool disable(void) { return false; }

@@ -32,9 +32,12 @@
 
 #include "AudioControl.h"
 
-class AudioControlCS4272 : public AudioControl
+#define CS4272_ADDR 0x10 // TODO: need to double check
+
+class AudioControlCS4272 : public AudioControlI2C
 {
 public:
+	AudioControlCS4272() : AudioControlI2C(Wire,0,CS4272_ADDR,1,1) {}
 	bool enable(void);
 	bool disable(void) { return false; }
 	bool volume(float n) { return volumeInteger(n * 127 + 0.499f); }

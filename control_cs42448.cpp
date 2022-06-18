@@ -26,7 +26,6 @@
 
 #include <Arduino.h>
 #include "control_cs42448.h"
-#include "Wire.h"
 
 
 #define CS42448_Chip_ID				0x01
@@ -93,7 +92,7 @@ static const uint8_t default_config[] = {
 
 bool AudioControlCS42448::enable(void)
 {
-	Wire.begin();
+	wire->begin();
 	// TODO: wait for reset signal high??
 	if (!write(CS42448_Power_Control, 0xFF)) return false; // power down
 	if (!write(CS42448_Functional_Mode, default_config, sizeof(default_config))) return false;
@@ -150,23 +149,23 @@ bool AudioControlCS42448::invertADC(uint32_t data)
 
 bool AudioControlCS42448::write(uint32_t address, uint32_t data)
 {
-	Wire.beginTransmission(i2c_addr);
-	Wire.write(address);
-	Wire.write(data);
-	if (Wire.endTransmission() == 0) return true;
+	wire->beginTransmission(i2c_addr);
+	wire->write(address);
+	wire->write(data);
+	if (wire->endTransmission() == 0) return true;
 	return false;
 }
 
 bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len)
 {
-	Wire.beginTransmission(i2c_addr);
-	Wire.write(address | 0x80);
+	wire->beginTransmission(i2c_addr);
+	wire->write(address | 0x80);
 	const uint8_t *p = (const uint8_t *)data;
 	const uint8_t *end = p + len;
 	while (p < end) {
-		Wire.write(*p++);
+		wire->write(*p++);
 	}
-	if (Wire.endTransmission() == 0) return true;
+	if (wire->endTransmission() == 0) return true;
 	return false;
 }
 

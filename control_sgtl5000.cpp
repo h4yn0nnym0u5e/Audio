@@ -495,45 +495,6 @@
 #define DAP_COEF_WR_A2_MSB		0x0138
 #define DAP_COEF_WR_A2_LSB		0x013A
 
-#define SGTL5000_I2C_ADDR_CS_LOW	0x0A  // CTRL_ADR0_CS pin low (normal configuration)
-#define SGTL5000_I2C_ADDR_CS_HIGH	0x2A // CTRL_ADR0_CS  pin high
-
-TwoWire* AudioControlSGTL5000::wires[] = {&Wire
-#if defined(WIRE_IMPLEMENT_WIRE1)
-,&Wire1
-#if defined(WIRE_IMPLEMENT_WIRE2)
-,&Wire2
-#if defined(ARDUINO_TEENSY_MICROMOD)
-,Wire3
-#endif//  defined(ARDUINO_TEENSY_MICROMOD)
-#endif // defined(WIRE_IMPLEMENT_WIRE2)
-#endif // defined(WIRE_IMPLEMENT_WIRE1)
-};
-#define MAX_WIRE (sizeof wires / sizeof wires[0] - 1)
-
-void AudioControlSGTL5000::setAddress(uint8_t level)
-{
-	if (level == LOW) {
-		i2c_addr = SGTL5000_I2C_ADDR_CS_LOW;
-	} else {
-		i2c_addr = SGTL5000_I2C_ADDR_CS_HIGH;
-	}
-}
-
-void AudioControlSGTL5000::setWire(uint8_t wnum, uint8_t level)
-{
-	setAddress(level);
-	if (wnum > MAX_WIRE) wnum = MAX_WIRE;
-	wire = wires[wnum];
-}
-#undef MAX_WIRE
-
-void AudioControlSGTL5000::setWire(TwoWire& wref, uint8_t level)
-{
-	setAddress(level);
-	wire = &wref;
-}
-
 
 bool AudioControlSGTL5000::enable(void) {
 #if defined(KINETISL)

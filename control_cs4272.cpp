@@ -29,9 +29,6 @@
 
 #include <Arduino.h>
 #include "control_cs4272.h"
-#include "Wire.h"
-
-#define CS4272_ADDR 0x10 // TODO: need to double check
 
 // Section 8.1 Mode Control
 #define CS4272_MODE_CONTROL			(uint8_t)0x01
@@ -90,7 +87,7 @@
 
 bool AudioControlCS4272::enable(void)
 {
-	Wire.begin();
+	wire->begin();
 	delay(5);
 	initLocalRegs();
 
@@ -217,10 +214,10 @@ bool AudioControlCS4272::write(unsigned int reg, unsigned int val)
 
 	regLocal[reg] = val;
 
-	Wire.beginTransmission(CS4272_ADDR);
-	Wire.write(reg & 0xFF);
-	Wire.write(val & 0xFF);
-	Wire.endTransmission();
+	wire->beginTransmission(i2c_addr);
+	wire->write(reg & 0xFF);
+	wire->write(val & 0xFF);
+	wire->endTransmission();
 	return true;
 }
 

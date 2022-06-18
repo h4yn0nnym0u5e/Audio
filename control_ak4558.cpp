@@ -7,7 +7,6 @@
  
 #include <Arduino.h>
 #include "control_ak4558.h"
-#include "Wire.h"
 
 void AudioControlAK4558::initConfig(void)
 {
@@ -19,14 +18,14 @@ void AudioControlAK4558::initConfig(void)
 	//
 	// after manipulation, we can write the entire register value on the CODEC
 	uint8_t n = 0;
-	Wire.requestFrom(AK4558_I2C_ADDR,10);
-	while(Wire.available()) {
+	wire->requestFrom(i2c_addr,(uint8_t) 10);
+	while(wire->available()) {
 #if AK4558_SERIAL_DEBUG > 0
 		Serial.print("Register ");
 		Serial.print(n);
 		Serial.print(" = ");
 #endif
-		registers[n++] = Wire.read();
+		registers[n++] = wire->read();
 #if AK4558_SERIAL_DEBUG > 0
 		Serial.println(registers[n-1], BIN);
 #endif
@@ -38,22 +37,22 @@ void AudioControlAK4558::readConfig(void)
 	// reads registers values
 	uint8_t n = 0;
 	uint8_t c = 0;
-	Wire.requestFrom(AK4558_I2C_ADDR, 10);
-	while(Wire.available()) {
+	wire->requestFrom(i2c_addr, (uint8_t) 10);
+	while(wire->available()) {
 		Serial.print("Register ");
 		Serial.print(n++);
 		Serial.print(" = ");
-		c = Wire.read();
+		c = wire->read();
 		Serial.println(c, BIN);
 	}
 }
 
 bool AudioControlAK4558::write(unsigned int reg, unsigned int val)
 {
-	Wire.beginTransmission(AK4558_I2C_ADDR);
-	Wire.write(reg);
-	Wire.write(val);
-	return (Wire.endTransmission(true)==0);
+	wire->beginTransmission(i2c_addr);
+	wire->write(reg);
+	wire->write(val);
+	return (wire->endTransmission(true)==0);
 }
 
 bool AudioControlAK4558::enableIn(void)
@@ -140,7 +139,7 @@ bool AudioControlAK4558::enable(void)
 	Serial.println("AK4558: PDN is HIGH (device reset)");
 #endif
 	// Control register settings become available in 10ms (min.) when LDOE pin = “H”
-	Wire.begin();
+	wire->begin();
 	initConfig();
 	// access all registers to store locally their default values
 	
@@ -174,12 +173,12 @@ bool AudioControlAK4558::enable(void)
 	Serial.println(registers[AK4558_MODE_CTRL], BIN);
 #endif
 	// BCKO1-0 = 00 (BICK Output Frequency at Master Mode = 32fs = 1.4112 MHz)
-	Wire.beginTransmission(AK4558_I2C_ADDR);
-	Wire.write(AK4558_CTRL_1);
-	Wire.write(registers[AK4558_CTRL_1]);
-	Wire.write(registers[AK4558_CTRL_2]);
-	Wire.write(registers[AK4558_MODE_CTRL]);
-	Wire.endTransmission();
+	wire->beginTransmission(i2c_addr);
+	wire->write(AK4558_CTRL_1);
+	wire->write(registers[AK4558_CTRL_1]);
+	wire->write(registers[AK4558_CTRL_2]);
+	wire->write(registers[AK4558_MODE_CTRL]);
+	wire->endTransmission();
 	// Write configuration registers in a single write operation (datasheet page 81):
 	// The AK4558 can perform more than one byte write operation per sequence. After receipt of the third byte
 	// the AK4558 generates an acknowledge and awaits the next data. The master can transmit more than
@@ -262,17 +261,17 @@ bool AudioControlAK4558::volume(float n)
 	uint8_t vol = convertVolume(n);
 	registers[AK4558_LOUT_VOL] = vol;
 	registers[AK4558_ROUT_VOL] = vol;
-	Wire.beginTransmission(AK4558_I2C_ADDR);
-	Wire.write(AK4558_LOUT_VOL);
-	Wire.write(registers[AK4558_LOUT_VOL]);
-	Wire.write(registers[AK4558_ROUT_VOL]);
+	wire->beginTransmission(i2c_addr);
+	wire->write(AK4558_LOUT_VOL);
+	wire->write(registers[AK4558_LOUT_VOL]);
+	wire->write(registers[AK4558_ROUT_VOL]);
 #if AK4558_SERIAL_DEBUG > 0
 	Serial.print("AK4558: LOUT_VOL set to ");
 	Serial.println(registers[AK4558_LOUT_VOL], BIN);
 	Serial.print("AK4558: ROUT_VOL set to ");
 	Serial.println(registers[AK4558_ROUT_VOL], BIN);
 #endif
-	return (Wire.endTransmission(true)==0);
+	return (wire->endTransmission(true)==0);
 }
 
 bool AudioControlAK4558::volumeLeft(float n)

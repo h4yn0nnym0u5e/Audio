@@ -1,5 +1,6 @@
-/* Audio Library for Teensy 3.X
+/* Audio Library for Teensy 3.x and 4.x
  * Copyright (c) 2014, Paul Stoffregen, paul@pjrc.com
+ * Copyright (c) 2022, Jonathan Oakley
  *
  * Development of this audio library was funded by PJRC.COM, LLC by sales of
  * Teensy and Audio Adaptor boards.  Please support PJRC's efforts to develop
@@ -24,31 +25,48 @@
  * THE SOFTWARE.
  */
 
-#ifndef control_wm8731_h_
-#define control_wm8731_h_
-
+#include <Arduino.h>
 #include "AudioControl.h"
 
-#define WM8731_I2C_ADDR 0x1A
 
-class AudioControlWM8731 : public AudioControlI2C
-{
-public:
-	AudioControlWM8731() : AudioControlI2C(Wire,0,WM8731_I2C_ADDR,1,1) {}
-	bool enable(void);
-	bool disable(void) { return false; }
-	bool volume(float n) { return volumeInteger(n * 80.0f + 47.499f); }
-	bool inputLevel(float n); // range: 0.0f to 1.0f
-	bool inputSelect(int n);
-protected:
-	bool write(unsigned int reg, unsigned int val);
-	bool volumeInteger(unsigned int n); // range: 0x2F to 0x7F
+TwoWire* AudioControlI2C::wires[] = {&Wire
+#if defined(WIRE_IMPLEMENT_WIRE1)
+,&Wire1
+#if defined(WIRE_IMPLEMENT_WIRE2)
+,&Wire2
+#if defined(ARDUINO_TEENSY_MICROMOD)
+,Wire3
+#endif//  defined(ARDUINO_TEENSY_MICROMOD)
+#endif // defined(WIRE_IMPLEMENT_WIRE2)
+#endif // defined(WIRE_IMPLEMENT_WIRE1)
 };
+#define MAX_WIRE (sizeof wires / sizeof wires[0] - 1)
 
-class AudioControlWM8731master : public AudioControlWM8731
+void AudioControlI2C::setAddress(uint8_t addr)
 {
-public:
-	bool enable(void);
-};
+	if (addr < i2c_base) // using "step" mode
+	{
+		if (addr > i2c_max)
+			addr = i2c_max;
+		i2c_addr = i2c_base + addr * i2c_step;
+	}
+	else // set directly - better be sane!
+		i2c_addr = addr;
+}
 
-#endif
+void AudioControlI2C::setWire(uint8_t wnum, uint8_t addr)
+{
+	setAddress(addr);
+	if (wnum > MAX_WIRE) wnum = MAX_WIRE;
+	wire = wires[wnum];
+}
+#undef MAX_WIRE
+
+void AudioControlI2C::setWire(TwoWire& wref, uint8_t addr)
+{
+	setAddress(addr);
+	wire = &wref;
+}
+
+
+

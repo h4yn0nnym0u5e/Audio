@@ -46,7 +46,7 @@
 // Chip Address 0 pin
 // set to 'H' by default, configurable to 'L' via a jumper on bottom side of the board
 
-#define AK4558_I2C_ADDR (0x10 + (AK4558_CAD1<<1) + AK4558_CAD0)
+//#define AK4558_I2C_ADDR (0x10 + (AK4558_CAD1<<1) + AK4558_CAD0)
 // datasheet page 81:
 // This address is 7 bits long followed by the eighth bit that is a data direction bit (R/W). 
 // The most significant five bits of the slave address are fixed as “00100”. The next bits are
@@ -230,9 +230,10 @@
 // ATR 7-0: Attenuation Level (Table 30)
 // Default:FF(0dB)
 
-class AudioControlAK4558 : public AudioControl
+class AudioControlAK4558 : public AudioControlI2C
 {
 public:
+	AudioControlAK4558() : AudioControlI2C(Wire,3,0x10,1,3) {} // defaults to max address
 	bool enable(void);		//enables the CODEC, does not power up ADC nor DAC (use enableIn() and enableOut() for selective power up)
 	bool enableIn(void);	//powers up ADC
 	bool enableOut(void);	//powers up DAC
