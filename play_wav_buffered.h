@@ -1,0 +1,76 @@
+/* Audio Library for Teensy 3.X
+ * Copyright (c) 2014, Paul Stoffregen, paul@pjrc.com
+ *
+ * Development of this audio library was funded by PJRC.COM, LLC by sales of
+ * Teensy and Audio Adaptor boards.  Please support PJRC's efforts to develop
+ * open source software by purchasing Teensy or other PJRC products.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice, development funding notice, and this permission
+ * notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+#if !defined(play_wav_buffered_h_)
+#define play_wav_buffered_h_
+
+#include "Arduino.h"
+#include "AudioStream.h"
+#include "SD.h"
+#include "EventResponder.h"
+#include "AudioBuffer.h"
+
+#define SCOPE_PIN 25
+#define SCOPE_SERIAL Serial1
+#define SCOPESER_SPEED 57600
+#include "oscope.h"
+
+class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
+{
+public:
+	AudioPlayWAVbuffered(void) : AudioStream(0, NULL) { begin(); }
+	void begin(void);
+	bool playSD(const char* filename);
+	bool play(const File _file);
+	void togglePlayPause(void);
+	void stop(void);
+	bool isPlaying(void);
+	bool isPaused(void);
+	bool isStopped(void);
+	uint32_t positionMillis(void);
+	uint32_t lengthMillis(void);
+	virtual void update(void);
+	// debug members
+	static uint8_t objcnt;
+	size_t lowWater;
+private:
+	enum state_e {STATE_STOP,STATE_PAUSED,STATE_PLAYING};
+	File wavfile;
+	static void EventResponse(EventResponderRef evref);
+	bool eof;
+	bool readPending;
+	uint8_t objnum;
+	uint32_t data_length;		// number of bytes remaining in current section
+	uint32_t total_length;		// number of audio data bytes in file
+	
+	uint32_t bytes2millis;
+
+	uint8_t state;
+	uint8_t state_play;
+	uint8_t leftover_bytes;
+};
+
+#endif // !defined(play_wav_buffered_h_)
