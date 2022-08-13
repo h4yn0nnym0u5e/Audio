@@ -378,8 +378,11 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 			  
 			case IDs.data:
 				samples += dt.hdr.clen / chanCnt / (bitsPerSample / 8);
-				if (0 == dataChunks++) // first data chunk
-					nextAudio = f.position(); // audio data starts here
+				if (0 == dataChunks++) // first data chunk: we only allow use of one
+				{
+					nextAudio = f.position(); 	// audio data starts here
+					audioSize = dt.hdr.clen;	// and is this many bytes
+				}
 				break;
 			  
 			case IDs.fact:

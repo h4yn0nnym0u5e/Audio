@@ -58,13 +58,15 @@ SCOPESER_TX(pPWB->objnum);
 	pPWB->getNextBuffer(&pb,&sz); 		// find out where and how much
 	if (sz > 0) // read triggered, but there's no room - ignore the request
 	{
-{
+		
+{//----------------------------------------------------
 	size_t av = pPWB->getAvailable();
 	if (av != 0 && av < pPWB->lowWater && !pPWB->eof)
 		pPWB->lowWater = av;
 SCOPESER_TX((av >> 8) & 0xFF);
 SCOPESER_TX(av & 0xFF);
-}
+}//----------------------------------------------------
+
 		got = pPWB->wavfile.read(pb,sz);	// try for that
 		if (got < sz) // there wasn't enough data
 		{
@@ -99,13 +101,13 @@ SCOPESER_ENABLE();
 }
 
 
-bool AudioPlayWAVbuffered::playSD(const char *filename)
+bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */)
 {
-	return play(SD.open(filename));
+	return play(SD.open(filename), paused);
 }
 
 
-bool AudioPlayWAVbuffered::play(const File _file)
+bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */)
 {
 	bool rv = false;
 	
@@ -120,9 +122,13 @@ bool AudioPlayWAVbuffered::play(const File _file)
 		EventResponse((EventResponder&) *this); // pre-load first chunk
 		read(nullptr,nextAudio); // skip the header
 		
-		state_play = STATE_PLAYING;
-		state = STATE_PLAYING;
+		data_length = total_length = audioSize;
 		
+		state_play = STATE_PLAYING;
+		if (paused)
+			state = STATE_PAUSED;
+		else
+			state = STATE_PLAYING;
 		eof = false;
 		rv = true;
 	}
@@ -204,12 +210,18 @@ void AudioPlayWAVbuffered::update(void)
 			toRead = sizeof buf;
 		}
 		
+		// also, don't play past end of data
+		// could leave some data unread in buffer, but
+		// it's not audio!
+		if (toRead > data_length)
+			toRead = data_length;
+		
 		// unbuffer and deinterleave to audio blocks
 		result rdr = read((uint8_t*) buf,toRead);
 		if (toRead < sizeof buf) // not enough data in buffer
 		{
 			memset(((uint8_t*) buf)+toRead,0,sizeof buf - toRead); // fill with silence
-			stop(); // and stop
+			stop(); // and stop: brutal, but probably better than losing sync
 		}
 		deinterleave(buf,data,chanCnt);
 
@@ -231,6 +243,12 @@ void AudioPlayWAVbuffered::update(void)
 			for (int i=1;i<chanCnt;i++)
 				transmit(blocks[i], i);
 		}
+		
+		// deal with position tracking
+		if (toRead <= data_length)
+			data_length -= toRead;
+		else
+			data_length = 0;
 	}
 	
 	// relinquish our interest in these blocks

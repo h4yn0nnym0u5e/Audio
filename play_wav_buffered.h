@@ -43,8 +43,12 @@ class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public A
 public:
 	AudioPlayWAVbuffered(void) : AudioStream(0, NULL) { begin(); }
 	void begin(void);
-	bool playSD(const char* filename);
-	bool play(const File _file);
+	bool playSD(const char* filename, bool paused = false);
+	bool play(const File _file, bool paused = false);
+	bool play(void)  { if (isPaused())  togglePlayPause(); return isPlaying(); }
+	bool pause(void) { if (isPlaying()) togglePlayPause(); return isPaused();  }
+	bool cueSD(const char* filename) { return playSD(filename,true); }
+	bool cue(const File _file) { return play(_file,true); }
 	void togglePlayPause(void);
 	void stop(void);
 	bool isPlaying(void);
