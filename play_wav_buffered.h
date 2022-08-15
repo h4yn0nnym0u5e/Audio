@@ -64,14 +64,13 @@ private:
 	enum state_e {STATE_STOP,STATE_PAUSED,STATE_PLAYING};
 	File wavfile;
 	static void EventResponse(EventResponderRef evref);
+	void loadBuffer(uint8_t* pb, size_t sz);
 	bool eof;
 	bool readPending;
 	uint8_t objnum;
 	uint32_t data_length;		// number of bytes remaining in current section
 	uint32_t total_length;		// number of audio data bytes in file
 	
-	uint32_t bytes2millis;
-
 	uint8_t state;
 	uint8_t state_play;
 	uint8_t leftover_bytes;

@@ -48,36 +48,44 @@ bool scope_pin_value;
 /* static */ uint8_t AudioPlayWAVbuffered::objcnt;
 /* static */ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 {
-	AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
 	uint8_t* pb;
-	size_t sz, got;
+	size_t sz;
+	
+	AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
+	pPWB->getNextBuffer(&pb,&sz);	// find out where and how much
+	pPWB->loadBuffer(pb,sz);		// load more file data to the buffer
+}
+
+
+void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz)
+{
+	size_t got;
 	
 SCOPE_HIGH();	
-SCOPESER_TX(pPWB->objnum);
+SCOPESER_TX(objnum);
 
-	pPWB->getNextBuffer(&pb,&sz); 		// find out where and how much
 	if (sz > 0) // read triggered, but there's no room - ignore the request
 	{
 		
 {//----------------------------------------------------
-	size_t av = pPWB->getAvailable();
-	if (av != 0 && av < pPWB->lowWater && !pPWB->eof)
-		pPWB->lowWater = av;
+	size_t av = getAvailable();
+	if (av != 0 && av < lowWater && !eof)
+		lowWater = av;
 SCOPESER_TX((av >> 8) & 0xFF);
 SCOPESER_TX(av & 0xFF);
 }//----------------------------------------------------
 
-		got = pPWB->wavfile.read(pb,sz);	// try for that
+		got = wavfile.read(pb,sz);	// try for that
 		if (got < sz) // there wasn't enough data
 		{
 			memset(pb+got,0,sz-got); // zero the rest of the buffer
-			pPWB->eof = true;
+			eof = true;
 		}
 
-		pPWB->bufferWritten(pb,sz);
+		bufferWritten(pb,sz);
 	}
-	pPWB->readPending = false;
-SCOPE_LOW();	
+	readPending = false;
+SCOPE_LOW();
 }
 
 
@@ -116,10 +124,20 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */)
 	
 	if (wavfile) 
 	{
+		uint8_t* pb;
+		size_t sz;
+		
 		// load data
 		emptyBuffer(); // ensure we start from scratch
 		parseWAVheader(wavfile); // figure out WAV file structure
-		EventResponse((EventResponder&) *this); // pre-load first chunk
+		//EventResponse((EventResponder&) *this); // pre-load first chunk
+		getNextBuffer(&pb,&sz);	// find out where and how much
+		/*
+		leave this out for now, needs refinement
+		sz -= (objnum & 0xF) *1024;
+		pb += (objnum & 0xF) *1024;
+		*/
+		loadBuffer(pb,sz);		// load initial file data to the buffer
 		read(nullptr,nextAudio); // skip the header
 		
 		data_length = total_length = audioSize;
@@ -292,7 +310,16 @@ bool AudioPlayWAVbuffered::isStopped(void)
 	return (s == STATE_STOP);
 }
 
-
+/**
+ * Approximate progress in milliseconds.
+ *
+ * This actually reflects the state of play when the last
+ * update occurred, so it will be out of date by up to
+ * 2.9ms (with normal settings of 44100/16bit), and jump
+ * in increments of 2.9ms. Also, it will differ from
+ * what you hear, depending on the design and hardware 
+ * delays.
+ */
 uint32_t AudioPlayWAVbuffered::positionMillis(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;

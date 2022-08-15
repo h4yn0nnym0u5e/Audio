@@ -23,9 +23,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
- 
+
+#include "Audio.h"
 #include "AudioBuffer.h"
 
+static const uint32_t B2M_44100 = (uint32_t)((double)4294967296000.0 / AUDIO_SAMPLE_RATE_EXACT);
+static const uint32_t B2M_22050 = (uint32_t)((double)4294967296000.0 / AUDIO_SAMPLE_RATE_EXACT * 2.0);
+static const uint32_t B2M_11025 = (uint32_t)((double)4294967296000.0 / AUDIO_SAMPLE_RATE_EXACT * 4.0);
 
 /**
  * Dispose of allocated buffer by releasing it back to the heap.
@@ -299,17 +303,20 @@ void AudioBuffer::getNextBuffer(uint8_t** pbuf, //!< pointer to pointer returnin
 /**
  * Signal that a required write to the buffer has been done.
  * It is assumed that the zone written will be one of the entire buffer,
- * or just the first or second half of the buffer.
+ * or just the first or second half of the buffer, or a partial write
+ * to the end of the first half and all of the second half.
  */
 void AudioBuffer::bufferWritten(uint8_t* buf, size_t sz)
 {
+	size_t halfSize = bufSize / 2;
+	
 	if (buf == buffer) // wrote at buffer start...
 	{
 		if (sz == bufSize || secondValid == bufState)
 		{
 			bufState = bothValid; // ...whole buffer, or second half is already OK
 			if (sz == bufSize)
-				firstSize = secondSize = bufSize / 2;
+				firstSize = secondSize = halfSize;
 			else
 				firstSize = sz;
 		}
@@ -319,13 +326,23 @@ void AudioBuffer::bufferWritten(uint8_t* buf, size_t sz)
 			firstSize = sz;
 		}
 	}
-	else // wrote second half
+	else // wrote after beginning
 	{
-		if (firstValid == bufState)
+		if (sz == halfSize)  // wrote second half
+		{
+			if (firstValid == bufState)
+				bufState = bothValid;
+			else
+				bufState = secondValid;
+			secondSize = sz;
+		}
+		else // ASSUME partial fill to pre-load buffer
+		{
 			bufState = bothValid;
-		else
-			bufState = secondValid;
-		secondSize = sz;
+			firstSize = sz - halfSize; 	// partial
+			secondSize = halfSize;	   	// full
+			nextIdx = bufSize - sz;		// jump to first valid byte
+		}
 	}	
 }
 
@@ -356,27 +373,45 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 	{
 		do
 		{
-		  uint32_t tmp;
+			uint32_t tmp,b2m;
 			   
-		  f.read(&dt.hdr, sizeof dt.hdr);
-		  seekTo = f.position() + dt.hdr.clen;
-		  
-		  switch (dt.hdr.id.u)
-		  {
-			case IDs.fmt:
-			  f.read(&dt.fmt,dt.hdr.clen);
+			f.read(&dt.hdr, sizeof dt.hdr);
+			seekTo = f.position() + dt.hdr.clen;
+
+			switch (dt.hdr.id.u)
+			{
+			  case IDs.fmt:
+				f.read(&dt.fmt,dt.hdr.clen);
+
+				format = dt.fmt;
+				bitsPerSample = dt.bitsPerSample; 
+				chanCnt = dt.chanCnt;
+
+				if (format == 0xFFFE) // extensible
+				{
+					format = dt.subFmt;
+				}
+
+				if (dt.sampleRate == 44100) {
+					b2m = B2M_44100;
+				} else if (dt.sampleRate == 22050) {
+					b2m = B2M_22050;
+				} else if (dt.sampleRate == 11025) {
+					b2m = B2M_11025;
+				} else {
+					b2m = B2M_44100; // wrong, but we should say something
+				}
+				
+				b2m /= chanCnt;
+
+				if (bitsPerSample == 16) 
+					b2m >>= 1;
+
+				bytes2millis = b2m;			  
 			  
-			  format = dt.fmt;
-			  bitsPerSample = dt.bitsPerSample; 
-			  chanCnt = dt.chanCnt;
+				break;
 			  
-			  if (format == 0xFFFE) // extensible
-			  {
-				format = dt.subFmt;
-			  }
-			  break;
-			  
-			case IDs.data:
+			  case IDs.data:
 				samples += dt.hdr.clen / chanCnt / (bitsPerSample / 8);
 				if (0 == dataChunks++) // first data chunk: we only allow use of one
 				{
@@ -385,15 +420,15 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 				}
 				break;
 			  
-			case IDs.fact:
-			  f.read(&tmp,sizeof tmp);
-			  break;
+			  case IDs.fact:
+				f.read(&tmp,sizeof tmp);
+				break;
 		  }
 		  f.seek(seekTo);
 		} while (seekTo < rhdr.flen);
-  }
-  
-  f.seek(0);
-  
-  return chanCnt;
+	}
+
+	f.seek(0);
+
+	return chanCnt;
 }	

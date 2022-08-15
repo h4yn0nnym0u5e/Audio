@@ -48,7 +48,7 @@ class AudioBuffer
   //private:
 	uint8_t* buffer;	// memory used for buffering
 	size_t nextIdx;		// index of next unused sample
-	size_t bufSize;		// size of buffer
+	size_t bufSize;		// total size of buffer
 	size_t firstSize;	// amount of data in first part of buffer...
 	size_t secondSize;	// ...and in second
 	bufType bufTypeX;
@@ -90,7 +90,7 @@ class AudioWAVdata
 	struct data_t
 	{
 	  chunk_t hdr;
-	  uint16_t fmt; // 16, 18 or 40
+	  uint16_t fmt; 
 	  uint16_t chanCnt;
 	  uint32_t sampleRate;
 	  uint32_t byterate;
@@ -115,6 +115,7 @@ class AudioWAVdata
 	uint32_t samples; 		// number of samples
 	uint32_t nextAudio;		// offset of next audio data
 	uint32_t audioSize;		// number of bytes of audio
+	uint32_t bytes2millis;	// (scaled) conversion from file bytes to milliseconds
 
 	AudioWAVdata() : format(0), bitsPerSample(0), chanCnt(0), 
 					 dataChunks(0), samples(0), nextAudio(0)
