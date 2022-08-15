@@ -89,18 +89,15 @@ SCOPE_LOW();
 }
 
 
-void AudioPlayWAVbuffered::begin(void)
+AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
+		AudioStream(0, NULL),
+		lowWater(0xFFFFFFFF),
+		eof(false), readPending(false), objnum(objcnt++),
+		data_length(0), total_length(0),
+		state(STATE_STOP), state_play(STATE_STOP),leftover_bytes(0)
 {
 SCOPE_ENABLE();
 SCOPESER_ENABLE();
-	
-	state = STATE_STOP;
-	state_play = STATE_STOP;
-	data_length = 0;
-	objnum = objcnt++;
-	eof = false;
-	readPending = false;
-	lowWater = 0xFFFFFFFF;
 	
 	// prepare EventResponder to refill buffer
 	// during yield(), if triggered from update()
@@ -122,21 +119,31 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */)
 	stop();
 	wavfile = _file;
 	
-	if (wavfile) 
+	// ensure a minimal buffer exists
+	if (nullptr == buffer)
+		createBuffer(1024,inHeap);
+	
+	if (wavfile && nullptr != buffer) 
 	{
 		uint8_t* pb;
-		size_t sz;
+		size_t sz,stagger;
+		constexpr int SLOTS=16;
 		
 		// load data
 		emptyBuffer(); // ensure we start from scratch
 		parseWAVheader(wavfile); // figure out WAV file structure
 		//EventResponse((EventResponder&) *this); // pre-load first chunk
 		getNextBuffer(&pb,&sz);	// find out where and how much
-		/*
-		leave this out for now, needs refinement
-		sz -= (objnum & 0xF) *1024;
-		pb += (objnum & 0xF) *1024;
-		*/
+		
+		//* stagger pre-load:
+		stagger = bufSize / 1024; 
+		if (stagger > SLOTS)
+			stagger = SLOTS;
+		stagger = (bufSize>>1) / stagger;
+		
+		sz -= (objnum & (SLOTS-1)) * stagger;
+		pb += (objnum & (SLOTS-1)) * stagger;
+		//*/
 		loadBuffer(pb,sz);		// load initial file data to the buffer
 		read(nullptr,nextAudio); // skip the header
 		

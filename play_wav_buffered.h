@@ -37,14 +37,13 @@
 #define SCOPE_PIN 25
 #define SCOPE_SERIAL Serial1
 #define SCOPESER_SPEED 57600
-*/
+//*/
 #include "oscope.h"
 
 class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
 {
 public:
-	AudioPlayWAVbuffered(void) : AudioStream(0, NULL) { begin(); }
-	void begin(void);
+	AudioPlayWAVbuffered(void);
 	bool playSD(const char* filename, bool paused = false);
 	bool play(const File _file, bool paused = false);
 	bool play(void)  { if (isPaused())  togglePlayPause(); return isPlaying(); }
@@ -55,18 +54,20 @@ public:
 	void stop(void);
 	bool isPlaying(void);
 	bool isPaused(void);
-	bool isStopped(void);
+	bool isStopped(void);	
 	uint32_t positionMillis(void);
 	uint32_t lengthMillis(void);
 	virtual void update(void);
-	// debug members
+	
 	static uint8_t objcnt;
+	// debug members
 	size_t lowWater;
 private:
 	enum state_e {STATE_STOP,STATE_PAUSED,STATE_PLAYING};
 	File wavfile;
 	static void EventResponse(EventResponderRef evref);
 	void loadBuffer(uint8_t* pb, size_t sz);
+	
 	bool eof;
 	bool readPending;
 	uint8_t objnum;
