@@ -33,9 +33,11 @@
 #include "EventResponder.h"
 #include "AudioBuffer.h"
 
+/*
 #define SCOPE_PIN 25
 #define SCOPE_SERIAL Serial1
 #define SCOPESER_SPEED 57600
+*/
 #include "oscope.h"
 
 class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
