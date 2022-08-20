@@ -93,7 +93,13 @@ SCOPESER_ENABLE();
 	attach(EventResponse);
 }
 
-
+/**
+ * Record to a file on SD card.
+ * We open for read / write, but don't truncate the file as this may save
+ * time allocating new sectors while it's shorter than the old file. We
+ * do truncate at the end of recording, as the file length needs to be
+ * consistent with the WAV header.
+ */
 bool AudioRecordWAVbuffered::recordSD(const char *filename, bool paused /* = false */)
 {
 	return record(SD.open(filename,O_RDWR), paused);
@@ -156,7 +162,13 @@ void AudioRecordWAVbuffered::stop(void)
 		
 		// ensure everything buffered gets written out
 		getNextWrite(&pb,&sz);	// find out where and how much
-		flushBuffer(pb,sz);		// write out residual file data from the buffer		
+		flushBuffer(pb,sz);		// write out residual file data from the buffer
+
+		// truncate at current position
+		// we opened read/write, and it could already have existed; if so, and 
+		// the new file is shorter, it will appear inconsistent with the WAV
+		// header if it's not truncated to the new length
+		wavfile.truncate();
 		
 		// fix up the WAV file header with the correct lengths
 		header.data.clen = total_length;
