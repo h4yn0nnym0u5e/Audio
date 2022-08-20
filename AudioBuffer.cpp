@@ -78,7 +78,7 @@ AudioBuffer::result AudioBuffer::createBuffer(uint8_t* buf, //!< pointer to memo
 	buffer = (uint8_t*) buf;	
 	bufSize = sz;
 	bufTypeX = given;	
-	bufState = empty;
+	emptyBuffer();
 
 	return ok;
 }
@@ -142,82 +142,101 @@ AudioBuffer::result AudioBuffer::read(uint8_t* dest, //!< pointer to memory to c
 {
 	AudioBuffer::result rv = ok;
 	size_t halfSize = bufSize / 2;
-	bufState_e reqValid = bothValid;
-	
-	// figure out which part(s) of the buffer need to have data to fulfil the request
-	if (nextIdx < halfSize && nextIdx + bytes <= halfSize)
-		reqValid = firstValid;
-	else
+
+	if (bytes != 0)
 	{
-		if (nextIdx >= halfSize && nextIdx + bytes <= bufSize) // block is in second half of buffer
-			reqValid = secondValid;
+		if (bytes <= getAvailable())
+		{
+			isFull = false;
+			if (queueOut + bytes >= bufSize)
+			{
+				if (nullptr != dest) 
+				{
+					memcpy(dest,buffer+queueOut,bufSize-queueOut);
+					dest += bufSize-queueOut;
+				}
+for (size_t i=0;i<bufSize-queueOut;i++) buffer[queueOut+i] |= 0x20;
+				bytes -= bufSize-queueOut; // this could be zero
+				queueOut = 0;
+			}
+		
+			if (bytes > 0)
+			{
+				if (nullptr != dest) 
+					memcpy(dest,buffer+queueOut,bytes);
+for (size_t i=0;i<bytes;i++) buffer[queueOut+i] |= 0x20;
+				
+				queueOut += bytes;
+			}
+			
+			if (queueIn == queueOut)
+				rv = underflow;
+			else if ((queueIn  < halfSize && queueOut >= halfSize)
+				 ||  (queueOut < halfSize && queueIn  >= halfSize))
+				rv = halfEmpty;
+		}
+		else
+			rv = invalid; // buffer was not read, insufficient data was available
 	}
 	
-	if (bothValid == bufState || bufState == reqValid) // buffer is good enough - proceed
+	return rv;
+}
+
+
+/**
+ * Write data to buffer.
+ * The class deals with wrapping the data if the requested size overlaps
+ * the end of the buffer memory. It also keeps track of whether the buffer has
+ * enough space to satisfy the request, and if it has become possible to refill
+ * the buffer with new data.
+ *
+ * Data may be discarded by passing a NULL destination pointer.
+ *
+ * \return ok if data read and no refill needed; halfEmpty if a partial refill can be done;
+ * underflow if a complete refill is needed; invalid if data was not read from the buffer
+ * because the amount required was greater than that available
+ */
+AudioBuffer::result AudioBuffer::write(uint8_t* src, //!< pointer to memory to copy buffer data from, or null
+									  size_t bytes)  //!< amount of data 
+{
+	AudioBuffer::result rv = ok;
+	size_t halfSize = bufSize / 2;
+
+	if (bytes != 0)
 	{
-		if (nextIdx + bytes >= bufSize) // need to do this in two chunks, or at least wrap nextIdx
+		if (bytes <= bufSize - getAvailable())
 		{
-			if (nullptr != dest) 
+			if (queueIn + bytes >= bufSize)
 			{
-				memcpy(dest,buffer+nextIdx,bufSize-nextIdx);
-				dest += bufSize-nextIdx;
+				if (nullptr != src) 
+				{
+					memcpy(buffer+queueIn,src,bufSize-queueIn);
+					src += bufSize-queueIn;
+				}
+				bytes -= bufSize-queueIn; // this could be zero
+				queueIn = 0;
 			}
-for (size_t i=0;i<bufSize-nextIdx;i++) buffer[nextIdx+i] |= 0x20;
-			secondSize = 0;
-			bytes -= bufSize-nextIdx; // this could be zero
-			nextIdx = 0;
-			
-			if (bothValid == bufState)
-				bufState = firstValid;
-			else
-				bufState = empty;
-		}
 		
-		if (bytes > 0)
-		{
-			if (nullptr != dest) 
-				memcpy(dest,buffer+nextIdx,bytes);
-for (size_t i=0;i<bytes;i++) buffer[nextIdx+i] |= 0x20;
-			
-			if (nextIdx+bytes <= halfSize) // got everything from first half
-				firstSize -= bytes;
-			else if (nextIdx >= halfSize)
-				secondSize -= bytes;
-			else
+			if (bytes > 0)
 			{
-				firstSize  -= halfSize - nextIdx;
-				secondSize -= nextIdx+bytes - halfSize;
+				if (nullptr != src) 
+					memcpy(buffer+queueIn,src,bytes);
+				
+				queueIn += bytes;
 			}
-				
-			nextIdx += bytes;
-		}
-		
-		if (nextIdx >= halfSize && 
-			(reqValid == bothValid || reqValid == firstValid))  // crossed the boundary
-		{
-			if (bothValid == bufState)
-				bufState = secondValid;
-			else
-				bufState = empty;
-		}
-		
-		// update return value as appropriate
-		switch (bufState)
-		{
-			case empty:
-				rv = underflow; // need full buffer read
-				break;
-				
-			default:
-				rv = halfEmpty; // need half buffer read
-				break;
 			
-			case bothValid: // no read needed
-				break;
-		}			
+			if (queueIn == queueOut)
+			{
+				isFull = true;
+				rv = underflow;
+			}
+			else if ((queueIn  < halfSize && queueOut >= halfSize)
+				 ||  (queueOut < halfSize && queueIn  >= halfSize))
+				rv = halfEmpty;
+		}
+		else
+			rv = invalid; // buffer was not read, insufficient data was available
 	}
-	else
-		rv = invalid; // buffer was not read, insufficient data was available
 	
 	return rv;
 }
@@ -229,121 +248,60 @@ for (size_t i=0;i<bytes;i++) buffer[nextIdx+i] |= 0x20;
  */
 size_t AudioBuffer::getAvailable()
 {
-	size_t halfSize = bufSize / 2;
-	size_t rv = bufSize - nextIdx;
+	size_t rv = queueIn - queueOut;
+	if (queueOut > queueIn)
+		rv += bufSize;
 	
-	switch (bufState)
-	{
-		case empty:
-			rv = 0;
-			break;
-		
-		case bothValid:
-			if (nextIdx >= halfSize)
-				rv += halfSize;
-			break;
-			
-		case firstValid:
-			rv -= halfSize;
-			break;
-			
-		case secondValid:
-			break;
-	}
-	
-	rv = firstSize + secondSize;
+	if (0 == rv && isFull)
+		rv = bufSize;
 	
 	return rv;
 }
 
 
 /**
- * Get data on where to write next data into buffer.
- * Caller provides pointers to where the result should be; the caller should
- * then load the indicated zone with the required amount of data.
+ * Get data on where to read next data into buffer.
+ * Caller provides pointers to where the results should be. 
  *
- * If the required amount of data is 0 then no buffer write is needed.
+ * The caller may then load the indicated zone with up to the required amount of data,
+ * and must then call readExecuted() with the actual amount of data read into the buffer.
+ *
+ * If the required amount of data is 0 then no buffer read is needed.
  *
  * In rare circumstances only a half-buffer fill will be requested, even when 
  * the buffer is completely empty.
+ *
+ * \return true if size is more than half the entire buffer
  */
-void AudioBuffer::getNextBuffer(uint8_t** pbuf, //!< pointer to pointer returning buffer zone to fill next
+bool AudioBuffer::getNextRead(uint8_t** pbuf, 	//!< pointer to pointer returning buffer zone to fill next
 								size_t* psz)	//!< pointer to available size of buffer zone to fill
 {
-	*psz = bufSize / 2;
-	bufState_e bState = bufState;
+	size_t sz = queueOut - queueIn;
 	
-	// ensure we request second half if completely empty
-	// and next read will be from second half
-	if (empty == bState && nextIdx >= *psz)
-		bState = firstValid;
+	if (queueIn >= queueOut) // indexes have wrapped, unwrap
+		sz += bufSize;
+		
+	if (queueIn + sz > bufSize) // read would exceed buffer, limit it
+		sz = bufSize - queueIn;
 	
-	switch (bState)
-	{		
-		case empty:
-			*psz = bufSize;
-			// fall through
-		case secondValid:
-			*pbuf = buffer;
-			break;
-			
-		case firstValid:
-			*pbuf = buffer+*psz;
-			break;
-			
-		case bothValid:
-			*psz = 0;
-			break;
-	}
+	*pbuf = buffer+queueIn;
+	*psz  = sz;
 	
-	return;
+	return sz > bufSize / 2;
 }
 
 
 /**
- * Signal that a required write to the buffer has been done.
- * It is assumed that the zone written will be one of the entire buffer,
- * or just the first or second half of the buffer, or a partial write
- * to the end of the first half and all of the second half.
+ * Signal that a required read into the buffer has been done.
  */
-void AudioBuffer::bufferWritten(uint8_t* buf, size_t sz)
+void AudioBuffer::readExecuted(size_t sz)
 {
-	size_t halfSize = bufSize / 2;
+	queueIn += sz;
+	if (queueIn >= bufSize)
+		queueIn -= bufSize;
 	
-	if (buf == buffer) // wrote at buffer start...
-	{
-		if (sz == bufSize || secondValid == bufState)
-		{
-			bufState = bothValid; // ...whole buffer, or second half is already OK
-			if (sz == bufSize)
-				firstSize = secondSize = halfSize;
-			else
-				firstSize = sz;
-		}
-		else
-		{
-			bufState = firstValid; // ...just the first half
-			firstSize = sz;
-		}
-	}
-	else // wrote after beginning
-	{
-		if (sz == halfSize)  // wrote second half
-		{
-			if (firstValid == bufState)
-				bufState = bothValid;
-			else
-				bufState = secondValid;
-			secondSize = sz;
-		}
-		else // ASSUME partial fill to pre-load buffer
-		{
-			bufState = bothValid;
-			firstSize = sz - halfSize; 	// partial
-			secondSize = halfSize;	   	// full
-			nextIdx = bufSize - sz;		// jump to first valid byte
-		}
-	}	
+	if (queueIn == queueOut)
+		isFull = true;
 }
 
 /********************************************************************************/
@@ -362,7 +320,7 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 {
 	uint32_t seekTo;
 	RIFFhdr_t rhdr = {0};
-	data_t dt = {0};
+	ext_fmt_t dt = {0};
   
 	chanCnt = 0;
 	samples = 0;
@@ -375,28 +333,28 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 		{
 			uint32_t tmp,b2m;
 			   
-			f.read(&dt.hdr, sizeof dt.hdr);
-			seekTo = f.position() + dt.hdr.clen;
+			f.read(&dt.fmt.hdr, sizeof dt.fmt.hdr);
+			seekTo = f.position() + dt.fmt.hdr.clen;
 
-			switch (dt.hdr.id.u)
+			switch (dt.fmt.hdr.id.u)
 			{
 			  case IDs.fmt:
-				f.read(&dt.fmt,dt.hdr.clen);
+				f.read(&dt.fmt.fmt,dt.fmt.hdr.clen);
 
-				format = dt.fmt;
-				bitsPerSample = dt.bitsPerSample; 
-				chanCnt = dt.chanCnt;
+				format = dt.fmt.fmt;
+				bitsPerSample = dt.fmt.bitsPerSample; 
+				chanCnt = dt.fmt.chanCnt;
 
 				if (format == 0xFFFE) // extensible
 				{
-					format = dt.subFmt;
+					format = dt.ext.subFmt;
 				}
 
-				if (dt.sampleRate == 44100) {
+				if (dt.fmt.sampleRate == 44100) {
 					b2m = B2M_44100;
-				} else if (dt.sampleRate == 22050) {
+				} else if (dt.fmt.sampleRate == 22050) {
 					b2m = B2M_22050;
-				} else if (dt.sampleRate == 11025) {
+				} else if (dt.fmt.sampleRate == 11025) {
 					b2m = B2M_11025;
 				} else {
 					b2m = B2M_44100; // wrong, but we should say something
@@ -412,11 +370,11 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 				break;
 			  
 			  case IDs.data:
-				samples += dt.hdr.clen / chanCnt / (bitsPerSample / 8);
+				samples += dt.fmt.hdr.clen / chanCnt / (bitsPerSample / 8);
 				if (0 == dataChunks++) // first data chunk: we only allow use of one
 				{
 					nextAudio = f.position(); 	// audio data starts here
-					audioSize = dt.hdr.clen;	// and is this many bytes
+					audioSize = dt.fmt.hdr.clen;	// and is this many bytes
 				}
 				break;
 			  
@@ -431,4 +389,24 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 	f.seek(0);
 
 	return chanCnt;
-}	
+}
+
+
+void AudioWAVdata::makeWAVheader(wavhdr_t* wav,uint16_t chans, uint16_t fmt, uint16_t bits, uint32_t rate)
+{
+	*wav = {0};
+	
+	wav->riff.riff.u = IDs.RIFF; // ID is fixed
+	wav->riff.wav.u = IDs.WAVE;	 // ID is fixed
+	
+	wav->fmt.hdr.id.u = IDs.fmt; // ID is fixed
+	wav->fmt.hdr.clen = sizeof wav->fmt - sizeof wav->fmt.hdr; // we know the size of this chunk!
+	wav->fmt.fmt = fmt;
+	wav->fmt.chanCnt = chans;
+	wav->fmt.sampleRate = rate;
+	wav->fmt.byteRate = rate * chans * bits / 8;
+	wav->fmt.blockAlign = chans * bits / 8;
+	wav->fmt.bitsPerSample = bits;	
+	
+	wav->data.id.u = IDs.data; // ID is fixed
+}

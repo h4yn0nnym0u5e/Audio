@@ -52,7 +52,9 @@ bool scope_pin_value;
 	size_t sz;
 	
 	AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
-	pPWB->getNextBuffer(&pb,&sz);	// find out where and how much
+	pPWB->getNextRead(&pb,&sz);		// find out where and how much
+	if (sz > pPWB->bufSize / 2)
+		sz = pPWB->bufSize / 2;		// limit reads to a half-buffer at a time
 	pPWB->loadBuffer(pb,sz);		// load more file data to the buffer
 }
 
@@ -82,7 +84,7 @@ SCOPESER_TX(av & 0xFF);
 			eof = true;
 		}
 
-		bufferWritten(pb,sz);
+		readExecuted(got);
 	}
 	readPending = false;
 SCOPE_LOW();
@@ -129,21 +131,16 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */)
 		size_t sz,stagger;
 		constexpr int SLOTS=16;
 		
-		// load data
-		emptyBuffer(); // ensure we start from scratch
-		parseWAVheader(wavfile); // figure out WAV file structure
-		//EventResponse((EventResponder&) *this); // pre-load first chunk
-		getNextBuffer(&pb,&sz);	// find out where and how much
-		
 		//* stagger pre-load:
 		stagger = bufSize / 1024; 
 		if (stagger > SLOTS)
 			stagger = SLOTS;
 		stagger = (bufSize>>1) / stagger;
 		
-		sz -= (objnum & (SLOTS-1)) * stagger;
-		pb += (objnum & (SLOTS-1)) * stagger;
-		//*/
+		// load data
+		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
+		parseWAVheader(wavfile); // figure out WAV file structure
+		getNextRead(&pb,&sz);	// find out where and how much				
 		loadBuffer(pb,sz);		// load initial file data to the buffer
 		read(nullptr,nextAudio); // skip the header
 		
@@ -187,7 +184,7 @@ void AudioPlayWAVbuffered::togglePlayPause(void) {
 	}
 }
 
-
+// de-interleave channels of audio from buf into separate blocks
 static void deinterleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 {
 	if (1 == channels) // mono, do the simple thing
