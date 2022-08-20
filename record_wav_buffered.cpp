@@ -137,6 +137,7 @@ bool AudioRecordWAVbuffered::record(const File _file, bool paused /* = false */)
 		write((uint8_t*) &header,sizeof header);	// not sure of alignment, can't do it in place: copy
 		
 		total_length = 0; // haven't written any audio data yet
+		bytes2millis = getB2M(header.fmt.chanCnt,header.fmt.sampleRate,header.fmt.bitsPerSample);
 		
 		state_record = STATE_RECORDING;
 		if (paused)
@@ -168,7 +169,8 @@ void AudioRecordWAVbuffered::stop(void)
 		// we opened read/write, and it could already have existed; if so, and 
 		// the new file is shorter, it will appear inconsistent with the WAV
 		// header if it's not truncated to the new length
-		wavfile.truncate();
+		sz = wavfile.position();	// need this, apparently
+		wavfile.truncate(sz);
 		
 		// fix up the WAV file header with the correct lengths
 		header.data.clen = total_length;

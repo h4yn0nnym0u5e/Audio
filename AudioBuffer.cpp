@@ -364,7 +364,30 @@ static constexpr struct {
 		 CHARS_TO_ID('d','a','t','a'),
 		 CHARS_TO_ID('f','a','c','t')
 		 };
- 
+
+uint32_t AudioWAVdata::getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bitsPerSample)
+{
+	uint32_t b2m;
+	
+	if (sampleRate == 44100) {
+		b2m = B2M_44100;
+	} else if (sampleRate == 22050) {
+		b2m = B2M_22050;
+	} else if (sampleRate == 11025) {
+		b2m = B2M_11025;
+	} else {
+		b2m = B2M_44100; // wrong, but we should say something
+	}
+	
+	b2m /= chanCnt;
+
+	if (bitsPerSample == 16) 
+		b2m >>= 1;
+				
+	return b2m;
+}
+
+
 uint16_t AudioWAVdata::parseWAVheader(File& f)
 {
 	uint32_t seekTo;
@@ -399,22 +422,7 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 					format = dt.ext.subFmt;
 				}
 
-				if (dt.fmt.sampleRate == 44100) {
-					b2m = B2M_44100;
-				} else if (dt.fmt.sampleRate == 22050) {
-					b2m = B2M_22050;
-				} else if (dt.fmt.sampleRate == 11025) {
-					b2m = B2M_11025;
-				} else {
-					b2m = B2M_44100; // wrong, but we should say something
-				}
-				
-				b2m /= chanCnt;
-
-				if (bitsPerSample == 16) 
-					b2m >>= 1;
-
-				bytes2millis = b2m;			  
+				bytes2millis = getB2M(chanCnt,dt.fmt.sampleRate,bitsPerSample);
 			  
 				break;
 			  
