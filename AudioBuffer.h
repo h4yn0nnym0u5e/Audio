@@ -86,7 +86,7 @@ class AudioBuffer
   public:
 	AudioBuffer() : buffer(0), queueOut(0), queueIn(0), isFull(false), bufSize(0), bufTypeX(none), bufState(empty) {}
 	~AudioBuffer() {disposeBuffer();}
-	enum result  {ok,halfEmpty,underflow,invalid};
+	enum result  {ok,halfEmpty,underflow,full,invalid};
 	enum bufType {none,given,inHeap,inExt};
 	enum bufState_e {empty,firstValid,secondValid,bothValid}; // state of buffer
 	
@@ -132,7 +132,7 @@ class AudioWAVdata
 	struct RIFFhdr_t
 	{
 	  tag_t riff;
-	  uint32_t flen;
+	  uint32_t flen; // *** only known after recording
 	  tag_t wav;
 	};
 
@@ -175,7 +175,7 @@ class AudioWAVdata
 	{
 		RIFFhdr_t riff;
 		fmt_t fmt;
-		chunk_t data;
+		chunk_t data; // *** .clen value only known after recording
 	};
 
 	uint16_t format;  		// file format

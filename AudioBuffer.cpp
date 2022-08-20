@@ -186,11 +186,9 @@ for (size_t i=0;i<bytes;i++) buffer[queueOut+i] |= 0x20;
 /**
  * Write data to buffer.
  * The class deals with wrapping the data if the requested size overlaps
- * the end of the buffer memory. It also keeps track of whether the buffer has
- * enough space to satisfy the request, and if it has become possible to refill
- * the buffer with new data.
+ * the end of the buffer memory. 
  *
- * Data may be discarded by passing a NULL destination pointer.
+ * Data may be zeroed by passing a NULL destination pointer.
  *
  * \return ok if data read and no refill needed; halfEmpty if a partial refill can be done;
  * underflow if a complete refill is needed; invalid if data was not read from the buffer
@@ -213,6 +211,8 @@ AudioBuffer::result AudioBuffer::write(uint8_t* src, //!< pointer to memory to c
 					memcpy(buffer+queueIn,src,bufSize-queueIn);
 					src += bufSize-queueIn;
 				}
+				else
+					memset(buffer+queueIn,0,bufSize-queueIn);
 				bytes -= bufSize-queueIn; // this could be zero
 				queueIn = 0;
 			}
@@ -221,6 +221,8 @@ AudioBuffer::result AudioBuffer::write(uint8_t* src, //!< pointer to memory to c
 			{
 				if (nullptr != src) 
 					memcpy(buffer+queueIn,src,bytes);
+				else
+					memset(buffer+queueIn,0,bytes);
 				
 				queueIn += bytes;
 			}
@@ -228,14 +230,14 @@ AudioBuffer::result AudioBuffer::write(uint8_t* src, //!< pointer to memory to c
 			if (queueIn == queueOut)
 			{
 				isFull = true;
-				rv = underflow;
+				rv = full;
 			}
 			else if ((queueIn  < halfSize && queueOut >= halfSize)
 				 ||  (queueOut < halfSize && queueIn  >= halfSize))
 				rv = halfEmpty;
 		}
 		else
-			rv = invalid; // buffer was not read, insufficient data was available
+			rv = invalid; // buffer was not written, insufficient space was available
 	}
 	
 	return rv;
@@ -302,6 +304,53 @@ void AudioBuffer::readExecuted(size_t sz)
 	
 	if (queueIn == queueOut)
 		isFull = true;
+}
+
+
+/**
+ * Get data on where to write next data out of buffer.
+ * Caller provides pointers to where the results should be. 
+ *
+ * The caller may then write out data from  the indicated zone with up to the available amount of data,
+ * and must then call readExecuted() with the actual amount of data written from the buffer.
+ *
+ * If the required amount of data is 0 then no buffer write is needed.
+ *
+ * In rare circumstances only a half-buffer fill will be requested, even when 
+ * the buffer is completely empty.
+ *
+ * \return true if size is more than half the entire buffer
+ */
+bool AudioBuffer::getNextWrite(uint8_t** pbuf, 	//!< pointer to pointer returning buffer zone to write from next
+								size_t* psz)	//!< pointer to available size of buffer zone to write from
+{
+	size_t sz = queueIn - queueOut;
+	
+	if (queueIn < queueOut) // indexes have wrapped, unwrap
+		sz += bufSize;
+		
+	if (0 == sz && isFull) // buffer is completely full
+		sz = bufSize;
+		
+	if (queueOut + sz > bufSize) // write would exceed buffer, limit it
+		sz = bufSize - queueOut;
+	
+	*pbuf = buffer+queueOut;
+	*psz  = sz;
+	
+	return sz > bufSize / 2;
+}
+
+
+/**
+ * Signal that a required write out of the buffer has been done.
+ */
+void AudioBuffer::writeExecuted(size_t sz)
+{
+	queueOut += sz;
+	if (queueOut >= bufSize)
+		queueOut -= bufSize;
+	isFull = false;
 }
 
 /********************************************************************************/
