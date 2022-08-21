@@ -403,7 +403,7 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 	{
 		do
 		{
-			uint32_t tmp,b2m;
+			uint32_t tmp;
 			   
 			f.read(&dt.fmt.hdr, sizeof dt.fmt.hdr);
 			seekTo = f.position() + dt.fmt.hdr.clen;

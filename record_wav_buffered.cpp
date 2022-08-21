@@ -63,8 +63,10 @@ SCOPESER_TX(av & 0xFF);
 }//----------------------------------------------------
 
 		outN = wavfile.write(pb,sz);	// try for that
+		//wavfile.flush();
 		if (outN < sz) // failed to write out all data
 		{
+			Serial.printf("write of %d bytes failed: wrote %d\n",sz,outN);
 			// NOW what do we do?!
 		}
 		if (0 == total_length) 		// first write, includes WAV header...
@@ -82,7 +84,7 @@ AudioRecordWAVbuffered::AudioRecordWAVbuffered(void) :
 		lowWater(0xFFFFFFFF),
 		eof(false), writePending(false), objnum(objcnt++),
 		data_length(0), total_length(0),
-		state(STATE_STOP), state_record(STATE_STOP),leftover_bytes(0)
+		state(STATE_STOP), state_record(STATE_STOP)
 {
 SCOPE_ENABLE();
 SCOPESER_ENABLE();
@@ -162,6 +164,8 @@ void AudioRecordWAVbuffered::stop(void)
 		state = STATE_STOP; // ensure update() no longer tries to write
 		
 		// ensure everything buffered gets written out
+		if (writePending)
+			yield();
 		getNextWrite(&pb,&sz);	// find out where and how much
 		flushBuffer(pb,sz);		// write out residual file data from the buffer
 

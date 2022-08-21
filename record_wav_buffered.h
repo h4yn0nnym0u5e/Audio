@@ -78,7 +78,6 @@ private:
 	
 	uint8_t state;
 	uint8_t state_record;
-	uint8_t leftover_bytes;
 };
 
 #endif // !defined(record_wav_buffered_h_)
