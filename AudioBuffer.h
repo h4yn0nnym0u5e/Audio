@@ -24,11 +24,20 @@
  * THE SOFTWARE.
  */
  
- #if !defined(_AUDIO_BUFFER_H_)
- #define _AUDIO_BUFFER_H_
- 
- #include <Arduino.h>
- #include <FS.h>
+#if !defined(_AUDIO_BUFFER_H_)
+#define _AUDIO_BUFFER_H_
+
+#include <Arduino.h>
+#include <FS.h>
+
+// Default to disabling oscilloscope debug
+// This will be removed in production code
+#define SCOPE_ENABLE(...) 
+#define SCOPE_HIGH(...) 
+#define SCOPE_LOW(...) 
+#define SCOPE_TOGGLE(...)
+#define SCOPESER_ENABLE(...) 
+#define SCOPESER_TX(...)  
  
  /**
   * Implementation of a double-buffer aimed at audio processing.

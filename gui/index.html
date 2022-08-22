@@ -3175,10 +3175,18 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	
 
-	<p class=func><span class=keyword>lengthMillis</span>();</p>
+	<p class=func><span class=keyword>positionMillis</span>();</p>
 	<p class=desc>Return the total length of the current sound clip,
-		in milliseconds.  When not recording, the return from this function
-		is undefined.
+		in milliseconds, including audio that is buffered but not
+		yet written out.  
+		After recording, the return from this function
+		reflects the final clip length.
+	</p>
+	
+	<p class=func><span class=keyword>lengthMillis</span>();</p>
+	<p class=desc>Return the length of the current sound clip written to the file,
+		in milliseconds.  After recording, the return from this function
+		reflects the final clip length.
 	</p>
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; TODO

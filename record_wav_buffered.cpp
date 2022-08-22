@@ -27,9 +27,6 @@
 #include <Arduino.h>
 #include "record_wav_buffered.h"
 
-#if 1
-
-extern bool scope_pin_value;
 /* static */ uint8_t AudioRecordWAVbuffered::objcnt;
 /* static */ void AudioRecordWAVbuffered::EventResponse(EventResponderRef evref)
 {
@@ -138,7 +135,7 @@ bool AudioRecordWAVbuffered::record(const File _file, bool paused /* = false */)
 		makeWAVheader(&header,chanCnt); // create a default WAV header
 		write((uint8_t*) &header,sizeof header);	// not sure of alignment, can't do it in place: copy
 		
-		total_length = 0; // haven't written any audio data yet
+		data_length = total_length = 0; // haven't written any audio data yet
 		bytes2millis = getB2M(header.fmt.chanCnt,header.fmt.sampleRate,header.fmt.bitsPerSample);
 		
 		state_record = STATE_RECORDING;
@@ -258,6 +255,7 @@ void AudioRecordWAVbuffered::update(void)
 		{
 			interleave(buf,data,chanCnt);	// make a chunk of data for the file
 			result rdr = write((uint8_t*) buf, sizeof buf); // send it to the buffer
+			data_length += sizeof buf;
 			
 			if (ok != rdr 			// there's now room for a buffer read,
 				&& !eof 			// and more file data available
@@ -324,14 +322,20 @@ uint32_t AudioRecordWAVbuffered::positionMillis(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
 	if (s >= 8 && s != STATE_PAUSED) return 0;
-	uint32_t tlength = *(volatile uint32_t *)&total_length;
 	uint32_t dlength = *(volatile uint32_t *)&data_length;
-	uint32_t offset = tlength - dlength;
 	uint32_t b2m = *(volatile uint32_t *)&bytes2millis;
-	return ((uint64_t)offset * b2m) >> 32;
+	return ((uint64_t)dlength * b2m) >> 32;
 }
 
 
+/**
+ * Approximate file write progress in milliseconds.
+ *
+ * This will be behind the positionMillis() value due
+ * to the buffering, and will also "jump" in value
+ * as writes occur. The bigger the buffer, the larger
+ * and less frequent these jumps will be.
+ */
 uint32_t AudioRecordWAVbuffered::lengthMillis(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
@@ -340,9 +344,4 @@ uint32_t AudioRecordWAVbuffered::lengthMillis(void)
 	uint32_t b2m = *(volatile uint32_t *)&bytes2millis;
 	return ((uint64_t)tlength * b2m) >> 32;
 }
-#endif // 0 or 1: disable whole file
-
-
-
-
 

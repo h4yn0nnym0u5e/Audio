@@ -27,24 +27,6 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
-
-#define STATE_DIRECT_8BIT_MONO		0  // playing mono at native sample rate
-#define STATE_DIRECT_8BIT_STEREO	1  // playing stereo at native sample rate
-#define STATE_DIRECT_16BIT_MONO		2  // playing mono at native sample rate
-#define STATE_DIRECT_16BIT_STEREO	3  // playing stereo at native sample rate
-#define STATE_CONVERT_8BIT_MONO		4  // playing mono, converting sample rate
-#define STATE_CONVERT_8BIT_STEREO	5  // playing stereo, converting sample rate
-#define STATE_CONVERT_16BIT_MONO	6  // playing mono, converting sample rate
-#define STATE_CONVERT_16BIT_STEREO	7  // playing stereo, converting sample rate
-#define STATE_PARSE1			8  // looking for 20 byte ID header
-#define STATE_PARSE2			9  // looking for 16 byte format header
-#define STATE_PARSE3			10 // looking for 8 byte data header
-#define STATE_PARSE4			11 // ignoring unknown chunk after "fmt "
-#define STATE_PARSE5			12 // ignoring unknown chunk before "fmt "
-#define STATE_PAUSED			13
-//#define STATE_STOP			14
-
-bool scope_pin_value;
 /* static */ uint8_t AudioPlayWAVbuffered::objcnt;
 /* static */ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 {

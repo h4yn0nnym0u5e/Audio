@@ -4,7 +4,16 @@
 #if !defined(oscope_h_)
 #define oscope_h_
 
+// May have been given null definitions: remove these
+#undef SCOPE_ENABLE
+#undef SCOPE_HIGH
+#undef SCOPE_LOW
+#undef SCOPE_TOGGLE
+#undef SCOPESER_ENABLE
+#undef SCOPESER_TX
+
 #if defined(SCOPE_PIN)
+extern bool scope_pin_value;
 #define SCOPE_ENABLE() pinMode(SCOPE_PIN,OUTPUT)
 #define SCOPE_HIGH() digitalWrite(SCOPE_PIN,scope_pin_value = 1)
 #define SCOPE_LOW() digitalWrite(SCOPE_PIN,scope_pin_value = 0)
@@ -26,7 +35,5 @@
 #define SCOPESER_ENABLE(...) 
 #define SCOPESER_TX(...) 
 #endif // defined(SCOPE_SERIAL)
-
-
 
 #endif // !defined(oscope_h_)
