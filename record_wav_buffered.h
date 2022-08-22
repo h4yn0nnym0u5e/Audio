@@ -43,7 +43,8 @@
 class AudioRecordWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
 {
 public:
-	AudioRecordWAVbuffered(void);
+	AudioRecordWAVbuffered(unsigned char ninput, audio_block_t **iqueue);
+	AudioRecordWAVbuffered(void) : AudioRecordWAVbuffered(2,inputQueueArray) {}
 	bool recordSD(const char* filename, bool paused = false);
 	bool record(const File _file, bool paused = false);
 	bool record(void)  { if (isPaused())  toggleRecordPause(); return isRecording(); }
@@ -62,6 +63,10 @@ public:
 	static uint8_t objcnt;
 	// debug members
 	size_t lowWater;
+	
+	friend class AudioRecordWAVmono;
+	friend class AudioRecordWAVstereo;
+	
 private:
 	audio_block_t *inputQueueArray[2];
 	enum state_e {STATE_STOP,STATE_PAUSED,STATE_RECORDING};
@@ -80,4 +85,36 @@ private:
 	uint8_t state_record;
 };
 
+class AudioRecordWAVmono : public AudioRecordWAVbuffered
+{
+	public:
+		AudioRecordWAVmono(): AudioRecordWAVbuffered(1,inputQueueArray) {}
+};
+
+class AudioRecordWAVstereo : public AudioRecordWAVbuffered
+{
+	public:
+		AudioRecordWAVstereo(): AudioRecordWAVbuffered(2,inputQueueArray) {}
+};
+
+class AudioRecordWAVquad : public AudioRecordWAVbuffered
+{
+		audio_block_t *iqa[4];	
+	public:
+		AudioRecordWAVquad(): AudioRecordWAVbuffered(4,iqa) {}
+};
+
+class AudioRecordWAVhex : public AudioRecordWAVbuffered
+{
+		audio_block_t *iqa[6];	
+	public:
+		AudioRecordWAVhex(): AudioRecordWAVbuffered(6,iqa) {}
+};
+
+class AudioRecordWAVoct : public AudioRecordWAVbuffered
+{
+		audio_block_t *iqa[8];	
+	public:
+		AudioRecordWAVoct(): AudioRecordWAVbuffered(8,iqa) {}
+};
 #endif // !defined(record_wav_buffered_h_)

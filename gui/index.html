@@ -496,6 +496,18 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioMixer4","data":{"defaults":{"name":{"value":"new"}},"shortName":"mixer","inputs":4,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayMemory","data":{"defaults":{"name":{"value":"new"}},"shortName":"playMem","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlaySdWav","data":{"defaults":{"name":{"value":"new"}},"shortName":"playSdWav","inputs":0,"outputs":2,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		
+		{"type":"AudioPlayWAVstereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVstereo","inputs":0,"outputs":2,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioPlayWAVquad",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVquad",  "inputs":0,"outputs":4,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioPlayWAVhex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVhex",   "inputs":0,"outputs":6,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioPlayWAVoct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVoct",   "inputs":0,"outputs":8,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		
+		{"type":"AudioRecordWAVmono",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVmono",  "inputs":1,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWAVstereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVstereo","inputs":2,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWAVquad",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVquad",  "inputs":4,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWAVhex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVhex",   "inputs":6,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWAVoct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVoct",   "inputs":8,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		
 		{"type":"AudioPlaySdRaw","data":{"defaults":{"name":{"value":"new"}},"shortName":"playSdRaw","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlaySerialflashRaw","data":{"defaults":{"name":{"value":"new"}},"shortName":"playFlashRaw","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayQueue","data":{"defaults":{"name":{"value":"new"}},"shortName":"queue","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -2801,6 +2813,406 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		<input type="text" id="node-input-name" placeholder="Name">
 	</div>
 </script>
+
+
+<!-- ------------------------------------------------------------------------------------------------------------- --->
+<script type="text/x-red" data-help-name="AudioPlayWAVquad">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Play a 4-channel WAV file.
+	</p>
+	<p>For further information, see the help for the
+	playWAVstereo object.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioPlayWAVquad">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+
+<!-- ----------------------------------------------------------->
+<script type="text/x-red" data-help-name="AudioPlayWAVhex">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Play a 6-channel WAV file.
+	</p>
+	<p>For further information, see the help for the
+	playWAVstereo object.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioPlayWAVhex">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ----------------------------------------------------------->
+
+<script type="text/x-red" data-help-name="AudioPlayWAVoct">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Play an 8-channel WAV file.
+	</p>
+	<p>For further information, see the help for the
+	playWAVstereo object.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioPlayWAVoct">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ----------------------------------------------------------->
+
+<script type="text/x-red" data-help-name="AudioPlayWAVstereo">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Play a stereo WAV file, stored on an SD card or File object, using
+	buffered, event-driven reads to allow multiple instances to work
+	simultaneously.
+	</p>
+	<p>This may also be used to play a mono file, and other variants are
+	provided for 4-, 6- or 8-channel files.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Left Channel Output</td></tr>
+		<tr class=odd><td align=center>Out 1</td><td>Right Channel Output</td></tr>
+	</table>
+	<h3>Functions</h3>
+	
+	<p class=func><span class=keyword>createBuffer</span>(size,location);</p>
+	<p class=desc>Configure the audio buffer. <b>For best results this
+	<em>must</em> be called prior to playing an audio file</b>, although if omitted
+	a small default buffer will be allocated automatically.
+	</p>
+	<p class=desc>size gives the amount of buffer memory to be allocated, and has only
+	been tested using multiples of 1024 bytes. 1024 bytes is the bare minimum advised for
+	use, and larger values will improve performance, especially when playing multiple files.
+	</p>
+	<p class=desc>location may be one of AudioBuffer::inHeap or AudioBuffer::inExt,
+	which will allocate in the heap or EXTMEM respectively. The latter gives a minor
+	performance hit, but allows extremely large (sets of) buffers to be used.
+	</p>
+	
+	<p class=func><span class=keyword>createBuffer</span>(pointer,size);</p>
+	<p class=desc>Configure the audio buffer to use memory managed by the application.
+	It is the application writer's responsibility to ensure the memory remains
+	available until after disposeBuffer() has been called.
+	</p>
+
+	<p class=func><span class=keyword>disposeBuffer</span>();</p>
+	<p class=desc>Frees the memory used for the audio buffer.
+	</p>
+	
+	<p class=func><span class=keyword>playSD</span>(filename[,paused]);</p>
+	<p class=desc>Begin playing the named WAV file from the SD card.  
+		If a file is already playing,
+		it is stopped and this file starts playing from the beginning.
+		If the optional paused parameter is set to true, then playing
+		will not start until the play() function is called.
+	</p>
+	
+	<p class=func><span class=keyword>play</span>(File[,paused]);</p>
+	<p class=desc>Begin playing a WAV file from the File object passed.  
+		If a file is already playing,
+		it is stopped and this file starts playing from the beginning.
+		If the optional paused parameter is set to true, then playing
+		will not start until the play() function is called.
+	</p>
+
+	<p class=func><span class=keyword>cueSD</span>(filename);</p>
+	<p class=desc>Equivalent to playSD(filename,true)
+	</p>
+	
+	<p class=func><span class=keyword>cue</span>(File[,paused]);</p>
+	<p class=desc>Equivalent to play(File,true)
+	</p>
+	
+	<p class=func><span class=keyword>pause</span>();</p>
+	<p class=desc>Pause playing.  If not playing, this function has no effect.
+	</p>
+	
+	<p class=func><span class=keyword>play</span>();</p>
+	<p class=desc>Resume playing.  If not paused, this function has no effect.
+	</p>
+	
+	<p class=func><span class=keyword>stop</span>();</p>
+	<p class=desc>Stop playing.  If not playing, this function has no effect.
+	</p>
+
+	<p class=func><span class=keyword>isPlaying</span>();</p>
+	<p class=desc>Return true (non-zero) if playing, or false (zero) otherwise.
+	</p>
+	
+
+	<p class=func><span class=keyword>isPaused</span>();</p>
+	<p class=desc>Return true (non-zero) if paused, or false (zero) otherwise.
+	</p>
+	
+	<p class=func><span class=keyword>isStopped</span>();</p>
+	<p class=desc>Return true (non-zero) if stopped, or false (zero) otherwise.
+	</p>
+	
+	<p class=func><span class=keyword>positionMillis</span>();</p>
+	<p class=desc>While playing, return the current time offset, in
+		milliseconds.  When not playing, the return from this function
+		is undefined.
+	</p>
+	<p class=func><span class=keyword>lengthMillis</span>();</p>
+	<p class=desc>Return the total length of the current sound clip,
+		in milliseconds.  When not playing, the return from this function
+		is undefined.
+	</p>
+	<h3>Examples</h3>
+	<p class=exam>File &gt; Examples &gt; Audio &gt; TODO
+	</p>
+	<h3>Notes</h3>
+	<p>Only 16 bit PCM, 44100 Hz WAV files are supported.  When mono
+		files are played, both output ports transmit a copy of the
+		single sound.  Of course, stereo WAV files play with the left
+		channel on port 0 and the right channel on port 1.
+	</p>
+	<p>AudioPlayWAVquad, AudioPlayWAVhex, and AudioPlayWAVoct objects 
+	   provide 4, 6 or 8 outputs for playing WAV files which have (up to)
+	   the given number of channels in them.
+	</p>
+	<p>A brief delay after calling play(filename) will usually occur
+		while the WAV file header is parsed and the buffer pre-loaded,
+		before playing can begin. If synchronised start of multiple 
+		files is needed, it is recommended to use cueSD(filename) or
+		playSD(filename,true) to pre-load all files in paused mode, and then
+		call play() for all to start playback.
+	</p>
+	<p>While playing, the audio library makes requests to access the SD card 
+		via an internal EventResponder object that executes on yield().
+		<b>You <em>must</em> therefore ensure that a call to yield() occurs sufficiently
+		often to keep the buffer replenished.</b> Typically this will happen
+		when loop() exits and re-enters, yield() is explicitly called,
+		or delay() is used. Because these accesses do not occur within the 
+		audio interrupt, sketch code does not need to take precautions if
+		it needs file access.
+	</p>
+
+</script>
+<script type="text/x-red" data-template-name="AudioPlayWAVstereo">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+
+<!-- ------------------------------------------------------------------------------------------------------------- --->
+<script type="text/x-red" data-help-name="AudioRecordWAVmono">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Record a mono WAV file.
+	</p>
+	<p>For further information, see the help for the
+	recordWAVstereo object.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioRecordWAVmono">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+
+<!-- ----------------------------------------------------------->
+<script type="text/x-red" data-help-name="AudioRecordWAVquad">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Record a 4-channel WAV file.
+	</p>
+	<p>For further information, see the help for the
+	recordWAVstereo object.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioRecordWAVquad">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+
+<!-- ----------------------------------------------------------->
+<script type="text/x-red" data-help-name="AudioRecordWAVhex">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Record a 6-channel WAV file.
+	</p>
+	<p>For further information, see the help for the
+	recordWAVstereo object.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioRecordWAVhex">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ----------------------------------------------------------->
+
+<script type="text/x-red" data-help-name="AudioRecordWAVoct">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Record an 8-channel WAV file.
+	</p>
+	<p>For further information, see the help for the
+	recordWAVstereo object.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioRecordWAVoct">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ----------------------------------------------------------->
+
+<script type="text/x-red" data-help-name="AudioRecordWAVstereo">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Record a stereo WAV file, stored to an SD card or File object, using
+	buffered, event-driven writes to allow multiple instances to work
+	simultaneously.
+	</p>
+	<p>Other variants are provided to record to 4-, 6- or 8-channel files.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>Left Channel Input</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Right Channel Input</td></tr>
+	</table>
+	<h3>Functions</h3>
+	
+	<p class=func><span class=keyword>createBuffer</span>(size,location);</p>
+	<p class=desc>Configure the audio buffer. <b>For best results this
+	<em>must</em> be called prior to recording an audio file</b>, although if omitted
+	a small default buffer will be allocated automatically.
+	</p>
+	<p class=desc>size gives the amount of buffer memory to be allocated, and has only
+	been tested using multiples of 1024 bytes. 1024 bytes is the bare minimum advised for
+	use, and larger values will improve performance, especially when recording multiple files.
+	</p>
+	<p class=desc>location may be one of AudioBuffer::inHeap or AudioBuffer::inExt,
+	which will allocate in the heap or EXTMEM respectively. The latter gives a minor
+	performance hit, but allows extremely large (sets of) buffers to be used.
+	</p>
+	
+	<p class=func><span class=keyword>createBuffer</span>(pointer,size);</p>
+	<p class=desc>Configure the audio buffer to use memory managed by the application.
+	It is the application writer's responsibility to ensure the memory remains
+	available until after disposeBuffer() has been called.
+	</p>
+
+	<p class=func><span class=keyword>disposeBuffer</span>();</p>
+	<p class=desc>Frees the memory used for the audio buffer.
+	</p>
+	
+	<p class=func><span class=keyword>recordSD</span>(filename[,paused]);</p>
+	<p class=desc>Begin recording the named WAV file to the SD card.  
+		If a file is already recording,
+		it is stopped and this file starts recording from the beginning.
+		If the optional paused parameter is set to true, then recording
+		will not start until the record() function is called.
+	</p>
+	
+	<p class=func><span class=keyword>record</span>(File[,paused]);</p>
+	<p class=desc>Begin recording a WAV file from the File object passed.  
+		If a file is already recording,
+		it is stopped and this file starts recording from the beginning.
+		If the optional paused parameter is set to true, then recording
+		will not start until the record() function is called.
+	</p>
+
+	<p class=func><span class=keyword>cueSD</span>(filename);</p>
+	<p class=desc>Equivalent to recordSD(filename,true)
+	</p>
+	
+	<p class=func><span class=keyword>cue</span>(File[,paused]);</p>
+	<p class=desc>Equivalent to record(File,true)
+	</p>
+	
+	<p class=func><span class=keyword>pause</span>();</p>
+	<p class=desc>Pause recording.  If not recording, this function has no effect.
+	</p>
+	
+	<p class=func><span class=keyword>record</span>();</p>
+	<p class=desc>Resume recording.  If not paused, this function has no effect.
+	</p>
+	
+	<p class=func><span class=keyword>stop</span>();</p>
+	<p class=desc>Stop recording.  If not recording, this function has no effect.
+	</p>
+
+	<p class=func><span class=keyword>isRecording</span>();</p>
+	<p class=desc>Return true (non-zero) if recording, or false (zero) otherwise.
+	</p>
+	
+
+	<p class=func><span class=keyword>isPaused</span>();</p>
+	<p class=desc>Return true (non-zero) if paused, or false (zero) otherwise.
+	</p>
+	
+	<p class=func><span class=keyword>isStopped</span>();</p>
+	<p class=desc>Return true (non-zero) if stopped, or false (zero) otherwise.
+	</p>
+	
+
+	<p class=func><span class=keyword>lengthMillis</span>();</p>
+	<p class=desc>Return the total length of the current sound clip,
+		in milliseconds.  When not recording, the return from this function
+		is undefined.
+	</p>
+	<h3>Examples</h3>
+	<p class=exam>File &gt; Examples &gt; Audio &gt; TODO
+	</p>
+	<h3>Notes</h3>
+	<p>Only 16 bit PCM, 44100 Hz WAV files are supported.
+	</p>
+	<p>AudioRecordWAVmono, AudioRecordWAVquad, AudioRecordWAVhex, and AudioRecordWAVoct objects 
+	   provide 1, 4, 6 or 8 inputs for recording WAV files which have
+	   the given number of channels in them.
+	</p>
+	<p>If synchronised start of multiple 
+		files is needed, it is recommended to use cueSD(filename) or
+		recordSD(filename,true) to prepare all files in paused mode, and then
+		call record() for all to start recording.
+	</p>
+	<p>While recording, the audio library makes requests to access the SD card 
+		via an internal EventResponder object that executes on yield().
+		<b>You <em>must</em> therefore ensure that a call to yield() occurs sufficiently
+		often to keep the buffer from overflowing.</b> Typically this will happen
+		when loop() exits and re-enters, yield() is explicitly called,
+		or delay() is used. Because these accesses do not occur within the 
+		audio interrupt, sketch code does not need to take precautions if
+		it needs file access.
+	</p>
+
+</script>
+<script type="text/x-red" data-template-name="AudioRecordWAVstereo">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------------------------- --->
 
 <script type="text/x-red" data-help-name="AudioPlaySerialflashRaw">
 	<h3>Summary</h3>

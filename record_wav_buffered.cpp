@@ -79,8 +79,8 @@ SCOPE_LOW();
 }
 
 
-AudioRecordWAVbuffered::AudioRecordWAVbuffered(void) : 
-		AudioStream(2, inputQueueArray),
+AudioRecordWAVbuffered::AudioRecordWAVbuffered(unsigned char ninput, audio_block_t **iqueue) : 
+		AudioStream(ninput, iqueue),
 		lowWater(0xFFFFFFFF),
 		eof(false), writePending(false), objnum(objcnt++),
 		data_length(0), total_length(0),

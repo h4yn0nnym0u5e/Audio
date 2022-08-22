@@ -79,4 +79,9 @@ private:
 	uint8_t leftover_bytes;
 };
 
+class AudioPlayWAVstereo : public AudioPlayWAVbuffered {};
+class AudioPlayWAVquad	 : public AudioPlayWAVbuffered {};
+class AudioPlayWAVhex	 : public AudioPlayWAVbuffered {};
+class AudioPlayWAVoct	 : public AudioPlayWAVbuffered {};
+
 #endif // !defined(play_wav_buffered_h_)
