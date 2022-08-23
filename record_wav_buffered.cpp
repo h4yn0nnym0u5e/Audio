@@ -77,6 +77,7 @@ SCOPE_LOW();
 
 
 AudioRecordWAVbuffered::AudioRecordWAVbuffered(unsigned char ninput, audio_block_t **iqueue) : 
+		AudioWAVdata(ninput),
 		AudioStream(ninput, iqueue),
 		lowWater(0xFFFFFFFF),
 		eof(false), writePending(false), objnum(objcnt++),
@@ -101,7 +102,7 @@ SCOPESER_ENABLE();
  */
 bool AudioRecordWAVbuffered::recordSD(const char *filename, bool paused /* = false */)
 {
-	return record(SD.open(filename,O_RDWR), paused);
+	return record(SD.open(filename,O_RDWR | O_CREAT), paused);
 }
 
 
