@@ -17,11 +17,15 @@ One of ``AudioBuffer::none``, ``AudioBuffer::given``, ``AudioBuffer::inHeap``, `
 ### Buffer functions
 For best results a buffer should be allocated prior to using any of these objects; if you fail to do so, a minimal 1k buffer will be allocated on the first operation, but it is unlikely to be large enough to provide stable operation.
 ### `AudioBuffer::result createBuffer(size_t size,AudioBuffer::bufType location)`
-Creates a memory buffer of the required ``size`` in the requested ``location``. The return value will be ``AudioBuffer::ok`` if there was enough memory available to allocate the buffer. It is highly recommended that ``size`` be a multiple of 1024. ``location`` must be one of ``AudioBuffer::inHeap`` or ``AudioBuffer::inExt``; the latter is _only_ valid if PSRAM is fitted. Buffer memory is allocated using `malloc()` or `extmem_malloc()`, so the usual precautions taken to prevent heap fragmentation should be applied in highly dynamic systems.
+Creates a memory buffer of the required ``size`` in the requested ``location``. The return value will be ``AudioBuffer::ok`` if there was enough memory available to allocate the buffer, or `AudioBuffer::invalid` if memory could not be allocated, or the object was actively using the buffer to play or record when the attempt was made. 
+
+It is highly recommended that ``size`` be a multiple of 1024. ``location`` must be one of ``AudioBuffer::inHeap`` or ``AudioBuffer::inExt``; the latter is _only_ valid if PSRAM is fitted. Buffer memory is allocated using `malloc()` or `extmem_malloc()`, so the usual precautions taken to prevent heap fragmentation should be applied in highly dynamic systems.
 ### `AudioBuffer::result createBuffer(uint8_t address, size_t size)`
-Provides an application-controlled area of memory, located at ``address``, to the object for use as a buffer. The return value will be ``AudioBuffer::ok``. It is highly recommended that ``size`` be a multiple of 1024. Use of this variant may be preferable for applications which need to create and dispose of buffers frequently, as it may help eliminate heap fragmentation.
+Provides an application-controlled area of memory, located at ``address``, to the object for use as a buffer. The return value will be ``AudioBuffer::ok``, or `AudioBuffer::invalid` if the object was actively using the buffer to play or record when the attempt was made. 
+
+It is highly recommended that ``size`` be a multiple of 1024. Use of this variant may be preferable for applications which need to create and dispose of buffers frequently, as it may help eliminate heap fragmentation.
 ### `AudioBuffer::result disposeBuffer()`
-Signals that the object no longer requires the use of the buffer allocated by a call to ``createBuffer()``. If allocated by the ``size, location`` overload, then the memory will be freed up; if the ``address, size`` overload was used, the application may re-purpose the buffer _after_ this call has been made. Returns ``AudioBuffer::ok``.
+Signals that the object no longer requires the use of the buffer allocated by a call to ``createBuffer()``. If allocated by the ``size, location`` overload, then the memory will be freed up; if the ``address, size`` overload was used, the application may re-purpose the buffer _after_ this call has been made. Returns ``AudioBuffer::ok`` if the buffer was disposed of, or `AudioBuffer::invalid` if the object was actively using the buffer to play or record when the attempt was made.
 
 ### Operational functions
 ### Playback
