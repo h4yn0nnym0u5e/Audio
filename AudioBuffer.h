@@ -93,7 +93,8 @@
 class AudioBuffer
 {
   public:
-	AudioBuffer() : buffer(0), queueOut(0), queueIn(0), isFull(false), bufSize(0), bufTypeX(none), bufState(empty) {}
+	AudioBuffer() : buffer(0), queueOut(0), queueIn(0), isFull(false), inUse(false), 
+					bufSize(0), bufTypeX(none), bufState(empty) {}
 	~AudioBuffer() {disposeBuffer();}
 	enum result  {ok,halfEmpty,underflow,full,invalid};
 	enum bufType {none,given,inHeap,inExt};
@@ -104,6 +105,7 @@ class AudioBuffer
 	size_t queueOut;	// next read() will start from here
 	size_t queueIn;		// next write() will start from here
 	bool isFull;		// if true, queueIn == queueOut means buffer is completely full
+	bool inUse;			// if true, buffer is in use and createBuffer() and disposeBuffer() will fail
 	size_t bufSize;		// total size of buffer
 	bufType bufTypeX;
 	bufState_e bufState;
@@ -126,6 +128,7 @@ class AudioBuffer
 	
 	size_t getAvailable(); // find out how much valid data is available
 	void emptyBuffer(size_t offset=0) {queueOut = queueIn = offset; isFull = false; bufState = empty;} // initialise the buffer to its empty state
+	void setInUse(bool flag) {inUse = flag;} // lock the buffer while in use
 };
  
  

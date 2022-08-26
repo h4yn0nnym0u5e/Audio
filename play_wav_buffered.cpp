@@ -135,6 +135,7 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */)
 			state = STATE_PLAYING;
 		eof = false;
 		rv = true;
+		setInUse(true); // prevent changes to buffer memory
 	}
 
 	return rv;
@@ -148,6 +149,7 @@ void AudioPlayWAVbuffered::stop(void)
 		wavfile.close();
 		eof = true;
 		state = STATE_STOP;
+		setInUse(false); // allow changes to buffer memory
 	}
 }
 

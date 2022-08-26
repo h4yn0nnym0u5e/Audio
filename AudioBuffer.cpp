@@ -40,28 +40,35 @@ static const uint32_t B2M_11025 = (uint32_t)((double)4294967296000.0 / AUDIO_SAM
  */
 AudioBuffer::result AudioBuffer::disposeBuffer()
 {
-	if (nullptr != buffer)
+	result rv = invalid;
+	
+	if (!inUse)
 	{
-		switch (bufTypeX) // free buffer, if we created it
+		if (nullptr != buffer)
 		{
-			case inHeap:
-				free(buffer);
-				break;
+			switch (bufTypeX) // free buffer, if we created it
+			{
+				case inHeap:
+					free(buffer);
+					break;
 
-			case inExt:
-				extmem_free(buffer);
-				break;
-				
-			default:
-				break;
+				case inExt:
+					extmem_free(buffer);
+					break;
+					
+				default:
+					break;
+			}
 		}
+		
+		buffer = nullptr;
+		bufSize = 0;
+		bufTypeX = none;
+		
+		rv = ok;
 	}
 	
-	buffer = nullptr;
-	bufSize = 0;
-	bufTypeX = none;
-	
-	return ok;
+	return rv;
 }
 
 
@@ -73,14 +80,21 @@ AudioBuffer::result AudioBuffer::disposeBuffer()
 AudioBuffer::result AudioBuffer::createBuffer(uint8_t* buf, //!< pointer to memory buffer
 											  size_t sz)	//!< size of memory buffer
 {
-	disposeBuffer(); // ensure existing buffer is freed, if possible
+	result rv = invalid;
 	
-	buffer = (uint8_t*) buf;	
-	bufSize = sz;
-	bufTypeX = given;	
-	emptyBuffer();
+	if (!inUse)
+	{
+		disposeBuffer(); // ensure existing buffer is freed, if possible
+		
+		buffer = (uint8_t*) buf;	
+		bufSize = sz;
+		bufTypeX = given;	
+		emptyBuffer();
 
-	return ok;
+		rv = ok;
+	}
+	
+	return rv;
 }
 
 
@@ -94,31 +108,31 @@ AudioBuffer::result AudioBuffer::createBuffer(uint8_t* buf, //!< pointer to memo
 AudioBuffer::result AudioBuffer::createBuffer(size_t sz, //!< requested size of memory buffer
 											  bufType typ)
 {
-	AudioBuffer::result rv = ok;
+	AudioBuffer::result rv = invalid;
 	void* buf = nullptr;
 
-	switch (typ)
+	if (!inUse)
 	{
-		case inHeap:
-			buf = malloc(sz);
-			break;
+		switch (typ)
+		{
+			case inHeap:
+				buf = malloc(sz);
+				break;
 
-		case inExt:
-			buf = extmem_malloc(sz);
-			break;
-			
-		default:
-			break;
-	}
-	
-	if (buf != nullptr)
-	{
-		rv = createBuffer((uint8_t*) buf,sz);
-		bufTypeX = typ; // fix up buffer memory type
-	}
-	else
-		rv = invalid;
-	
+			case inExt:
+				buf = extmem_malloc(sz);
+				break;
+				
+			default:
+				break;
+		}
+		
+		if (buf != nullptr)
+		{
+			rv = createBuffer((uint8_t*) buf,sz);
+			bufTypeX = typ; // fix up buffer memory type
+		}
+	}	
 	
 	return rv;
 }

@@ -1,4 +1,6 @@
 // Implement a 16 note polyphonic midi player  :-)
+// Play the music, while recording to SD
+// Then play it back from the SD
 //
 // Music data is read from memory.  The "Miditones" program is used to
 // convert from a MIDI file to this compact format.
@@ -10,8 +12,6 @@
 #include <SD.h>
 #include <SPI.h>
 #include <SerialFlash.h>
-
-#include "TeensyDebug.h"
 
 #include "RecSynthMusic.h"
 

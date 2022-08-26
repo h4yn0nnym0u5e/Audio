@@ -146,6 +146,7 @@ bool AudioRecordWAVbuffered::record(const File _file, bool paused /* = false */)
 			state = STATE_RECORDING;
 		eof = false;
 		rv = true;
+		setInUse(true); // prevent changes to buffer memory
 	}
 
 	return rv;
@@ -182,6 +183,7 @@ void AudioRecordWAVbuffered::stop(void)
 		
 		wavfile.close();
 		eof = true;
+		setInUse(false); // allow changes to buffer memory
 	}
 }
 
