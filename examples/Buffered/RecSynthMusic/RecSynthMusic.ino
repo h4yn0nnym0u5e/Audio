@@ -202,7 +202,7 @@ void createBuffers(void)
   AudioBuffer::bufType bufMem = AudioBuffer::inHeap;
   size_t sz = 4096;
   
-#if defined(xARDUINO_TEENSY41)  // only Teensy 4.1 supports EXTMEM
+#if defined(ARDUINO_TEENSY41)  // only Teensy 4.1 supports EXTMEM
   extern uint8_t external_psram_size;
   if (external_psram_size > 0) // we have PSRAM
   {
