@@ -102,7 +102,7 @@ SCOPESER_ENABLE();
  */
 bool AudioRecordWAVbuffered::recordSD(const char *filename, bool paused /* = false */)
 {
-	return record(SD.open(filename,O_RDWR | O_CREAT), paused);
+	return record(SD.open(filename,O_RDWR), paused);
 }
 
 
