@@ -94,3 +94,28 @@ These can be found in Examples/Audio/Buffered
 This is a variant on the Recorder example, but using the buffered objects to record and play a _stereo WAV_ file, rather than a queue and application-based writes to record a _mono RAW_ file, plus the ``AudioPlaySdRaw`` object for playback. As written it uses 128k of heap for the buffers. You will need an audio adaptor and a source of audio connected to the line inputs for this one. A couple of ``AudioAnalyzePeak`` objects are used to provide a crude level meter to allow you to set up prior to recording.
 ### RecSynthMusic
 This is based on the PlaySynthMusic example. It plays a short piece of music using a very simple 16-voice polyphonic synth, while simultaneously recording it to three WAV files with 4, 6 and 8 tracks - the last track of the 6- and 8-track files is unconnected and hence silent. It then re-patches the audio connections and plays the files back, which should sound identical to the original.
+
+## Under the hood
+The following graphic describes what's going on under the hood, and when, during playback of a WAV file. Time runs from top to bottom; green bars show the regular 2.9ms audio update; brown bars at irregular intervals show when calls to yield() occur; grey blocks show when your sketch code is running. Not particularly to scale - for a start a 700kB/s filesystem would be a bit on the slow side...
+![](/images/buffering.png)
+- the sketch creates a 4k buffer
+- the file `myFile.wav` is cued up ready to play:
+  - at least half the buffer is pre-loaded with audio data, which causes a few milliseconds' delay
+  - different objects will pre-load different amounts, to try to stagger the re-load times
+- another audio update occurs while playback is still paused
+- `play()` requests that playback is started
+  - audio output will start at the next audio update
+- after two audio updates 
+  - the first half of the buffer is empty
+  - an event is triggered to EventResponder, requesting a buffer load
+- the sketch gets around to calling `yield()` 
+  - this starts the buffer load via EventResponder
+  - the sketch code is _not_ executing during the load
+  - by the time the load is complete, 3 audio updates have occurred since it was requested
+- the next buffer load is faster, because yield() is called sooner after the trigger
+- `stop()` is called before the file is completely played 
+  - playing stops and the buffer contents are invalidated on the next audio update
+   
+Recording is very similar, except that:
+- data is being written to the file, not read from it
+- a "flush" delay occurs _after_ `stop()` is called, rather than a pre-load delay
