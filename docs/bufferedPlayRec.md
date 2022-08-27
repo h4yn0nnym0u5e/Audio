@@ -97,7 +97,7 @@ This is based on the PlaySynthMusic example. It plays a short piece of music usi
 
 ## Under the hood
 The following graphic describes what's going on under the hood, and when, during playback of a WAV file. Time runs from top to bottom; green bars show the regular 2.9ms audio update; brown bars at irregular intervals show when calls to yield() occur; grey blocks show when your sketch code is running. Not particularly to scale - for a start a 700kB/s filesystem would be a bit on the slow side...
-![](/images/buffering.png)
+![](images/buffering.png)
 - the sketch creates a 4k buffer
 - the file `myFile.wav` is cued up ready to play:
   - at least half the buffer is pre-loaded with audio data, which causes a few milliseconds' delay
