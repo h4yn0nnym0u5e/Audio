@@ -15,9 +15,6 @@
 
 #include "RecSynthMusic.h"
 
-#include "TeensyDebug.h"
-#pragma GCC optimize ("O0")
-
 volatile unsigned char *sp = score;
 
 #define AMPLITUDE (0.95) // recording, so keep signal "hot"
@@ -304,7 +301,6 @@ void setup()
     //envs[i]->release(0.0);
   }
 
-  halt_cpu();
   Serial.println("setup done");
   
   // Initialize processor and memory measurements
@@ -362,7 +358,6 @@ void runSynthIRQ()
   do 
   {
     synthReturn = runSynth();
-    Serial.println((uint32_t) (sp - score));
   } while (synthReturn < sr_done);
   asm("DSB");
 }
