@@ -4,7 +4,6 @@
 Because delay() is a _really poor_ way of getting accurate timing, and making loop() exit and using millis() to work out when to do things is not a whole lot better.
 ## But why?
 Because if you've set up an EventResponder that triggers on `yield()`, your delays may be longer than the expected length:
-E:\Jonathan\Arduino\libraries\Audio\examples\Buffered\RecSynthMusicV2
 ![](IntervalTimedAudioSketch.png)
 ### Without IntervalTimer
  - Your sketch gets to a point where the next thing to do is after 10ms
