@@ -195,12 +195,12 @@ class AudioWAVdata
 	uint16_t chanCnt; 		// number of channels
 	uint16_t dataChunks;	// number of data chunks
 	uint32_t samples; 		// number of samples
-	uint32_t nextAudio;		// offset of next audio data
+	uint32_t firstAudio;	// offset of first audio data
 	uint32_t audioSize;		// number of bytes of audio
 	uint32_t bytes2millis;	// (scaled) conversion from file bytes to milliseconds
 
 	AudioWAVdata(uint16_t cct) : format(0), bitsPerSample(0), chanCnt(cct), 
-					 dataChunks(0), samples(0), nextAudio(0)
+					 dataChunks(0), samples(0), firstAudio(0)
 					 {}
 	AudioWAVdata() : AudioWAVdata(2) {}				 
 	uint32_t getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bitsPerSample);

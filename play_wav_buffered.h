@@ -45,12 +45,12 @@ class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public A
 {
 public:
 	AudioPlayWAVbuffered(void);
-	bool playSD(const char* filename, bool paused = false);
-	bool play(const File _file, bool paused = false);
+	bool playSD(const char* filename, bool paused = false, float startFrom = 0.0f);
+	bool play(const File _file, bool paused = false, float startFrom = 0.0f);
 	bool play(void)  { if (isPaused())  togglePlayPause(); return isPlaying(); }
 	bool pause(void) { if (isPlaying()) togglePlayPause(); return isPaused();  }
-	bool cueSD(const char* filename) { return playSD(filename,true); }
-	bool cue(const File _file) { return play(_file,true); }
+	bool cueSD(const char* filename, float startFrom = 0.0f) { return playSD(filename,true,startFrom); }
+	bool cue(const File _file, float startFrom = 0.0f) { return play(_file,true,startFrom); }
 	void togglePlayPause(void);
 	void stop(void);
 	bool isPlaying(void);
@@ -75,8 +75,8 @@ private:
 	uint32_t data_length;		// number of bytes remaining in current section
 	uint32_t total_length;		// number of audio data bytes in file
 	
-	uint8_t state;
-	uint8_t state_play;
+	volatile uint8_t state;
+	volatile uint8_t state_play;
 	uint8_t leftover_bytes;
 };
 

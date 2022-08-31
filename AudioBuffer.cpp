@@ -402,6 +402,14 @@ uint32_t AudioWAVdata::getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bi
 }
 
 
+/**
+ * Parse a WAV file header, filling in the various class members.
+ * Leaves the file pointer at 0, but firstAudio tells us where
+ * audio data actually starts. This helps with ensuring reads
+ * happen on 512-byte sector boundaries, which should be
+ * maximally efficient.
+ * \return channel count, or 0 if header didn't parse
+ */
 uint16_t AudioWAVdata::parseWAVheader(File& f)
 {
 	uint32_t seekTo;
@@ -444,7 +452,7 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 				samples += dt.fmt.hdr.clen / chanCnt / (bitsPerSample / 8);
 				if (0 == dataChunks++) // first data chunk: we only allow use of one
 				{
-					nextAudio = f.position(); 	// audio data starts here
+					firstAudio = f.position(); 		// audio data starts here
 					audioSize = dt.fmt.hdr.clen;	// and is this many bytes
 				}
 				break;
@@ -455,6 +463,9 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 		  }
 		  f.seek(seekTo);
 		} while (seekTo < rhdr.flen);
+		
+		if (0 == samples)	// no data?
+			chanCnt = 0;	// say there are no channels!
 	}
 
 	f.seek(0);

@@ -27,6 +27,7 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
+
 /* static */ uint8_t AudioPlayWAVbuffered::objcnt;
 /* static */ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 {
@@ -76,6 +77,7 @@ SCOPE_LOW();
 AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
 		AudioStream(0, NULL),
 		lowWater(0xFFFFFFFF),
+		wavfile(0),
 		eof(false), readPending(false), objnum(objcnt++),
 		data_length(0), total_length(0),
 		state(STATE_STOP), state_play(STATE_STOP),leftover_bytes(0)
@@ -90,13 +92,13 @@ SCOPESER_ENABLE();
 }
 
 
-bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */)
+bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
-	return play(SD.open(filename), paused);
+	return play(SD.open(filename), paused, startFrom);
 }
 
 
-bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */)
+bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
 	bool rv = false;
 	
@@ -110,7 +112,7 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */)
 	if (wavfile && nullptr != buffer) 
 	{
 		uint8_t* pb;
-		size_t sz,stagger;
+		size_t sz,stagger,skip;
 		constexpr int SLOTS=16;
 		
 		//* stagger pre-load:
@@ -122,11 +124,26 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */)
 		// load data
 		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
 		parseWAVheader(wavfile); // figure out WAV file structure
-		getNextRead(&pb,&sz);	// find out where and how much				
-		loadBuffer(pb,sz);		// load initial file data to the buffer
-		read(nullptr,nextAudio); // skip the header
+		getNextRead(&pb,&sz);	// find out where and how much the buffer pre-load is
 		
-		data_length = total_length = audioSize;
+		data_length = total_length = audioSize; // all available data
+		
+		if (startFrom <= 0.0f)
+		{
+			skip = firstAudio;
+		}
+		else // we want to start playback later into the file: compute sector containing start point
+		{
+			size_t startFromI = (size_t)(startFrom * AUDIO_SAMPLE_RATE  / 1000.0f); // samples from audio start
+			startFromI *= chanCnt * bitsPerSample / 8; // convert to bytes
+			startFromI += firstAudio; 		// and total file offset
+			skip = startFromI & (512-1);	// skip partial sector...
+			startFromI -= skip;				// ...having loaded from sector containing start point
+			wavfile.seek(startFromI);			
+			data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
+		}
+		loadBuffer(pb,sz);	// load initial file data to the buffer
+		read(nullptr,skip);	// skip the header
 		
 		state_play = STATE_PLAYING;
 		if (paused)
@@ -146,9 +163,10 @@ void AudioPlayWAVbuffered::stop(void)
 {
 	if (state != STATE_STOP) 
 	{
-		wavfile.close();
-		eof = true;
 		state = STATE_STOP;
+		if (wavfile)
+			wavfile.close();
+		eof = true;
 		setInUse(false); // allow changes to buffer memory
 	}
 }
