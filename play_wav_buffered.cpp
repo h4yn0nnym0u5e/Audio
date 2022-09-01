@@ -127,6 +127,7 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 		getNextRead(&pb,&sz);	// find out where and how much the buffer pre-load is
 		
 		data_length = total_length = audioSize; // all available data
+		eof = false;
 		
 		if (startFrom <= 0.0f)
 		{
@@ -142,7 +143,7 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 			wavfile.seek(startFromI);			
 			data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
 		}
-		loadBuffer(pb,sz);	// load initial file data to the buffer
+		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
 		read(nullptr,skip);	// skip the header
 		
 		state_play = STATE_PLAYING;
@@ -150,7 +151,6 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 			state = STATE_PAUSED;
 		else
 			state = STATE_PLAYING;
-		eof = false;
 		rv = true;
 		setInUse(true); // prevent changes to buffer memory
 	}

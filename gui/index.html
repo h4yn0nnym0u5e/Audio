@@ -45,6 +45,7 @@ span.indent {padding-left:2em}
 span.literal {color: #006699}
 span.comment {color: #777755}
 span.keyword {color: #cc6600}
+span.parameter {color: #cc0000}
 span.function {color: #996600}
 span.mainfunction {color: #993300; font-weight: bolder}
 </style>
@@ -2889,16 +2890,16 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</table>
 	<h3>Functions</h3>
 	
-	<p class=func><span class=keyword>createBuffer</span>(size,location);</p>
+	<p class=func><span class=keyword>createBuffer</span>(<span class=parameter>size</span>,<span class=parameter>location</span>);</p>
 	<p class=desc>Configure the audio buffer. <b>For best results this
 	<em>must</em> be called prior to playing an audio file</b>, although if omitted
 	a small default buffer will be allocated automatically.
 	</p>
-	<p class=desc>size gives the amount of buffer memory to be allocated, and has only
+	<p class=desc><span class=parameter>size</span> gives the amount of buffer memory to be allocated, and has only
 	been tested using multiples of 1024 bytes. 1024 bytes is the bare minimum advised for
 	use, and larger values will improve performance, especially when playing multiple files.
 	</p>
-	<p class=desc>location may be one of AudioBuffer::inHeap or AudioBuffer::inExt,
+	<p class=desc><span class=parameter>location</span> may be one of AudioBuffer::inHeap or AudioBuffer::inExt,
 	which will allocate in the heap or EXTMEM respectively. The latter gives a minor
 	performance hit, but allows extremely large (sets of) buffers to be used.
 	</p>
@@ -2913,27 +2914,36 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p class=desc>Frees the memory used for the audio buffer.
 	</p>
 	
-	<p class=func><span class=keyword>playSD</span>(filename[,paused]);</p>
+	<p class=func><span class=keyword>playSD</span>(filename[,paused[,startFrom]]);</p>
 	<p class=desc>Begin playing the named WAV file from the SD card.  
 		If a file is already playing,
 		it is stopped and this file starts playing from the beginning.
-		If the optional paused parameter is set to true, then playing
+		<br><br>
+		If the optional <span class=parameter>paused</span> parameter is set to true, then playing
 		will not start until the play() function is called.
+		<br><br>
+		If the optional <span class=parameter>startFrom</span> parameter (float) is included, playback will
+		be started the given number of milliseconds from the start of the audio.
 	</p>
 	
-	<p class=func><span class=keyword>play</span>(File[,paused]);</p>
+	<p class=func><span class=keyword>play</span>(File[,paused[,startFrom]]);</p>
 	<p class=desc>Begin playing a WAV file from the File object passed.  
 		If a file is already playing,
 		it is stopped and this file starts playing from the beginning.
-		If the optional paused parameter is set to true, then playing
+		<br><br>
+		If the optional <span class=parameter>paused</span> parameter is set to true, then playing
 		will not start until the play() function is called.
+		<br><br>
+		If the optional <span class=parameter>startFrom</span> parameter (float) is included, playback will
+		be started the given number of milliseconds from the start of the audio.
+		
 	</p>
 
-	<p class=func><span class=keyword>cueSD</span>(filename);</p>
+	<p class=func><span class=keyword>cueSD</span>(filename[,startFrom]);</p>
 	<p class=desc>Equivalent to playSD(filename,true)
 	</p>
 	
-	<p class=func><span class=keyword>cue</span>(File[,paused]);</p>
+	<p class=func><span class=keyword>cue</span>(File[,startFrom]);</p>
 	<p class=desc>Equivalent to play(File,true)
 	</p>
 	
@@ -2973,7 +2983,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		is undefined.
 	</p>
 	<h3>Examples</h3>
-	<p class=exam>File &gt; Examples &gt; Audio &gt; TODO
+	<p class=exam>File &gt; Examples &gt; Audio &gt; Buffered
 	</p>
 	<h3>Notes</h3>
 	<p>Only 16 bit PCM, 44100 Hz WAV files are supported.  When mono
