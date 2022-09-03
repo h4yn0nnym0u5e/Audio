@@ -29,11 +29,13 @@ Signals that the object no longer requires the use of the buffer allocated by a 
 
 ### Operational functions
 ### Playback
-### ``bool playSD(const char* filename [,bool paused=false])``
-### ``bool cueSD(const char* filename)``
-### ``bool play(File file [,bool paused=false])``
-### ``bool cue(File file)``
+### ``bool playSD(const char* filename [,bool paused=false [,float startFrom = 0.0]])``
+### ``bool cueSD(const char* filename [,float startFrom = 0.0])``
+### ``bool play(File file [,bool paused=false [,float startFrom = 0.0]])``
+### ``bool cue(File file [,float startFrom = 0.0])``
 Play a file from SD or another filesystem. If the optional ``paused`` parameter is provided and set to true, then playing will start in "paused" mode; the identical effect can be achieved by using the ``cue()`` variants, which are equivalent to ``play(<something>,true)``.
+
+The optional `startFrom` parameter sets an offset into the audio data from which playback should start; the value is in milliseconds. This may be useful if you have pre-loaded the start of the file for playing directly from memory using the AudioPlayMemory object, and will play the rest from the filesystem once it has been cued up. This allows the use of large sample sets while still minimising latency and using only a single file for each sample. 
 
 Whichever variant is used, the buffer will be pre-loaded from the filesystem during the function call, which may mean that the call takes a few milliseconds to return. If synchronisation of multiple files is important to your application, you should start them in paused mode and then resume them simultaneously - see the ``play()`` function. 
 
