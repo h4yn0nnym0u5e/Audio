@@ -90,12 +90,17 @@ static const uint8_t default_config[] = {
 	0xFF  // CS42448_DAC_Channel_Mute = all outputs mute
 };
 
-bool AudioControlCS42448::enable(void)
+bool AudioControlCS42448::enable(bool useMagicBit)
 {
 	wire->begin();
 	// TODO: wait for reset signal high??
 	if (!write(CS42448_Power_Control, 0xFF)) return false; // power down
 	if (!write(CS42448_Functional_Mode, default_config, sizeof(default_config))) return false;
+	
+	// allow use of undocumented bit
+	if (useMagicBit)	
+		write(CS42448_Functional_Mode, 0xF4 | 0x01 ); // set the magic bit!
+	
 	if (!write(CS42448_Power_Control, 0)) return false; // power up
 	return true;
 }

@@ -34,7 +34,7 @@ class AudioControlCS42448 : public AudioControlI2C
 {
 public:
 	AudioControlCS42448(void) : AudioControlI2C(Wire,0,0x48,1,3), muted(true) { }
-	bool enable(void);
+	bool enable(bool useMagicBit = false);
 	bool disable(void) {
 		return false;
 	}

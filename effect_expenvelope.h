@@ -233,33 +233,31 @@ public:
 
    
  /********* information functions ***************************************************************/
- uint8_t getState();
+	uint8_t getState();
 	bool isActive();
 	bool isSustain();
-   float getGain() {return HIRES_TO_FLOAT(mult_hires);}
-   
-   
-	using AudioStream::release;
+	float getGain() {return HIRES_TO_FLOAT(mult_hires);}
+
 	virtual void update(void);
   
 private:
   enum stateList {
-  // static states, envelope not changing
-  STATE_IDLE, 
-  STATE_DELAY, 
-  STATE_HOLD,  
-  STATE_SUSTAIN, 
-  // dynamic states, envelope changing
-  STATE_DYNAMIC_THRESHOLD, // placeholder, not a "real" state
-  // changing upwards...
-  STATE_ATTACK,  
-  STATE_RISING_DECAY, // special: in Decay, but Sustain level has been changed to above current level
-  //... and downwards
-  STATE_DYNAMIC_DOWN, // placeholder, not a "real" state
-  STATE_DECAY, 
-  STATE_RELEASE, 
-  STATE_FORCED,  
-  STATE_INVALID  
+	// static states, envelope not changing
+	STATE_IDLE, 
+	STATE_DELAY, 
+	STATE_HOLD,  
+	STATE_SUSTAIN, 
+	// dynamic states, envelope changing
+	STATE_DYNAMIC_THRESHOLD, // placeholder, not a "real" state
+	// changing upwards...
+	STATE_ATTACK,  
+	STATE_RISING_DECAY, // special: in Decay, but Sustain level has been changed to above current level
+	//... and downwards
+	STATE_DYNAMIC_DOWN, // placeholder, not a "real" state
+	STATE_DECAY, 
+	STATE_RELEASE, 
+	STATE_FORCED,  
+	STATE_INVALID  
   } ;
   /*
    * Compute and set the precalculated factors required for a dynamic portion of the 
