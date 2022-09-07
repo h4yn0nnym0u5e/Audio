@@ -1,3 +1,4 @@
+//=============================================================
 #define STARTLEN  (60*512) // bytes to pre-buffer
 #define STARTTIME ((float) STARTLEN / 4.0f / (float) AUDIO_SAMPLE_RATE * 1000.0f )
 #define PATHLEN 27        // length of file path for one sample
@@ -75,14 +76,17 @@ class PianoVoice : public AudioStream
         default:
           break;
           
-        case contDone:
-          if (!playMemL.isPlaying()) // pre-load has just finished
+        case contDone: // filesystem is cued up and ready
+          if ((sample == playState   // sample was playing...
+            || ending == playState)  // ...or playback is ending soon
+           && !playMemL.isPlaying()) // and pre-load buffer has just finished
           {
             if (playWAVstereo1.play()) // can we play the file?
               fileState = file;        // yes, good
             else
             {                          // no, not so good
-              endNote();
+              if (playState != ending) // unless already ending  
+                endNote('E');          // start the envelope release
               fileState = ending;      // only do this once                
             }
           }
@@ -100,13 +104,18 @@ class PianoVoice : public AudioStream
           break;
           
         case ending: // envelope release in progress
+        case silent: // active but silent: must be waiting for (now pointless) pre-load
           if (!envL.isActive() && !envR.isActive()) // it's done
           {
             playMemL.stop();  
             playMemR.stop();  
-            playWAVstereo1.stop();  
-            fileState = playState = silent;
-            active = false; // no need to waste CPU on this
+            playState = silent;
+            if (fileState != contStarted) // filesystem could be cueing up: don't confuse it!
+            {
+              playWAVstereo1.stop(1);  // not cueing, safe to stop; from within interrupt
+              fileState = silent;     // done with filesystem
+              active = false; // no need to waste CPU on this
+            }
           }
           break;
       }
@@ -156,8 +165,9 @@ class PianoVoice : public AudioStream
 
     AudioConnection* opL,*opR; // create these when application requests connections
   
-    enum {silent,sample,contDone,file,ending} playState, fileState;
+    volatile enum {silent,sample,contStarted,contDone,file,ending} playState, fileState;
 
+//==================================================================================
     void connect(AudioStream* ipL,int li,AudioStream* ipR,int ri)
     {
       if (nullptr == opL)
@@ -177,6 +187,7 @@ class PianoVoice : public AudioStream
       }
     }
 
+//==================================================================================
     // start playing a note: play from the pre-loaded memory,
     // and start the envelopes
     void startNote(allNotes_t& allNotes,int nv, int vel)
@@ -218,27 +229,36 @@ class PianoVoice : public AudioStream
       // nearly done: call contNote() soon, after you've done all the startNote() calls
     }
 
-    // continue starting the note: this should be called as soon as practicable after
+//==================================================================================
+    // Continue starting the note: this should be called as soon as practicable after
     // startNote(), certainly soon enough that there is time to buffer the SD playback
     // before the audio in the pre-load buffer has run out, otherwise you'll get a glitch!
-    void contNote(void)
+    // Because of the pre-load this may take some time, so it makes two state changes in
+    // case an update() or other interrupt occurs in the middle.
+    bool contNote(void)
     {
+      bool result = false; // didn't cue a note up
       if (sample == fileState && nullptr != _pNotes)
       {
+        fileState = contStarted; // may get an interrupt between here...
         playWAVstereo1.cueSD(_pNotes->notes[_nv].layers[_lv].fname,_pNotes->startFrom);
-        fileState = contDone;
+        fileState = contDone;    // ...and here
+        result = true;
       }
+      return result;
     }
 
+//==================================================================================
     // key released: note will take some time
     // to die away, then update() will stop it
-    void endNote(void)
+    void endNote(char c='e')
     {
+      playState = ending;
       envL.noteOff();
       envR.noteOff();
-      playState = ending;
     }
 
+//==================================================================================
     // allow user to adjust release time, really
     // the only thing we use the envelopes for
     void setRelease(float r)
@@ -247,6 +267,7 @@ class PianoVoice : public AudioStream
       envR.release(r);
     }
 
+//==================================================================================
     // return true if voice is currently playing a sound
     bool isPlaying(void)
     {

@@ -2,6 +2,11 @@
 #include "SD.h"
 #include "Audio.h"
 
+//=============================================================
+// For debugging, use (custom) Dual Serial + MIDI + Audio
+// Install TeensyDebug library
+// Set GDB to "Dual Serial"
+// and uncomment the following line:
 //#include "TeensyDebug.h"
 
 #if defined(GDB_IS_ENABLED)
@@ -10,11 +15,7 @@
 
 #include "SDpiano.h"
 
-// Currently has problems with SD card access getting into an infinite loop. See:
-// https://github.com/greiman/SdFat/issues/398
-// https://community.nxp.com/t5/Kinetis-Microcontrollers/K60-SDHC-hanging-problem/m-p/159111
-//
-// Also needs fix for AudioEffectEnvelope:
+// Needs fix for AudioEffectEnvelope:
 // https://github.com/PaulStoffregen/Audio/pull/444
 
 //=============================================================
@@ -79,6 +80,8 @@ void findSGTL5000(AudioControlSGTL5000& sgtl5000_1)
  * are left, sets up the IntervalTimer once again with the new delay, and exits.
  */
 #define IRQ_SYNTH IRQ_Reserved3
+#define RESTART_ADDR 0xE000ED0C
+#define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
 void setupSynthInterrupt()
 {
   attachInterruptVector(IRQ_SYNTH, runSynthIRQ);
@@ -114,7 +117,7 @@ allNotes_t allNotes = {.lowest = 21 /* A0 */};
 void setup() 
 {
   pinMode(LED_BUILTIN,OUTPUT);
-  
+
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
    while (!Serial) 
@@ -132,6 +135,7 @@ void setup()
   findSGTL5000(sgtl5000);
 
   // create connections to output mixers
+  // and buffers for sampler voices
   int mn=0,mi=0;
   for (uint8_t i=0;i<COUNT_OF(pv);i++)
   {
@@ -149,6 +153,7 @@ void setup()
 #if defined(GDB_IS_ENABLED)
   halt_cpu();
 #endif
+
 
   // scan directory and fill in data structure
   // we expect to find 3 folders under the root, called
@@ -171,7 +176,7 @@ void setup()
                   allNotes.notes[i].layers[1].fname,
                   allNotes.notes[i].layers[2].fname);
   }
-  Serial.println("Pre-load complete - play!");
+  Serial.println("Pre-load complete - play!\n");
 
   // set up the MIDI system
   allocInit();
@@ -180,8 +185,10 @@ void setup()
 
   // set up the low-priority interrupt handler
   // to try to improve MIDI->sound latency
+  /*
   setupSynthInterrupt();
   synthTimer.begin(synthIntvl,1000);  // run MIDI update in 1ms
+  //*/
 }
 
 //=============================================================
@@ -238,6 +245,7 @@ int8_t allocFind(uint8_t note)
 int8_t allocVoice(uint8_t note)
 {
   int8_t rv;
+  
   if (isActive(note))
     rv = allocFind(note);
   else
@@ -287,20 +295,42 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity)
 
   if (av >= 0)        // there is one
     pv[av].endNote(); // begin its release process
+      
 }
 
 
 //=============================================================
 void loop() 
 {
+  if (Serial.available())
+  {
+    switch(Serial.read())
+    {
+      case '!':
+        delay(2000);
+        WRITE_RESTART(0x5FA0004);
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  //*
+  while (usbMIDI.read()) // do all MIDI actions
+    ;
+  //*/
+  
   for (uint8_t i=0;i<COUNT_OF(pv);i++)
   {
     pv[i].contNote(); // cue up rest of sample, if it's needed; safe if not!
     if (allocated[i] != UNUSED && !pv[i].isPlaying()) // allocated, but now silent:
+    {
       deAllocVoice(allocated[i]); // free it up for re-use
+    }
   }  
 
-#if defined(GDB_IS_ENABLED)
+#if 0 // defined(GDB_IS_ENABLED)
   static uint32_t next = 0;
   
   if (millis() > next)
@@ -309,7 +339,7 @@ void loop()
     {
       Serial.printf("%3d, %d, %d: ",allocated[i],pv[i].playState,pv[i].fileState);
     }
-    Serial.println();
+    Serial.printf("; ocnt=%d, myOcnt=%d\n",ocnt,myOcnt);
     next = millis() + 250;
   }
 #endif // defined(GDB_IS_ENABLED)
