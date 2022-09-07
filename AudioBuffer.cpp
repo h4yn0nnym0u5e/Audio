@@ -169,7 +169,7 @@ AudioBuffer::result AudioBuffer::read(uint8_t* dest, //!< pointer to memory to c
 					memcpy(dest,buffer+queueOut,bufSize-queueOut);
 					dest += bufSize-queueOut;
 				}
-for (size_t i=0;i<bufSize-queueOut;i++) buffer[queueOut+i] |= 0x20;
+//for (size_t i=0;i<bufSize-queueOut;i++) buffer[queueOut+i] |= 0x20;
 				bytes -= bufSize-queueOut; // this could be zero
 				queueOut = 0;
 			}
@@ -178,7 +178,7 @@ for (size_t i=0;i<bufSize-queueOut;i++) buffer[queueOut+i] |= 0x20;
 			{
 				if (nullptr != dest) 
 					memcpy(dest,buffer+queueOut,bytes);
-for (size_t i=0;i<bytes;i++) buffer[queueOut+i] |= 0x20;
+//for (size_t i=0;i<bytes;i++) buffer[queueOut+i] |= 0x20;
 				
 				queueOut += bytes;
 			}

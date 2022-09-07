@@ -33,45 +33,12 @@
 #include "EventResponder.h"
 #include "AudioBuffer.h"
 
-//*
+/*
 #define SCOPE_PIN 25
 #define SCOPE_SERIAL Serial1
 #define SCOPESER_SPEED 57600
 #include "oscope.h"
 //*/
-
-struct clRec
-{
-  uint32_t b,e; // begin and end times
-  char evt; // event
-  char* s; // string
-};
-
-class circLog
-{
-    clRec* recs;
-    int maxi,idx;
-    int wrap;
-    
-    void incIdx(void) {idx++; if (idx > maxi) {idx = 0; wrap++;}}
-  public:
-    circLog(clRec* r, int n) : recs(r),maxi(n-1), idx(n), wrap(-1) {}
-    int add(char _e, char* _s = nullptr) {incIdx(); recs[idx].b = micros(); recs[idx].evt = _e; recs[idx].s = _s; return idx;}
-    void end(int i) {recs[i].e = micros();}
-    void dump(void) 
-    {
-      int n  = wrap > 0?maxi+1:idx+1;
-      int i  = wrap > 0?idx+1:0;
-      for (int ii=0;ii<n;ii++)
-      {
-        if (i>maxi) i=0;
-        Serial.printf("%c;%lu;%lu;%s\n",recs[i].evt,recs[i].b,recs[i].e,recs[i].s == nullptr?"-":recs[i].s);
-        i++;
-      }
-    }
-};
-
-extern circLog cl;
 
 
 class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
@@ -96,8 +63,7 @@ public:
 	static uint8_t objcnt;
 	// debug members
 	size_t lowWater;
-	uint32_t trgMicros;
-	char* fnm;
+
 private:
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING};
 	File wavfile;
