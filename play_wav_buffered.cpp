@@ -28,28 +28,40 @@
 #include "play_wav_buffered.h"
 
 
+
+bool scope_pin_value;
+volatile int ocnt;
 /* static */ uint8_t AudioPlayWAVbuffered::objcnt;
 /* static */ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 {
 	uint8_t* pb;
 	size_t sz;
-	
-	AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
-	pPWB->getNextRead(&pb,&sz);		// find out where and how much
-	if (sz > pPWB->bufSize / 2)
-		sz = pPWB->bufSize / 2;		// limit reads to a half-buffer at a time
-	pPWB->loadBuffer(pb,sz);		// load more file data to the buffer
+	switch (evref.getStatus())
+	{
+		case STATE_PLAYING:
+			AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
+			pPWB->getNextRead(&pb,&sz);		// find out where and how much
+			if (sz > pPWB->bufSize / 2)
+				sz = pPWB->bufSize / 2;		// limit reads to a half-buffer at a time
+			pPWB->loadBuffer(pb,sz);		// load more file data to the buffer
+			break;
+			
+		case STATE_STOP: // stopped from interrupt - finish the job
+			pPWB->stop();
+			break;
+	}
 }
 
 
 void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz)
 {
 	size_t got;
+	uint32_t req = micros(),readt;
 	
 SCOPE_HIGH();	
 SCOPESER_TX(objnum);
 
-	if (sz > 0) // read triggered, but there's no room - ignore the request
+	if (sz > 0 && !eof) // read triggered, but there's no room or already stopped - ignore the request
 	{
 		
 {//----------------------------------------------------
@@ -60,13 +72,22 @@ SCOPESER_TX((av >> 8) & 0xFF);
 SCOPESER_TX(av & 0xFF);
 }//----------------------------------------------------
 
+int idx = cl.add('r',fnm);
 		got = wavfile.read(pb,sz);	// try for that
+cl.end(idx);
+readt = micros();		
+//Serial.printf("r;%d;%d;%d\n",objnum,got,micros());
 		if (got < sz) // there wasn't enough data
 		{
+Serial.printf("R;%d;%d;%d\n",objnum,got,micros());
+			
+			if (got < 0)
+				got = 0;
 			memset(pb+got,0,sz-got); // zero the rest of the buffer
 			eof = true;
 		}
-
+if (readt - trgMicros > 10000)
+	Serial.printf("req - trg: %lu; read - trg: %lu\n",req - trgMicros, readt - trgMicros);
 		readExecuted(got);
 	}
 	readPending = false;
@@ -94,7 +115,13 @@ SCOPESER_ENABLE();
 
 bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
-	return play(SD.open(filename), paused, startFrom);
+	File f;
+	ocnt++;
+fnm = (char*) filename;
+int idx = cl.add('o',	fnm);
+f = SD.open(filename);
+cl.end(idx);
+	return play(f, paused, startFrom);
 }
 
 
@@ -123,7 +150,10 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 		
 		// load data
 		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
+
+int idx = cl.add('p',	fnm);
 		parseWAVheader(wavfile); // figure out WAV file structure
+cl.end(idx);		
 		getNextRead(&pb,&sz);	// find out where and how much the buffer pre-load is
 		
 		data_length = total_length = audioSize; // all available data
@@ -140,9 +170,15 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 			startFromI += firstAudio; 		// and total file offset
 			skip = startFromI & (512-1);	// skip partial sector...
 			startFromI -= skip;				// ...having loaded from sector containing start point
-			wavfile.seek(startFromI);			
+idx = cl.add('k',	fnm);
+			wavfile.seek(startFromI);
+cl.end(idx);			
 			data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
+			
+//Serial.printf("p;%d;%d;%d\n",objnum,startFromI,micros());
 		}
+		
+trgMicros = micros();		
 		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
 		read(nullptr,skip);	// skip the header
 		
@@ -159,13 +195,37 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 }
 
 
-void AudioPlayWAVbuffered::stop(void)
+void AudioPlayWAVbuffered::stop(uint8_t fromInt)
 {
 	if (state != STATE_STOP) 
 	{
-		state = STATE_STOP;
+		state = STATE_STOPPING;
 		if (wavfile)
+		{
+//Serial.printf("s;%d;%d;%d\n",objnum,total_length - data_length,micros());
+	EventResponder& t = *this;
+	if (t)
+	{
+	Serial.print(fromInt);
+	Serial.println(" swrp!"); // stop() while read pending!
+	}
+			clearEvent();		// may have pending read, but file will be closed!
+			if (fromInt)
+			{
+int idx = cl.add('i',	fnm);
+				triggerEvent(STATE_STOP);
+cl.end(idx);			
+			}
+			else
+			{
+				
+int idx = cl.add('c',	fnm);
 			wavfile.close();
+cl.end(idx);			
+			ocnt--;
+			state = STATE_STOP;
+			}
+		}
 		eof = true;
 		setInUse(false); // allow changes to buffer memory
 	}
@@ -175,7 +235,7 @@ void AudioPlayWAVbuffered::stop(void)
 void AudioPlayWAVbuffered::togglePlayPause(void) {
 	// take no action if wave header is not parsed OR
 	// state is explicitly STATE_STOP
-	if(state_play >= 8 || state == STATE_STOP) return;
+	if(state_play >= 8 || state == STATE_STOP || state == STATE_STOPPING) return;
 
 	// toggle back and forth between state_play and STATE_PAUSED
 	if(state == state_play) {
@@ -213,7 +273,7 @@ void AudioPlayWAVbuffered::update(void)
 	int alloCnt = 0; // count of blocks successfully allocated
 	
 	// only update if we're playing and not paused
-	if (state == STATE_STOP || state == STATE_PAUSED) return;
+	if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED) return;
 
 	// allocate the audio blocks to transmit
 	while (alloCnt < chanCnt)
@@ -253,7 +313,8 @@ void AudioPlayWAVbuffered::update(void)
 			&& !eof 			// and more file data available
 			&& !readPending)  	// and we haven't already asked
 		{
-			triggerEvent(rdr);
+			triggerEvent(STATE_PLAYING);
+			trgMicros = micros();
 			readPending = true;
 		}
 		
@@ -313,7 +374,7 @@ bool AudioPlayWAVbuffered::isPaused(void)
 bool AudioPlayWAVbuffered::isStopped(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
-	return (s == STATE_STOP);
+	return (s == STATE_STOP || s == STATE_STOP);
 }
 
 /**
