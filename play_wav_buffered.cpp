@@ -267,7 +267,7 @@ void AudioPlayWAVbuffered::update(void)
 		if (toRead < sizeof buf) // not enough data in buffer
 		{
 			memset(((uint8_t*) buf)+toRead,0,sizeof buf - toRead); // fill with silence
-			stop(); // and stop: brutal, but probably better than losing sync
+			stop(true); // and stop (within ISR): brutal, but probably better than losing sync
 		}
 		deinterleave(buf,data,chanCnt);
 
