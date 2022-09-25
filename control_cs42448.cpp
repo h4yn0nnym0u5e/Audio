@@ -90,7 +90,7 @@ static const uint8_t default_config[] = {
 	0xFF  // CS42448_DAC_Channel_Mute = all outputs mute
 };
 
-bool AudioControlCS42448::enable(bool useMagicBit)
+bool AudioControlCS42448::enableMagicBitOption(bool useMagicBit)
 {
 	wire->begin();
 	// TODO: wait for reset signal high??
