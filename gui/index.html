@@ -423,7 +423,7 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioOutputSPDIF2",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
 		{"type":"AudioOutputSPDIF2",     "resource":"OUT2 Pin",      "shareable":false},
 		{"type":"AudioOutputSPDIF3",     "resource":"SPDIF Device",  "shareable":true,  "setting":"SPDIF Protocol"},
-		{"type":"AudioOutputSPDIF3",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputSPDIF3",     "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputSPDIF3",     "resource":"SPDIFOUT Pin",  "shareable":false},
 		{"type":"AudioOutputPT8211",     "resource":"I2S Device",    "shareable":true,  "setting":"PT8211 Protocol"},
 		{"type":"AudioOutputPT8211",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
@@ -866,6 +866,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<p>Receive S/PDIF digital audio, at the rate of the external digital audio source.</p>
 	<p><span style="color:red">This input is incompatible with most other inputs and outputs</span>
 		which run at a speed controlled by Teensy's internal sample rate.</p>
+		<p>It is compatible with the AudioOutputSPDIF3 output: when used together the audio system
+		will run at the external source's sample rate.</p>
 	</div>
 	<h3>Boards Supported</h3>
 	<ul>
@@ -1257,7 +1259,9 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p>Audio from
 		master mode TDM may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
-	<!--<h3>Examples</h3>-->
+	<h3>Examples</h3>
+	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughTDM16</p>
+	</p>
 	<h3>Notes</h3>
 	<p>Only one TDM input and one TDM output object may be used.  The
 		I2S hardware is used by TDM, so TDM objects may not be used
@@ -1899,6 +1903,12 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Transmit 16 bit stereo audio as Digital S/PDIF by use of the native S/PDIF port.</p>
+		<p>It is compatible with the AudioInputSPDIF3 input: when used together the audio system
+		will run at the external source's sample rate, in which case other audio input or output
+		objects which use the internal clock should not be used.</p>	
+		<p>If AudioInputSPDIF3 is not used then the S/PDIF sample rate will be governed
+		by the audio system clock as usual, and other I/O objects can be used. 
+		In this case S/PDIF	input can still be achieved by use of the AsyncAudioInputSPDIF3 object.</p>
 	</div>
 	<h3>Boards Supported</h3>
 	<ul>
@@ -2360,6 +2370,10 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		PWM signals, because all remain in sync to Teensy's timing</p>
 	<h3>Examples</h3>
 	<p><a href="https://www.youtube.com/watch?v=LOnEv4EDYsk">Video Demo</a> (YouTube)
+	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; WaveformsTDM16</p>
+	</p>
+	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughTDM16</p>
+	</p>
 	<h3>Notes</h3>
 	<p>Only one TDM input and one TDM output object may be used.  The
 		I2S hardware is used by TDM, so TDM objects may not be used
@@ -2507,7 +2521,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</table>
 	<h3>Functions</h3>
 	<p>This object has no functions to call from the Arduino sketch.  It
-		simply streams from its 2 input ports to the USB.</p>
+		simply streams from it's 2 input ports to the USB.</p>
 	<!--
 	<h3>Hardware</h3>
 	-->
