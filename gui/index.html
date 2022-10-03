@@ -556,6 +556,54 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	]}
 </script>
 
+
+<script type="text/x-red" data-help-name="Welcome">
+	<h3>Welcome</h3>
+	<p>The Audio System Design Tool lets you easily draw a system to process 16 bit, 
+	44.1 kHz streaming audio while your Arduino sketch also runs.</p>
+	<p>Export will generate code to copy into the Arduino editor, to implement your system.</p>
+	<p>Most objects provide simple functions you can call from setup() or loop() to control 
+	your audio project!</p><h3>Offline Use</h3><p>This tool does not use a server.  A 
+	stand-alone copy is provided with the Teensy Audio Library, in the gui folder.</p>
+	
+	<h3>Connections</h3>
+	<p>Audio connections made in the tool use AudioConnection objects, which route the output 
+	of an audio object to the input of another. Useful audio applications usually require several 
+	audio objects and of course connections between them. A number of functions are provided
+	(as of Teensyduino 1.57) to allow re-patching of your design while it is running:
+	</p>
+	
+	<h4>Functions</h4>
+	<p class=func><span class=keyword>connect</span>(source, sourcePort, destination, destinationPort);</p>
+	<p class=desc>Route audio data from the source object's sourcePort, 
+	to the destination object's destinationPort.
+	</p>	
+	<p class=desc>
+	If the destination port is in use this call will fail, as an input can only accept 
+	audio data from a single source. A source port, by contrast, can send data to as
+	many destinations as needed.
+	</p>	
+	<p class=func><span class=keyword>connect</span>(source, destination);</p>
+	<p class=desc>
+	Route audio data from the source object's output 0, to the destination object's input 0. 
+	This shorter form is convenient when using objects with only a single input and output.
+	</p>	
+	
+	<p class=func><span class=keyword>disconnect</span>();</p>
+	<p class=desc>
+	Disconnects an existing audio data route, allowing it to be re-connected using one
+	of the connect() variants. It is OK to leave a connection disconnected if it is not needed.
+	</p>	
+	
+
+	<h3>Credits</h3>
+	<p>Special thanks to Nicholas O'Leary, Dave Conway-Jones and IBM.</p>
+	<p>Without their work on the open source 
+	<a href=\"http://nodered.org/\" target=\"_blank\">Node-RED</a> project, 
+	this graphical design tool would not have been possible!</p>
+</script>
+
+
 <script type="text/x-red" data-help-name="AudioInputI2S">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
@@ -5913,6 +5961,38 @@ value  frequency
 	<p class=func><span class=keyword>inputSelect</span>(input);</p>
 	<p class=desc>Select which input to use: AUDIO_INPUT_LINEIN or AUDIO_INPUT_MIC.
 	</p>
+	
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	WM8731.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	WM8731 is in use: 0 will select the "low" address (0x1A), and 1 will select
+	the "high" address (0x1B). 
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	WM8731.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	WM8731 is in use: 0 will select the "low" address (0x1A), and 1 will select
+	the "high" address (0x1B). 
+	</p>
+	
 	<!--
 <h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt;
@@ -5956,6 +6036,38 @@ value  frequency
 	<p class=func><span class=keyword>inputSelect</span>(input);</p>
 	<p class=desc>Select which input to use: AUDIO_INPUT_LINEIN or AUDIO_INPUT_MIC.
 	</p>
+	
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	WM8731.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	WM8731 is in use: 0 will select the "low" address (0x1A), and 1 will select
+	the "high" address (0x1B). 
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	WM8731.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	WM8731 is in use: 0 will select the "low" address (0x1A), and 1 will select
+	the "high" address (0x1B). 
+	</p>
+	
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; WM8731MikroSine
 	</p>
@@ -6016,6 +6128,39 @@ value  frequency
 	<p class=func><span class=keyword>inputSelect</span>(input);</p>
 	<p class=desc>not implemented yet
 	</p>
+		
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	AK4558.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the four possible I²C addresses for the 
+	AK4558 is in use: 0 will select the "low" address (0x10), and 1-3 will select
+	the higher addresses (0x11..0x13). 
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	AK4558.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the four possible I²C addresses for the 
+	AK4558 is in use: 0 will select the "low" address (0x10), and 1-3 will select
+	the higher addresses (0x11..0x13). 
+	</p>
+	
+	
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; AK4558 &gt; PassthroughTest
 	</p>
@@ -6080,6 +6225,38 @@ value  frequency
 	<p class=func><span class=keyword>disableDither</span>();</p>
 	<p class=desc>TODO: description
 	</p>
+	
+		
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	CS4272.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	CS4272 is in use: 0 will select the "low" address (0x10), and 1 will select
+	the "high" address (0x11). 	
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	CS4272.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	CS4272 is in use: 0 will select the "low" address (0x10), and 1 will select
+	the "high" address (0x11). 	
+	</p>
 
 	<h3>Hardware</h3>
 	<p>Pin 2 must be connected to the CS4272 reset.  SDA &amp; SCL are used for all control.
@@ -6097,7 +6274,7 @@ value  frequency
 <script type="text/x-red" data-help-name="AudioControlCS42448">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
-	<p>Control the CS42448 chip in TDM mode, for 6 inputs and 8 outputs.
+	<p>Control the CS42448 chip in TDM mode, for 6 (or 8) inputs and 8 outputs.
 	</p>
 	<p align=center><img src="img/cs42448.jpg"></p>
 	</div>
@@ -6109,6 +6286,10 @@ value  frequency
 	<h3>Functions</h3>
 	<p class=func><span class=keyword>enable</span>();</p>
 	<p class=desc>Enables the CS42448 to work in TDM mode.
+	</p>
+	<p class=func><span class=keyword>enable</span>(magicBit);</p>
+	<p class=desc>Enables the CS42448 to work in TDM mode, with the option of setting the "magic bit" 
+	(see <a href="https://forum.pjrc.com/threads/41371?p=215881&viewfull=1#post215881">this forum post</a>).
 	</p>
 	<p class=func><span class=keyword>volume</span>(level);</p>
 	<p class=desc>Set the volume level for all output channels. Range is 0 to 1.0.
@@ -6122,6 +6303,39 @@ value  frequency
 	<p class=func><span class=keyword>inputLevel</span>(channel, level);</p>
 	<p class=desc>Set the input gain level for a single input. Channel is 1 to 6. Range is 0 to 15.85.
 	</p>
+	
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	CS42448.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the four possible I²C addresses for the 
+	CS42448 is in use: 0 will select the "low" address (0x49), and 1-3 will select
+	the higher addresses (0x49..0x4B). 
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	CS42448.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the four possible I²C addresses for the 
+	CS42448 is in use: 0 will select the "low" address (0x49), and 1-3 will select
+	the higher addresses (0x49..0x4B). 
+	</p>
+	
+	
 	<h3>Hardware</h3>
 	<p>Tested with this <a href="https://oshpark.com/shared_projects/2Yj6rFaW">
 		CS42448 Board for Teensy 3.x</a> and this
