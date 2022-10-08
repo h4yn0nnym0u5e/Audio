@@ -30,7 +30,7 @@
 #if defined(__IMXRT1052__) || defined(__IMXRT1062__)
 #include "imxrt_hw.h"
 
-FLASHMEM
+FLASHMEM //              28            2240           10000
 void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) // sets PLL4
 {
 	if (!force && (CCM_ANALOG_PLL_AUDIO & CCM_ANALOG_PLL_AUDIO_ENABLE)) return;
@@ -41,6 +41,7 @@ void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) // sets
 
 	CCM_ANALOG_PLL_AUDIO_NUM   = nmult & CCM_ANALOG_PLL_AUDIO_NUM_MASK;
 	CCM_ANALOG_PLL_AUDIO_DENOM = ndiv & CCM_ANALOG_PLL_AUDIO_DENOM_MASK;
+	// 169.344MHz (44100Hz * 3840 == 44100Hz * 64 * 60)
 	
 	CCM_ANALOG_PLL_AUDIO &= ~CCM_ANALOG_PLL_AUDIO_POWERDOWN;//Switch on PLL
 	while (!(CCM_ANALOG_PLL_AUDIO & CCM_ANALOG_PLL_AUDIO_LOCK)) {}; //Wait for pll-lock
