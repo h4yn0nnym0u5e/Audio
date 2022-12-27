@@ -48,6 +48,8 @@ public:
 	AudioRecordWAVbuffered(void) : AudioRecordWAVbuffered(2,inputQueueArray) {}
 	bool recordSD(const char* filename, bool paused = false);
 	bool record(const File _file, bool paused = false);
+	bool record(const char* filename, FS& fs = SD, bool paused = false)
+		{ return record(fs.open(filename,O_RDWR), paused); }
 	bool record(void)  { if (isPaused())  toggleRecordPause(); return isRecording(); }
 	bool pause(void) { if (isRecording()) toggleRecordPause(); return isPaused();  }
 	bool cueSD(const char* filename) { return recordSD(filename,true); }

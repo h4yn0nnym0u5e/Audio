@@ -2914,6 +2914,23 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p class=desc>Frees the memory used for the audio buffer.
 	</p>
 	
+	<p class=func><span class=keyword>play</span>(filename[,filesystem[,paused[,startFrom]]]);</p>
+	<p class=desc>Begin playing the named WAV file. 
+		If a file is already playing,
+		it is stopped and this file starts playing from the beginning.
+		This version of the play() function simplifies playing using multiple media, e.g. both
+		the built-in SD slot and the audio adaptor SD slot.
+		<br><br>
+		If the optional <span class=parameter>filesystem</span> parameter is supplied, then 
+		this will be used as the file's location. Defaults to SD.
+		<br><br>
+		If the optional <span class=parameter>paused</span> parameter is set to true, then playing
+		will not start until the play() function is called.
+		<br><br>
+		If the optional <span class=parameter>startFrom</span> parameter (float) is included, playback will
+		be started the given number of milliseconds from the start of the audio.
+	</p>
+	
 	<p class=func><span class=keyword>playSD</span>(filename[,paused[,startFrom]]);</p>
 	<p class=desc>Begin playing the named WAV file from the SD card.  
 		If a file is already playing,

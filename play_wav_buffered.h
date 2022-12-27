@@ -47,6 +47,8 @@ public:
 	AudioPlayWAVbuffered(void);
 	bool playSD(const char* filename, bool paused = false, float startFrom = 0.0f);
 	bool play(const File _file, bool paused = false, float startFrom = 0.0f);
+	bool play(const char* filename, FS& fs = SD, bool paused = false, float startFrom = 0.0f) 
+		{ return play(fs.open(filename), paused, startFrom); }
 	bool play(void)  { if (isPaused())  togglePlayPause(); return isPlaying(); }
 	bool pause(void) { if (isPlaying()) togglePlayPause(); return isPaused();  }
 	bool cueSD(const char* filename, float startFrom = 0.0f) { return playSD(filename,true,startFrom); }
