@@ -1,11 +1,9 @@
 // Play back sounds from multiple SD cards
+// Tested on Teensy 4.1, changes may be needed for 3.x
 
 #include <SD.h>
 #include <Bounce.h>
 #include <Audio.h>
-#include <Wire.h>
-#include <SPI.h>
-#include <SerialFlash.h>
 
 #define SDCARD_CS_PIN 10
 
@@ -18,8 +16,8 @@ File frec;
 AudioInputI2S            i2s2;           //xy=105,63
 AudioAnalyzePeak         peak1;          //xy=278,108
 AudioRecordQueue         queue1;         //xy=281,63
-AudioPlayWAVbuffered           playRaw1;       //xy=302,157
-AudioPlayWAVbuffered           playRaw2;       //xy=302,157
+AudioPlayWAVstereo           playRaw1;       //xy=302,157
+AudioPlayWAVstereo           playRaw2;       //xy=302,157
 AudioOutputI2S           i2s1;           //xy=470,120
 AudioConnection          patchCord1(i2s2, 0, queue1, 0);
 AudioConnection          patchCord2(i2s2, 0, peak1, 0);
