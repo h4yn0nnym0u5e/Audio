@@ -5,7 +5,7 @@
 #include <Bounce.h>
 #include <Audio.h>
 
-#define SDCARD_CS_PIN 10
+#define SDCARD_CS_PIN 10 // audio adaptor
 
 // #define sd1 SD // can do this for one card
 SDClass sd1;
@@ -45,7 +45,7 @@ void setup() {
   Serial.println("Started!");
 
   // Enable the audio shield, select input, and enable output
-  sgtl5000_1.setAddress(HIGH);
+  //sgtl5000_1.setAddress(HIGH);
   sgtl5000_1.enable();
   sgtl5000_1.volume(0.07);
 
