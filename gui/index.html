@@ -345,19 +345,19 @@ span.mainfunction {color: #993300; font-weight: bolder}
 <script  type="text/x-red" data-container-name="InputOutputCompatibilityMetadata">
 	{"requirements":[
 		{"type":"AudioInputI2S",         "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioInputI2S",         "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputI2S",         "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioInputI2S",         "resource":"IN1 Pin",       "shareable":false},
 		{"type":"AudioInputI2SQuad",     "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioInputI2SQuad",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputI2SQuad",     "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioInputI2SQuad",     "resource":"IN1 Pin",       "shareable":false},
 		{"type":"AudioInputI2SQuad",     "resource":"OUT1D Pin",     "shareable":false},
 		{"type":"AudioInputI2SHex",      "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioInputI2SHex",      "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputI2SHex",      "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioInputI2SHex",      "resource":"IN1 Pin",       "shareable":false},
 		{"type":"AudioInputI2SHex",      "resource":"OUT1D Pin",     "shareable":false},
 		{"type":"AudioInputI2SHex",      "resource":"OUT1C Pin",     "shareable":false},
 		{"type":"AudioInputI2SOct",      "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioInputI2SOct",      "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputI2SOct",      "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioInputI2SOct",      "resource":"IN1 Pin",       "shareable":false},
 		{"type":"AudioInputI2SOct",      "resource":"OUT1D Pin",     "shareable":false},
 		{"type":"AudioInputI2SOct",      "resource":"OUT1C Pin",     "shareable":false},
@@ -393,19 +393,19 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioInputTDM2",        "resource":"IN2 Pin",       "shareable":false},
 		{"type":"AudioInputUSB",         "resource":"USB Rx Endpoint","shareable":false},
 		{"type":"AudioOutputI2S",        "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioOutputI2S",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputI2S",        "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputI2S",        "resource":"OUT1A Pin",     "shareable":false},
 		{"type":"AudioOutputI2SQuad",    "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioOutputI2SQuad",    "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputI2SQuad",    "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputI2SQuad",    "resource":"OUT1A Pin",     "shareable":false},
 		{"type":"AudioOutputI2SQuad",    "resource":"OUT1B Pin",     "shareable":false},
 		{"type":"AudioOutputI2SHex",     "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioOutputI2SHex",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputI2SHex",     "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputI2SHex",     "resource":"OUT1A Pin",     "shareable":false},
 		{"type":"AudioOutputI2SHex",     "resource":"OUT1B Pin",     "shareable":false},
 		{"type":"AudioOutputI2SHex",     "resource":"OUT1C Pin",     "shareable":false},
 		{"type":"AudioOutputI2SOct",     "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioOutputI2SOct",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputI2SOct",     "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputI2SOct",     "resource":"OUT1A Pin",     "shareable":false},
 		{"type":"AudioOutputI2SOct",     "resource":"OUT1B Pin",     "shareable":false},
 		{"type":"AudioOutputI2SOct",     "resource":"OUT1C Pin",     "shareable":false},
@@ -644,6 +644,13 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<p>Audio from
 		master mode I2S may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3 on a Teensy 4.x, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<p>Compatible CODEC Chips:
 		<ul>
 		<li><a href="https://www.pjrc.com/store/teensy3_audio.html">STGL5000</a>
@@ -743,6 +750,12 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<p>Audio from
 		master mode I2S may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
+	<p>With some degradation in quality, on a Teensy 4.x
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift if the sample rates are significantly different.
+	</p>
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughQuad
 	</p>
@@ -795,6 +808,13 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		<tr class=odd><td align=center>9</td><td>RX (ch 5+6)</td><td>Input</td></tr>
 		<tr class=odd><td align=center>20</td><td>LRCLK</td><td>Output</td></tr>
 	</table>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>	
 	<h3>Examples</h3>
 	<!--<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughQuad
 	</p>-->
@@ -840,6 +860,13 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<h3>Hardware</h3>
 	<p>The I2S signals are used in "master" mode, where Teensy creates
 		all 3 clock signals and controls all data timing.</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Teensy<br>4.x Pin</th><th>Signal</th><th>Direction</th></tr>
 		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output</td></tr>
@@ -914,8 +941,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<p>Receive S/PDIF digital audio, at the rate of the external digital audio source.</p>
 	<p><span style="color:red">This input is incompatible with most other inputs and outputs</span>
 		which run at a speed controlled by Teensy's internal sample rate.</p>
-		<p>It is compatible with the AudioOutputSPDIF3 output: when used together the audio system
-		will run at the external source's sample rate.</p>
+		<p>It is compatible with the AudioOutputSPDIF3 output and the I2S (but not I2S2) objects: when used together the audio system
+		will run at the external source's sample rate. See the AudioOutputI2S documentation for more detail.</p>
 	</div>
 	<h3>Boards Supported</h3>
 	<ul>
@@ -950,7 +977,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<h3>Notes</h3>
 	<p>This input tries to force the entire audio library to run at the
 		sample rate of the incoming data.  It usually can not be combined
-		with most other inputs and outputs which run at specific speeds.</p>
+		with most other inputs and outputs which run at specific speeds. I2S and
+		the SPDIF3 output can be used.</p>
 </script>
 <script type="text/x-red" data-template-name="AudioInputSPDIF3">
 	<div class="form-row">
@@ -1588,6 +1616,13 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p>Audio from
 		master mode I2S may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3 on a Teensy 4.x, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<p>Compatible CODEC Chips:
 		<ul>
 		<li><a href="https://www.pjrc.com/store/teensy3_audio.html">STGL5000</a>
@@ -1675,6 +1710,13 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p>Audio from
 		master mode I2S may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3 on a Teensy 4.x, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughQuad
 	</p>
@@ -1717,6 +1759,13 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<h3>Hardware</h3>
 	<p>The I2S signals are used in "master" mode, where Teensy creates
 		all 3 clock signals and controls all data timing.</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Teensy<br>4.x Pin</th><th>Signal</th><th>Direction</th></tr>
 		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output</td></tr>
@@ -1769,6 +1818,13 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<h3>Hardware</h3>
 	<p>The I2S signals are used in "master" mode, where Teensy creates
 		all 3 clock signals and controls all data timing.</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Teensy<br>4.x Pin</th><th>Signal</th><th>Direction</th></tr>
 		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output</td></tr>
@@ -1951,9 +2007,9 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Transmit 16 bit stereo audio as Digital S/PDIF by use of the native S/PDIF port.</p>
-		<p>It is compatible with the AudioInputSPDIF3 input: when used together the audio system
+		<p>It is compatible with the AudioInputSPDIF3 input (and I2S, but not I2S2, objects): when used together the audio system
 		will run at the external source's sample rate, in which case other audio input or output
-		objects which use the internal clock should not be used.</p>	
+		objects which use the internal clock should not be used. See the AudioOutputI2S documentation for more detail.</p>	
 		<p>If AudioInputSPDIF3 is not used then the S/PDIF sample rate will be governed
 		by the audio system clock as usual, and other I/O objects can be used. 
 		In this case S/PDIF	input can still be achieved by use of the AsyncAudioInputSPDIF3 object.</p>
@@ -3237,26 +3293,39 @@ The actual packets are taken
 		<tr class=odd><td align=center>Out 0</td><td>Output</td></tr>
 	</table>
 	<h3>Functions</h3>
+		<p>Note that "amplitude" is treated inconsistently within this object, 
+		and inconsistently with the general approach of the Audio library, 
+		which is to use values between 0.0 and 1.0
+		</p>
 	<p class=func><span class=keyword>setInstrument</span>(instrument);</p>
-	<p class=desc>blah blah
+	<p class=desc>Set sample set to instrument (reference to AudioSynthWavetable::instrument_data)
 	</p>
 	<p class=func><span class=keyword>amplitude</span>(volume);</p>
-	<p class=desc>blah blah
+	<p class=desc>Change amplitude. Volume is float in the range 0.0-1.0.
 	</p>
 	<p class=func><span class=keyword>setFrequency</span>(freq);</p>
-	<p class=desc>blah blah
+	<p class=desc>Set frequency of playing note (freq is float in Hz). Note that this
+	will not necessarily have the same sound as a note played at the given frequency, as
+	the sample is use is not changed.
 	</p>
 	<p class=func><span class=keyword>playFrequency</span>(freq, amplitude);</p>
-	<p class=desc>blah blah
+	<p class=desc>Play a note at a given frequency (float, Hz) and amplitude (integer, 0 - 127).
+	</p>
+	<p class=func><span class=keyword>playNote</span>(noteNumber, amplitude);</p>
+	<p class=desc>Play a note at a given MIDI note number (int, 0 - 127) and amplitude (integer, 0 - 127).
 	</p>
 	<p class=func><span class=keyword>stop</span>();</p>
-	<p class=desc>blah blah
+	<p class=desc>Stop playing a note. The sound will typically not stop immediately, but
+	decay away according to the release parameter of the wavetable. Use isPlaying()
+	to determine if the note has finished.
 	</p>
 	<p class=func><span class=keyword>isPlaying</span>();</p>
-	<p class=desc>blah blah
+	<p class=desc>Returns true if a note is playing.
 	</p>
 	<p class=func><span class=keyword>getEnvState</span>();</p>
-	<p class=desc>blah blah
+	<p class=desc>Return AudioSynthWavetable::envelopeStateEnum value giving current
+	state of the envelope generator. One of STATE_IDLE, STATE_DELAY, STATE_ATTACK, 
+	STATE_HOLD, STATE_DECAY, STATE_SUSTAIN, STATE_RELEASE 
 	</p>
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; Synthesis &gt; Wavetable &gt; MidiSynth
