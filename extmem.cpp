@@ -37,7 +37,7 @@
 //
 // Timing analysis and info is here:
 // https://forum.pjrc.com/threads/29276-Limits-of-delay-effect-in-audio-library?p=97506&viewfull=1#post97506
-#define SPISETTING SPISettings(40000000, MSBFIRST, SPI_MODE0)
+#define SPISETTING SPISettings(20'000'000, MSBFIRST, SPI_MODE0)
 
 // Use these with the audio adaptor board  (should be adjustable by the user...)
 #define SPIRAM_MOSI_PIN  7
@@ -54,8 +54,9 @@
 
 static const uint32_t NOT_ENOUGH_MEMORY = 0xFFFFFFFF;
 
-//uint32_t AudioExtMem::allocated[AUDIO_MEMORY_UNDEFINED] = {0};
-const uint32_t AudioExtMem::memSizeSamples[] = {65536,393216,262144,4194304,8000};
+// This memory size array needs to match the sizes of 
+// the entries in AudioEffectDelayMemoryType_t
+const uint32_t AudioExtMem::memSizeSamples[AUDIO_MEMORY_UNDEFINED] = {65536,393216,262144,4194304,8000};
 AudioExtMem* AudioExtMem::first[AUDIO_MEMORY_UNDEFINED] = {nullptr};
 
 
