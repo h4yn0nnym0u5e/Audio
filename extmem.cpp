@@ -40,11 +40,19 @@
 #define SPISETTING SPISettings(20'000'000, MSBFIRST, SPI_MODE0)
 
 // Use these with the audio adaptor board  (should be adjustable by the user...)
-#define SPIRAM_MOSI_PIN  7
-#define SPIRAM_MISO_PIN  12
-#define SPIRAM_SCK_PIN   14
+#if defined(ARDUINO_TEENSYLC) || defined(ARDUINO_TEENSY30) || defined(ARDUINO_TEENSY32) || defined(ARDUINO_TEENSY35) || defined(ARDUINO_TEENSY36)
+	#define SPIRAM_MOSI_PIN  7
+	#define SPIRAM_MISO_PIN  12
+	#define SPIRAM_SCK_PIN   14
+	#define SPIRAM_CS_PIN    6
+#endif
 
-#define SPIRAM_CS_PIN    6
+#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41)
+	#define SPIRAM_MOSI_PIN  11
+	#define SPIRAM_MISO_PIN  12
+	#define SPIRAM_SCK_PIN   13
+	#define SPIRAM_CS_PIN    6
+#endif
 
 #define MEMBOARD_CS0_PIN 2
 #define MEMBOARD_CS1_PIN 3
@@ -218,12 +226,15 @@ void AudioExtMem::initialize(AudioEffectDelayMemoryType_t type, uint32_t samples
 	
 	head_offset = 0;
 	memory_type = type;
+	
+	if (IS_SPI_TYPE)
+	{
+		SPI.setMOSI(SPIRAM_MOSI_PIN);
+		SPI.setMISO(SPIRAM_MISO_PIN);
+		SPI.setSCK(SPIRAM_SCK_PIN);
 
-	SPI.setMOSI(SPIRAM_MOSI_PIN);
-	SPI.setMISO(SPIRAM_MISO_PIN);
-	SPI.setSCK(SPIRAM_SCK_PIN);
-
-	SPI.begin();
+		SPI.begin();
+	}
 	//memsize = memSizeSamples[type];
 	//Serial.printf("Requested %d samples\n",samples);
 	
