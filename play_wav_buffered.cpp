@@ -27,6 +27,65 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
+/*
+ * Prepare to play back from a file
+ */
+bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t startFromI)
+{
+	bool rv = false;
+	
+	if (wavfile && nullptr != buffer) 
+	{
+		uint8_t* pb;
+		size_t sz,stagger,skip;
+		constexpr int SLOTS=16;
+		
+		//* stagger pre-load:
+		stagger = bufSize / 1024; 
+		if (stagger > SLOTS)
+			stagger = SLOTS;
+		stagger = (bufSize>>1) / stagger;
+		
+		// load data
+		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
+		parseWAVheader(wavfile); 	// figure out WAV file structure
+		getNextRead(&pb,&sz);			// find out where and how much the buffer pre-load is
+		
+		data_length = total_length = audioSize; // all available data
+		eof = false;
+		
+		if (startFrom <= 0.0f && 0 == startFromI) // not starting later in time or bytes
+		{
+			skip = firstAudio;
+		}
+		else // we want to start playback later into the file: compute sector containing start point
+		{
+			if (0 == startFromI) // use time, not absolute file position
+			{
+				startFromI = (size_t)(startFrom * AUDIO_SAMPLE_RATE  / 1000.0f); // samples from audio start
+				startFromI *= chanCnt * bitsPerSample / 8; // convert to bytes
+				startFromI += firstAudio; 		// and total file offset
+			}
+			skip = startFromI & (512-1);	// skip partial sector...
+			startFromI -= skip;				// ...having loaded from sector containing start point
+			wavfile.seek(startFromI);
+			data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
+		}
+		
+		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
+		read(nullptr,skip);	// skip the header
+		
+		state_play = STATE_PLAYING;
+		if (paused)
+			state = STATE_PAUSED;
+		else
+			state = STATE_PLAYING;
+		rv = true;
+		setInUse(true); // prevent changes to buffer memory
+	}
+	
+	return rv;
+}
 
 /* static */ uint8_t AudioPlayWAVbuffered::objcnt;
 /* static */ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
@@ -37,6 +96,14 @@
 	
 	switch (evref.getStatus())
 	{
+		case STATE_LOADING: // playing pre-load: open and prepare file, ready to switch over
+			pPWB->wavfile = pPWB->ppl->pFS->open(pPWB->ppl->filepath);
+			if (pPWB->prepareFile(STATE_PAUSED == pPWB->state,0.0f,pPWB->ppl->fileOffset))
+				pPWB->fileState = fileReady;
+			else
+				pPWB->fileState = ending;
+			break;
+			
 		case STATE_PLAYING: // request from update() to re-fill buffer
 			pPWB->getNextRead(&pb,&sz);		// find out where and how much
 			if (sz > pPWB->bufSize / 2)
@@ -87,10 +154,12 @@ SCOPE_LOW();
 AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
 		AudioStream(0, NULL),
 		lowWater(0xFFFFFFFF),
-		wavfile(0),
+		wavfile(0), ppl(0), preloadRemaining(0),
 		eof(false), readPending(false), objnum(objcnt++),
 		data_length(0), total_length(0),
-		state(STATE_STOP), state_play(STATE_STOP),leftover_bytes(0)
+		state(STATE_STOP), state_play(STATE_STOP),
+		playState(silent), fileState(silent),
+		leftover_bytes(0)
 {
 SCOPE_ENABLE();
 SCOPESER_ENABLE();
@@ -119,53 +188,39 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 	if (nullptr == buffer)
 		createBuffer(1024,inHeap);
 	
-	if (wavfile && nullptr != buffer) 
+	rv = prepareFile(paused,startFrom,0); // get file ready to play
+	if (rv)
 	{
-		uint8_t* pb;
-		size_t sz,stagger,skip;
-		constexpr int SLOTS=16;
-		
-		//* stagger pre-load:
-		stagger = bufSize / 1024; 
-		if (stagger > SLOTS)
-			stagger = SLOTS;
-		stagger = (bufSize>>1) / stagger;
-		
-		// load data
-		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
-		parseWAVheader(wavfile); // figure out WAV file structure
-		getNextRead(&pb,&sz);	// find out where and how much the buffer pre-load is
-		
-		data_length = total_length = audioSize; // all available data
-		eof = false;
-		
-		if (startFrom <= 0.0f)
-		{
-			skip = firstAudio;
-		}
-		else // we want to start playback later into the file: compute sector containing start point
-		{
-			size_t startFromI = (size_t)(startFrom * AUDIO_SAMPLE_RATE  / 1000.0f); // samples from audio start
-			startFromI *= chanCnt * bitsPerSample / 8; // convert to bytes
-			startFromI += firstAudio; 		// and total file offset
-			skip = startFromI & (512-1);	// skip partial sector...
-			startFromI -= skip;				// ...having loaded from sector containing start point
-			wavfile.seek(startFromI);
-			data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
-		}
-		
-		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
-		read(nullptr,skip);	// skip the header
-		
+		fileState = fileReady;
+		playState = file;
+	}
+
+	return rv;
+}
+
+
+bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, float startFrom /* = 0.0f */)
+{
+	bool rv = false;
+	
+	stop();
+	
+	if (p.isReady())
+	{
+		ppl = &p;				// using this preload
+		preloadRemaining = ppl->valid; // got this much data left
+		playState = sample;		// start by playing pre-loaded data
+		fileState = fileLoad;	// load file buffer on first event
+		setInUse(true); // prevent changes to buffer memory
+
 		state_play = STATE_PLAYING;
 		if (paused)
 			state = STATE_PAUSED;
 		else
 			state = STATE_PLAYING;
 		rv = true;
-		setInUse(true); // prevent changes to buffer memory
 	}
-
+	
 	return rv;
 }
 
@@ -185,7 +240,9 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			else
 			{
 				wavfile.close();
-				state = STATE_STOP;
+				state = state_play = STATE_STOP;
+				playState = fileState = silent;
+				ppl = nullptr;
 			}
 		}
 		eof = true;
@@ -227,6 +284,7 @@ static void deinterleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 }
 
 
+//#pragma GCC optimize ("O0")
 void AudioPlayWAVbuffered::update(void)
 {
 	int16_t buf[chanCnt * AUDIO_BLOCK_SAMPLES];
@@ -236,6 +294,13 @@ void AudioPlayWAVbuffered::update(void)
 	
 	// only update if we're playing and not paused
 	if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED) return;
+	
+	// if just started, we may need to trigger the first file read
+	if (!readPending && fileLoad == fileState)
+	{
+		triggerEvent(STATE_LOADING); // trigger first file read
+		readPending = true;
+	}
 
 	// allocate the audio blocks to transmit
 	while (alloCnt < chanCnt)
@@ -249,26 +314,60 @@ void AudioPlayWAVbuffered::update(void)
 	
 	if (alloCnt >= chanCnt) // allocated enough - fill them with data
 	{
-		// try to fill buffer, settle for what's available
-		size_t toRead = getAvailable();
-		if (toRead > sizeof buf)
+		size_t toFill = sizeof buf, got = 0;
+		result rdr = ok;
+		
+		// if we're using pre-load buffer, try to fill from there
+		if (sample == playState)
 		{
-			toRead = sizeof buf;
+			if (preloadRemaining >= toFill) // enough or more!
+			{
+				memcpy(buf,ppl->buffer+(ppl->valid - preloadRemaining),toFill);
+				preloadRemaining -= toFill;
+				got = toFill;
+				toFill = 0;
+			}
+			else // not enough, but some
+			{
+				memcpy(buf,ppl->buffer+(ppl->valid - preloadRemaining),preloadRemaining);
+				got = preloadRemaining;
+				preloadRemaining = 0;
+				toFill -= got;
+			}
+
+			if (0 == preloadRemaining)
+				playState = file;
 		}
 		
-		// also, don't play past end of data
-		// could leave some data unread in buffer, but
-		// it's not audio!
-		if (toRead > data_length)
-			toRead = data_length;
-		
-		// unbuffer and deinterleave to audio blocks
-		result rdr = read((uint8_t*) buf,toRead);
-		if (toRead < sizeof buf) // not enough data in buffer
+		// try to fill buffer from file, settle for what's available
+		if (file == playState && toFill > 0) // file is ready and we still need data
 		{
-			memset(((uint8_t*) buf)+toRead,0,sizeof buf - toRead); // fill with silence
+			size_t toRead = getAvailable();
+			if (toRead > toFill)
+			{
+				toRead = toFill;
+			}
+			
+			// also, don't play past end of data
+			// could leave some data unread in buffer, but
+			// it's not audio!
+			if (toRead > data_length)
+				toRead = data_length;
+			
+			// unbuffer
+			rdr = read((uint8_t*) buf + got,toRead);
+			
+			if (invalid != rdr) // we got enough
+				got += toRead;				
+		}
+		
+		if (got < sizeof buf) // not enough data in buffer
+		{
+			memset(((uint8_t*) buf)+got,0,sizeof buf - got); // fill with silence
 			stop(true); // and stop (within ISR): brutal, but probably better than losing sync
 		}
+		
+		// deinterleave to audio blocks
 		deinterleave(buf,data,chanCnt);
 
 		if (ok != rdr 			// there's now room for a buffer read,
@@ -291,8 +390,8 @@ void AudioPlayWAVbuffered::update(void)
 		}
 		
 		// deal with position tracking
-		if (toRead <= data_length)
-			data_length -= toRead;
+		if (got <= data_length)
+			data_length -= got;
 		else
 			data_length = 0;
 	}

@@ -45,10 +45,13 @@ class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public A
 {
 public:
 	AudioPlayWAVbuffered(void);
+	
 	bool playSD(const char* filename, bool paused = false, float startFrom = 0.0f);
 	bool play(const File _file, bool paused = false, float startFrom = 0.0f);
 	bool play(const char* filename, FS& fs = SD, bool paused = false, float startFrom = 0.0f) 
 		{ return play(fs.open(filename), paused, startFrom); }
+	bool play(AudioPreload& p, bool paused = false, float startFrom = 0.0f);
+		
 	bool play(void)  { if (isPaused())  togglePlayPause(); return isPlaying(); }
 	bool pause(void) { if (isPlaying()) togglePlayPause(); return isPaused();  }
 	bool cueSD(const char* filename, float startFrom = 0.0f) { return playSD(filename,true,startFrom); }
@@ -67,10 +70,13 @@ public:
 	size_t lowWater;
 
 private:
-	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING};
+	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};
 	File wavfile;
+	AudioPreload* ppl;
+	size_t preloadRemaining;
 	static void EventResponse(EventResponderRef evref);
 	void loadBuffer(uint8_t* pb, size_t sz);
+	bool prepareFile(bool paused, float startFrom, size_t startFromI);
 	
 	bool eof;
 	bool readPending;
@@ -80,6 +86,16 @@ private:
 	
 	volatile uint8_t state;
 	volatile uint8_t state_play;
+	
+	// States of playback machine: we need two to track everything.
+	volatile enum {
+		silent,		// nothing being played
+		sample,		// sample is being played
+		fileLoad,	// file needs initial buffering (filestate only)
+		fileReady,	// file is buffered and ready (filestate only)
+		file,		// file is being played
+		ending
+		} playState, fileState;
 	uint8_t leftover_bytes;
 };
 

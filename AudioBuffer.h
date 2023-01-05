@@ -38,7 +38,29 @@
 #define SCOPE_TOGGLE(...)
 #define SCOPESER_ENABLE(...) 
 #define SCOPESER_TX(...)  
- 
+
+class MemBuffer
+{
+  public:
+	MemBuffer() : buffer(0), inUse(false), 
+				  bufSize(0), bufTypeX(none) {}
+	~MemBuffer() { disposeBuffer(); }
+		
+	enum bufType {none,given,inHeap,inExt};
+	enum result  {ok,halfEmpty,underflow,full,invalid};
+
+	uint8_t* buffer;	// memory used for buffering
+	bool inUse;			// if true, buffer is in use and createBuffer() and disposeBuffer() will fail
+	size_t bufSize;		// total size of buffer
+	bufType bufTypeX;
+	
+	// buffer memory maintenance:
+	result createBuffer(size_t sz, bufType typ);  // create buffer for audio data, managed by class
+	result createBuffer(uint8_t* buf, size_t sz);  // create buffer for audio data, managed by application
+	result disposeBuffer(); // dispose of buffer: if it's of type "given", the application may free it after this call
+};
+
+
  /**
   * Implementation of a double-buffer aimed at audio processing.
   * The aim is to have a minimal overhead while providing simple mechanisms
@@ -90,32 +112,33 @@
   * queueOut
   *
   */
-class AudioBuffer
+class AudioBuffer : public MemBuffer
 {
   public:
-	AudioBuffer() : buffer(0), queueOut(0), queueIn(0), isFull(false), inUse(false), 
-					bufSize(0), bufTypeX(none), bufState(empty) {}
-	~AudioBuffer() {disposeBuffer();}
-	enum result  {ok,halfEmpty,underflow,full,invalid};
-	enum bufType {none,given,inHeap,inExt};
+	AudioBuffer() : queueOut(0), queueIn(0), isFull(false), bufState(empty) {}
 	enum bufState_e {empty,firstValid,secondValid,bothValid}; // state of buffer
 	
   //private:
-	uint8_t* buffer;	// memory used for buffering
 	size_t queueOut;	// next read() will start from here
 	size_t queueIn;		// next write() will start from here
 	bool isFull;		// if true, queueIn == queueOut means buffer is completely full
-	bool inUse;			// if true, buffer is in use and createBuffer() and disposeBuffer() will fail
-	size_t bufSize;		// total size of buffer
-	bufType bufTypeX;
 	bufState_e bufState;
 	
   public:
 	// buffer memory maintenance:
-	result createBuffer(size_t sz, bufType typ);  // create buffer for audio data, managed by class
-	result createBuffer(uint8_t* buf, size_t sz);  // create buffer for audio data, managed by application
-	result disposeBuffer(); // dispose of buffer: if it's of type "given", the application may free it after this call
-	
+	result createBuffer(size_t sz, bufType typ)  // create buffer for audio data, managed by class
+		{ result rv = MemBuffer::createBuffer(sz,typ);
+		  if (ok == rv)
+			  emptyBuffer();
+		  return rv;
+		}
+	result createBuffer(uint8_t* buf, size_t sz)  // create buffer for audio data, managed by application
+		{ result rv = MemBuffer::createBuffer(buf, sz);
+		  if (ok == rv)
+			  emptyBuffer();
+		  return rv;
+		}
+
 	// "playback" mode:
 	bool getNextRead(uint8_t** pbuf, size_t* psz);  // find out where (media) data needs to be read to
 	void readExecuted(size_t bytes);  		// signal that buffer data has been read in (from  media)
@@ -129,6 +152,40 @@ class AudioBuffer
 	size_t getAvailable(); // find out how much valid data is available
 	void emptyBuffer(size_t offset=0) {queueOut = queueIn = offset; isFull = false; bufState = empty;} // initialise the buffer to its empty state
 	void setInUse(bool flag) {inUse = flag;} // lock the buffer while in use
+};
+
+
+/*
+ * Implementation of a pre-load buffer for a file, aimed at low-latency
+ * playback, e.g. triggered samples.
+ *
+ * Like AudioBuffer, derived from MemBuffer, but in this case we expect to 
+ * load the buffer only occasionally (probably only once), and switch to
+ * playing from the filesystem once the pre-load is exhausted.
+ */
+class AudioPreload : public MemBuffer
+{
+public:
+	const char* filepath;	// path to file that's been partially pre-loaded
+	FS* pFS;				// filesystem the file is on
+	size_t fileOffset;		// where in file the unbuffered data starts
+  public:
+	AudioPreload() : filepath(0), pFS(0), fileOffset(0), valid(0) {}
+	AudioPreload(AudioBuffer::bufType bt, size_t sz);
+	AudioPreload(uint8_t* buf, size_t sz);
+	
+	// Note: these can ONLY be used after the filesystem is running, so
+	// CANNOT be used in static definitions:
+	AudioPreload(const char* fp, AudioBuffer::bufType bt, size_t sz, FS& fs = SD);
+	AudioPreload(const char* fp, uint8_t* buf, size_t sz, FS& fs = SD);
+	
+	result preLoad(const char* fp, AudioBuffer::bufType bt, size_t sz, FS& fs = SD); // create buffer and load
+	result preLoad(const char* fp, uint8_t* buf, size_t sz, FS& fs = SD); // use supplied buffer and load
+	result preLoad(const char* fp, FS& fs = SD); // use existing buffer and load
+	bool isReady(void) { return buffer != nullptr && filepath != nullptr; }
+	File open(void) { return pFS->open(filepath); }
+	
+	size_t valid;		// amount of MemBuffer that contains "valid" (audio) data
 };
  
  

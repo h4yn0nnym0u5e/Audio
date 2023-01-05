@@ -38,7 +38,7 @@ static const uint32_t B2M_11025 = (uint32_t)((double)4294967296000.0 / AUDIO_SAM
  * itself, after this function has been called.
  * \return ok
  */
-AudioBuffer::result AudioBuffer::disposeBuffer()
+AudioBuffer::result MemBuffer::disposeBuffer()
 {
 	result rv = invalid;
 	
@@ -77,7 +77,7 @@ AudioBuffer::result AudioBuffer::disposeBuffer()
  * The application is responsible for managing the buffer, e.g.
  * by freeing it after disposeBuffer() has been called.
  */
-AudioBuffer::result AudioBuffer::createBuffer(uint8_t* buf, //!< pointer to memory buffer
+AudioBuffer::result MemBuffer::createBuffer(uint8_t* buf, //!< pointer to memory buffer
 											  size_t sz)	//!< size of memory buffer
 {
 	result rv = invalid;
@@ -89,7 +89,6 @@ AudioBuffer::result AudioBuffer::createBuffer(uint8_t* buf, //!< pointer to memo
 		buffer = (uint8_t*) buf;	
 		bufSize = sz;
 		bufTypeX = given;	
-		emptyBuffer();
 
 		rv = ok;
 	}
@@ -105,7 +104,7 @@ AudioBuffer::result AudioBuffer::createBuffer(uint8_t* buf, //!< pointer to memo
  * instance is deleted.
  * \return ok if created, invalid if memory couldn't be allocated
  */
-AudioBuffer::result AudioBuffer::createBuffer(size_t sz, //!< requested size of memory buffer
+AudioBuffer::result MemBuffer::createBuffer(size_t sz, //!< requested size of memory buffer
 											  bufType typ)
 {
 	AudioBuffer::result rv = invalid;
@@ -138,6 +137,7 @@ AudioBuffer::result AudioBuffer::createBuffer(size_t sz, //!< requested size of 
 }
 
 
+/********************************************************************************/
 /**
  * Read data from buffer.
  * The class deals with unwrapping the data if the requested size overlaps
@@ -365,6 +365,121 @@ void AudioBuffer::writeExecuted(size_t sz)
 	if (queueOut >= bufSize)
 		queueOut -= bufSize;
 	isFull = false;
+}
+
+
+/********************************************************************************/
+/*
+ * Constructor which creates buffer.
+ */
+AudioPreload::AudioPreload(AudioBuffer::bufType bt, size_t sz)
+	: AudioPreload()
+{
+	createBuffer(sz,bt);
+}
+
+
+/*
+ * Constructor which uses supplied buffer
+ */
+AudioPreload::AudioPreload(uint8_t* buf, size_t sz)
+	: AudioPreload()
+{
+	createBuffer(buf,sz);
+}
+
+
+/*
+ * Constructor which creates buffer and preloads file data.
+ */
+AudioPreload::AudioPreload(const char* fp, AudioBuffer::bufType bt, size_t sz, FS& fs /* = SD */)
+	: AudioPreload()
+{
+	preLoad(fp,bt,sz,fs);
+}
+
+
+/*
+ * Constructor which uses supplied buffer and preloads file data.
+ */
+AudioPreload::AudioPreload(const char* fp, uint8_t* buf, size_t sz, FS& fs /* = SD */)
+	: AudioPreload()
+{
+	preLoad(fp,buf,sz,fs);
+}
+
+/*
+ * Create buffer and pre-load file data
+ */
+AudioBuffer::result AudioPreload::preLoad(const char* fp, AudioBuffer::bufType bt, size_t sz, FS& fs /* = SD */)
+{
+	result rv = createBuffer(sz, bt);
+	if (ok == rv)
+		rv = preLoad(fp,fs);
+	return rv;
+}
+
+
+/*
+ * Use supplied buffer and pre-load file data
+ */
+AudioBuffer::result AudioPreload::preLoad(const char* fp, uint8_t* buf, size_t sz, FS& fs /* = SD */)
+{
+	result rv = createBuffer(buf,sz);
+	if (ok == rv)
+		rv = preLoad(fp,fs);
+	return rv;
+}
+
+
+/*
+ * Use existing buffer and pre-load file data
+ */
+AudioBuffer::result AudioPreload::preLoad(const char* fp, FS& fs /* = SD */)
+{
+	result rv = invalid;
+	File f = fs.open(fp);
+	
+	pFS = nullptr;
+	filepath = nullptr;
+	valid = 0;
+	
+	if (f)
+	{
+		AudioWAVdata wavd;
+		
+		if (wavd.parseWAVheader(f) > 0) // channel count >0, file is OK
+		{
+			// load to sector boundary, or end of file if smaller than buffer
+			size_t avail = bufSize; // total size of buffer
+			size_t fpspace = strlen(fp)+1; 			// need this for copy of file path
+			avail -=  fpspace; 						// this much space remains for data
+			char* fpcopy = (char*) buffer+avail;	// record this for later
+			fileOffset = wavd.firstAudio + avail; 	// could get this much into the file...
+			fileOffset &= -512;						// ...go only this far, so we hit sector boundary
+			avail = fileOffset - wavd.firstAudio;	// amount we want to buffer
+			
+			if (wavd.audioSize < avail) // don't need that much...
+				avail = wavd.audioSize; // ...pretend we don't have the space
+				
+			if (avail > 0) // we do have something to buffer
+			{
+				f.seek(wavd.firstAudio); 			// go to start of audio data
+				if (avail == f.read(buffer,avail)) 	// and buffer it
+				{
+					strcpy(fpcopy,fp);  // copy file path to buffer memory
+					filepath = fpcopy;  // keep a record of its location
+					pFS = &fs;			// and the filesystem it's on
+					valid = avail;		/// and how much data there is
+					
+					rv = ok; // success!
+				}
+			}
+		}
+		f.close();
+	}
+	
+	return rv;
 }
 
 /********************************************************************************/
