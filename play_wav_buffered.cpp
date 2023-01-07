@@ -71,6 +71,8 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
 		read(nullptr,skip);	// skip the header
 		
+		fileLoaded = ARM_DWT_CYCCNT;
+		
 		state_play = STATE_PLAYING;
 		if (paused)
 			state = STATE_PAUSED;
@@ -177,6 +179,9 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 {
 	bool rv = false;
 	
+	playCalled = ARM_DWT_CYCCNT;
+	firstUpdate = 0;
+	
 	stop();
 	wavfile = _file;
 	
@@ -197,32 +202,56 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 /*
  * Play audio starting from pre-loaded buffer, and switching to filesystem when that's exhausted.
  *
- * Note that there's no option to play from a point later than the first sample of the pre-load,
- * as this could result in skipping the pre-loaded data altogether, followed by a delay while
- * the first samples are loaded from the filesystem. As this rather defeats the object of having
- * the pre-loaded audio, there's no option at "play()" time, though there is the option to 
- * create the pre-load starting at any point within the file.
+ * Note that while there's an option to play from a point later than the first sample of the pre-load,
+ * this could result in skipping the pre-loaded data altogether, followed by a delay while
+ * the first samples are loaded from the filesystem. It's up to the user to manage this. 
+ *
+ * Note also that the two startFrom values are cumulative; if you pre-load starting at 100.0ms, 
+ * then play() starting at 50.0ms, playback starts 150.0ms into the audio file.
  */
-bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */)
+bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
 	bool rv = false;
+	
+	playCalled = ARM_DWT_CYCCNT;
+	firstUpdate = 0;
 	
 	stop();
 	
 	if (p.isReady())
 	{
+		bool justPlay = false;  // assume we can use the pre-load
+		
 		ppl = &p;				// using this preload
 		preloadRemaining = ppl->valid; // got this much data left
-		playState = sample;		// start by playing pre-loaded data
-		fileState = fileLoad;	// load file buffer on first event
-		setInUse(true); // prevent changes to buffer memory
-
-		state_play = STATE_PLAYING;
-		if (paused)
-			state = STATE_PAUSED;
+		
+		if (startFrom > 0.0f)
+		{
+			float plms = (float) p.valid / p.sampleSize / AUDIO_SAMPLE_RATE; // audio pre-loaded [ms]
+			if (plms > startFrom) // can use some of the pre-load
+			{
+				int nsamp = startFrom * AUDIO_SAMPLE_RATE / 1000.0f; // samples to skip
+				preloadRemaining -= nsamp * p.sampleSize; // ensure we're on a sample boundary 
+			}
+			else // just do a normal play()
+				justPlay = true;
+		}
+		
+		if (justPlay)
+			rv = play(p.filepath,*p.pFS,paused,startFrom + p.startSample / AUDIO_SAMPLE_RATE / 1000.0f);
 		else
-			state = STATE_PLAYING;
-		rv = true;
+		{
+			playState = sample;		// start by playing pre-loaded data
+			fileState = fileLoad;	// load file buffer on first event
+			setInUse(true); // prevent changes to buffer memory
+
+			state_play = STATE_PLAYING;
+			if (paused)
+				state = STATE_PAUSED;
+			else
+				state = STATE_PLAYING;
+			rv = true;
+		}
 	}
 	
 	return rv;
@@ -298,6 +327,9 @@ void AudioPlayWAVbuffered::update(void)
 	
 	// only update if we're playing and not paused
 	if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED) return;
+
+	if (0 == firstUpdate)
+		firstUpdate = ARM_DWT_CYCCNT;
 	
 	// if just started, we may need to trigger the first file read
 	if (!readPending && fileLoad == fileState)

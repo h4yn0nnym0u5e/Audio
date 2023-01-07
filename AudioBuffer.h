@@ -169,8 +169,10 @@ public:
 	const char* filepath;	// path to file that's been partially pre-loaded
 	FS* pFS;				// filesystem the file is on
 	size_t fileOffset;		// where in file the unbuffered data starts
+	size_t sampleSize;		// size of one sample, in bytes (depends on channels and bit depth)
+	size_t startSample;		// sample # of first pre-loaded sample
   public:
-	AudioPreload() : filepath(0), pFS(0), fileOffset(0), valid(0) {}
+	AudioPreload() : filepath(0), pFS(0), fileOffset(0), sampleSize(0), startSample(0), valid(0) {}
 	AudioPreload(AudioBuffer::bufType bt, size_t sz);
 	AudioPreload(uint8_t* buf, size_t sz);
 	

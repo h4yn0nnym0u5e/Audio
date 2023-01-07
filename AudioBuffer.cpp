@@ -453,10 +453,15 @@ AudioBuffer::result AudioPreload::preLoad(const char* fp, float startFrom /* = 0
 			size_t loadPos = wavd.firstAudio; // where audio starts in file
 			size_t maxAudio = wavd.audioSize; // how much we could read into buffer
 			
+			// get ready for possible play() calls with non-zero startFrom
+			sampleSize = wavd.chanCnt * wavd.bitsPerSample / 8;
+			startSample = 0;			
+			
 			if (startFrom > 0.0f) // start later in file?
 			{
 				loadPos = wavd.millisToPosition(startFrom,AUDIO_SAMPLE_RATE); // read from here
-				maxAudio -= loadPos - wavd.firstAudio; // can't read as much
+				maxAudio -= loadPos - wavd.firstAudio; 		// can't read as much
+				startSample = (loadPos - wavd.firstAudio) / sampleSize;	// make a note of start sample # (not file position!)
 			}
 			
 			// load to sector boundary, or end of file if smaller than buffer

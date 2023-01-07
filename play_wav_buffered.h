@@ -50,7 +50,7 @@ public:
 	bool play(const File _file, bool paused = false, float startFrom = 0.0f);
 	bool play(const char* filename, FS& fs = SD, bool paused = false, float startFrom = 0.0f) 
 		{ return play(fs.open(filename), paused, startFrom); }
-	bool play(AudioPreload& p, bool paused = false);
+	bool play(AudioPreload& p, bool paused = false, float startFrom = 0.0f);
 		
 	bool play(void)  { if (isPaused())  togglePlayPause(); return isPlaying(); }
 	bool pause(void) { if (isPlaying()) togglePlayPause(); return isPaused();  }
@@ -68,6 +68,7 @@ public:
 	static uint8_t objcnt;
 	// debug members
 	size_t lowWater;
+	uint32_t playCalled,firstUpdate,fileLoaded;
 
 private:
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};
