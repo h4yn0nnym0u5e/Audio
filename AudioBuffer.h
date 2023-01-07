@@ -176,12 +176,12 @@ public:
 	
 	// Note: these can ONLY be used after the filesystem is running, so
 	// CANNOT be used in static definitions:
-	AudioPreload(const char* fp, AudioBuffer::bufType bt, size_t sz, FS& fs = SD);
-	AudioPreload(const char* fp, uint8_t* buf, size_t sz, FS& fs = SD);
+	AudioPreload(const char* fp, AudioBuffer::bufType bt, size_t sz, float startFrom = 0.0f, FS& fs = SD);
+	AudioPreload(const char* fp, uint8_t* buf, size_t sz, float startFrom = 0.0f, FS& fs = SD);
 	
-	result preLoad(const char* fp, AudioBuffer::bufType bt, size_t sz, FS& fs = SD); // create buffer and load
-	result preLoad(const char* fp, uint8_t* buf, size_t sz, FS& fs = SD); // use supplied buffer and load
-	result preLoad(const char* fp, FS& fs = SD); // use existing buffer and load
+	result preLoad(const char* fp, AudioBuffer::bufType bt, size_t sz, float startFrom = 0.0f, FS& fs = SD); // create buffer and load
+	result preLoad(const char* fp, uint8_t* buf, size_t sz, float startFrom = 0.0f, FS& fs = SD); // use supplied buffer and load
+	result preLoad(const char* fp, float startFrom = 0.0f, FS& fs = SD); // use existing buffer and load
 	bool isReady(void) { return buffer != nullptr && filepath != nullptr; }
 	File open(void) { return pFS->open(filepath); }
 	
@@ -263,6 +263,7 @@ class AudioWAVdata
 	uint32_t getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bitsPerSample);
 	uint16_t parseWAVheader(File& f); // parse WAV file
 	void makeWAVheader(wavhdr_t* wav, uint16_t chans = 1, uint16_t fmt = 1, uint16_t bits = 16, uint32_t rate = AUDIO_SAMPLE_RATE);
+	size_t millisToPosition(float m, float sr); // convert time in milliseconds to file position
 };
  
  #endif // !defined(_AUDIO_BUFFER_H_)

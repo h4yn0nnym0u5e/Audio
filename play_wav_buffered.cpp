@@ -49,7 +49,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		// load data
 		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
 		parseWAVheader(wavfile); 	// figure out WAV file structure
-		getNextRead(&pb,&sz);			// find out where and how much the buffer pre-load is
+		getNextRead(&pb,&sz);		// find out where and how much the buffer pre-load is
 		
 		data_length = total_length = audioSize; // all available data
 		eof = false;
@@ -61,11 +61,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		else // we want to start playback later into the file: compute sector containing start point
 		{
 			if (0 == startFromI) // use time, not absolute file position
-			{
-				startFromI = (size_t)(startFrom * AUDIO_SAMPLE_RATE  / 1000.0f); // samples from audio start
-				startFromI *= chanCnt * bitsPerSample / 8; // convert to bytes
-				startFromI += firstAudio; 		// and total file offset
-			}
+				startFromI = millisToPosition(startFrom,AUDIO_SAMPLE_RATE);
 			skip = startFromI & (512-1);	// skip partial sector...
 			startFromI -= skip;				// ...having loaded from sector containing start point
 			wavfile.seek(startFromI);
@@ -198,8 +194,16 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 	return rv;
 }
 
-
-bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, float startFrom /* = 0.0f */)
+/*
+ * Play audio starting from pre-loaded buffer, and switching to filesystem when that's exhausted.
+ *
+ * Note that there's no option to play from a point later than the first sample of the pre-load,
+ * as this could result in skipping the pre-loaded data altogether, followed by a delay while
+ * the first samples are loaded from the filesystem. As this rather defeats the object of having
+ * the pre-loaded audio, there's no option at "play()" time, though there is the option to 
+ * create the pre-load starting at any point within the file.
+ */
+bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */)
 {
 	bool rv = false;
 	

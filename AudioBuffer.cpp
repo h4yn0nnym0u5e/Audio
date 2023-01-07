@@ -392,30 +392,30 @@ AudioPreload::AudioPreload(uint8_t* buf, size_t sz)
 /*
  * Constructor which creates buffer and preloads file data.
  */
-AudioPreload::AudioPreload(const char* fp, AudioBuffer::bufType bt, size_t sz, FS& fs /* = SD */)
+AudioPreload::AudioPreload(const char* fp, AudioBuffer::bufType bt, size_t sz, float startFrom /* = 0.0f */, FS& fs /* = SD */)
 	: AudioPreload()
 {
-	preLoad(fp,bt,sz,fs);
+	preLoad(fp,bt,sz,startFrom,fs);
 }
 
 
 /*
  * Constructor which uses supplied buffer and preloads file data.
  */
-AudioPreload::AudioPreload(const char* fp, uint8_t* buf, size_t sz, FS& fs /* = SD */)
+AudioPreload::AudioPreload(const char* fp, uint8_t* buf, size_t sz, float startFrom /* = 0.0f */, FS& fs /* = SD */)
 	: AudioPreload()
 {
-	preLoad(fp,buf,sz,fs);
+	preLoad(fp,buf,sz,startFrom,fs);
 }
 
 /*
  * Create buffer and pre-load file data
  */
-AudioBuffer::result AudioPreload::preLoad(const char* fp, AudioBuffer::bufType bt, size_t sz, FS& fs /* = SD */)
+AudioBuffer::result AudioPreload::preLoad(const char* fp, AudioBuffer::bufType bt, size_t sz, float startFrom /* = 0.0f */, FS& fs /* = SD */)
 {
 	result rv = createBuffer(sz, bt);
 	if (ok == rv)
-		rv = preLoad(fp,fs);
+		rv = preLoad(fp,startFrom,fs);
 	return rv;
 }
 
@@ -423,11 +423,11 @@ AudioBuffer::result AudioPreload::preLoad(const char* fp, AudioBuffer::bufType b
 /*
  * Use supplied buffer and pre-load file data
  */
-AudioBuffer::result AudioPreload::preLoad(const char* fp, uint8_t* buf, size_t sz, FS& fs /* = SD */)
+AudioBuffer::result AudioPreload::preLoad(const char* fp, uint8_t* buf, size_t sz, float startFrom /* = 0.0f */, FS& fs /* = SD */)
 {
 	result rv = createBuffer(buf,sz);
 	if (ok == rv)
-		rv = preLoad(fp,fs);
+		rv = preLoad(fp,startFrom,fs);
 	return rv;
 }
 
@@ -435,7 +435,7 @@ AudioBuffer::result AudioPreload::preLoad(const char* fp, uint8_t* buf, size_t s
 /*
  * Use existing buffer and pre-load file data
  */
-AudioBuffer::result AudioPreload::preLoad(const char* fp, FS& fs /* = SD */)
+AudioBuffer::result AudioPreload::preLoad(const char* fp, float startFrom /* = 0.0f */, FS& fs /* = SD */)
 {
 	result rv = invalid;
 	File f = fs.open(fp);
@@ -450,21 +450,30 @@ AudioBuffer::result AudioPreload::preLoad(const char* fp, FS& fs /* = SD */)
 		
 		if (wavd.parseWAVheader(f) > 0) // channel count >0, file is OK
 		{
+			size_t loadPos = wavd.firstAudio; // where audio starts in file
+			size_t maxAudio = wavd.audioSize; // how much we could read into buffer
+			
+			if (startFrom > 0.0f) // start later in file?
+			{
+				loadPos = wavd.millisToPosition(startFrom,AUDIO_SAMPLE_RATE); // read from here
+				maxAudio -= loadPos - wavd.firstAudio; // can't read as much
+			}
+			
 			// load to sector boundary, or end of file if smaller than buffer
 			size_t avail = bufSize; // total size of buffer
 			size_t fpspace = strlen(fp)+1; 			// need this for copy of file path
 			avail -=  fpspace; 						// this much space remains for data
 			char* fpcopy = (char*) buffer+avail;	// record this for later
-			fileOffset = wavd.firstAudio + avail; 	// could get this much into the file...
+			fileOffset = loadPos + avail; 			// could get this much into the file...
 			fileOffset &= -512;						// ...go only this far, so we hit sector boundary
-			avail = fileOffset - wavd.firstAudio;	// amount we want to buffer
+			avail = fileOffset - loadPos;			// amount we want to buffer
 			
-			if (wavd.audioSize < avail) // don't need that much...
-				avail = wavd.audioSize; // ...pretend we don't have the space
+			if (maxAudio < avail)  // there isn't that much audio in the file...
+				avail = maxAudio;  // ...pretend we don't have the space
 				
 			if (avail > 0) // we do have something to buffer
 			{
-				f.seek(wavd.firstAudio); 			// go to start of audio data
+				f.seek(loadPos); 			// go to start of audio data
 				if (avail == f.read(buffer,avail)) 	// and buffer it
 				{
 					strcpy(fpcopy,fp);  // copy file path to buffer memory
@@ -606,4 +615,24 @@ void AudioWAVdata::makeWAVheader(wavhdr_t* wav,uint16_t chans, uint16_t fmt, uin
 	wav->fmt.bitsPerSample = bits;	
 	
 	wav->data.id.u = IDs.data; // ID is fixed
+}
+
+
+/*
+ * Convert time in milliseconds to file position.
+ * \return 0 if header values haven't been parsed, otherwise file position
+ */
+size_t AudioWAVdata::millisToPosition(float m,	// time [milliseconds]
+									  float sr)	// sample rate [Hz]
+{
+	size_t pos = 0;
+	
+	if (bitsPerSample > 0) // simple check - could be better
+	{
+		pos = (size_t)(m / 1000.0f * sr); // samples from audio start
+		pos *= chanCnt * bitsPerSample / 8; // convert to bytes
+		pos += firstAudio; 		// and total file offset
+	}
+	
+	return pos;
 }
