@@ -27,6 +27,8 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
+// #pragma GCC optimize("O0")
+
 /*
  * Prepare to play back from a file
  */
@@ -95,7 +97,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 	switch (evref.getStatus())
 	{
 		case STATE_LOADING: // playing pre-load: open and prepare file, ready to switch over
-			pPWB->wavfile = pPWB->ppl->pFS->open(pPWB->ppl->filepath);
+			pPWB->wavfile = pPWB->ppl->open();
 			if (pPWB->prepareFile(STATE_PAUSED == pPWB->state,0.0f,pPWB->ppl->fileOffset))
 				pPWB->fileState = fileReady;
 			else
