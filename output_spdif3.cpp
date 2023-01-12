@@ -24,11 +24,11 @@
  https://www.mikrocontroller.net/articles/S/PDIF
  https://en.wikipedia.org/wiki/S/PDIF
 */
-
-#if defined(__IMXRT1052__) || defined(__IMXRT1062__)
-
 #include <Arduino.h>
 #include "output_spdif3.h"
+
+#if defined(__IMXRT1062__)
+
 #include "utility/imxrt_hw.h"
 #include "memcpy_audio.h"
 #include <math.h>
@@ -61,6 +61,7 @@ FLASHMEM
 void AudioOutputSPDIF3::begin(void)
 {
 
+	memset(SPDIF_tx_buffer,0,sizeof SPDIF_tx_buffer); // ensure we start with silence
 	dma.begin(true); // Allocate the DMA channel first
 
 	block_left_1st = nullptr;
@@ -98,7 +99,6 @@ void AudioOutputSPDIF3::begin(void)
 
 void AudioOutputSPDIF3::isr(void)
 {
-
 	const int16_t *src_left, *src_right;
 	const int32_t *end;
 	int32_t *dest;
@@ -127,23 +127,25 @@ void AudioOutputSPDIF3::isr(void)
 	src_right = (const int16_t *)(block_right->data);
 
 	do {
+		*dest++ = (*src_left++) << 8;
+		*dest++ = (*src_right++) << 8;
+
+		*dest++ = (*src_left++) << 8;
+		*dest++ = (*src_right++) << 8;
+
+		*dest++ = (*src_left++) << 8;
+		*dest++ = (*src_right++) << 8;
+
+		*dest++ = (*src_left++) << 8;
+		*dest++ = (*src_right++) << 8;
+	
+		// Flush the cache every 32 bytes as we go along, as suggested in forum post 
+		// https://forum.pjrc.com/threads/54711-Teensy-4-0-First-Beta-Test?p=194676&viewfull=1#post194676
+		// Experience suggests it works better to flush 
+		// after the copy, rather than before...
 		#if IMXRT_CACHE_ENABLED >= 2
-		SCB_CACHE_DCCIMVAC = (uintptr_t) dest;
-		asm volatile("dsb");
+		arm_dcache_flush(dest-8,8 * sizeof *dest);
 		#endif
-		
-		*dest++ = (*src_left++) << 8;
-		*dest++ = (*src_right++) << 8;
-
-		*dest++ = (*src_left++) << 8;
-		*dest++ = (*src_right++) << 8;
-
-		*dest++ = (*src_left++) << 8;
-		*dest++ = (*src_right++) << 8;
-
-		*dest++ = (*src_left++) << 8;
-		*dest++ = (*src_right++) << 8;
-
 	} while (dest < end);
 
 	if (block_left != &block_silent) {
@@ -219,7 +221,7 @@ uint32_t AudioOutputSPDIF3::dpll_Gain(void)
 	return spdif_gain[SPDIF_DPLL_GAIN];
 }
 
-PROGMEM
+FLASHMEM
 void AudioOutputSPDIF3::config_spdif3(void)
 {
 	delay(1); //WHY IS THIS NEEDED?
@@ -284,5 +286,16 @@ void AudioOutputSPDIF3::config_spdif3(void)
 		SPDIF_STC_TXCLK_SOURCE(1) |	//tx_clk input (from SPDIF0_CLK_ROOT)
 		SPDIF_STC_TXCLK_DF(clkdiv - 1);
 }
+
+#endif // __IMXRT1062__
+
+
+#if defined(__MK66FX1M0__) || defined(__MK64FX512__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
+// empty code to allow compile (but no sound output) on other Teensy models
+
+void AudioOutputSPDIF3::update(void) { }
+void AudioOutputSPDIF3::begin(void) { }
+void AudioOutputSPDIF3::mute_PCM(const bool mute) { }
+bool AudioOutputSPDIF3::pll_locked(void) { return false; }
 
 #endif

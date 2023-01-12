@@ -99,14 +99,14 @@ void AudioOutputPT8211::begin(void)
 	dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 	dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0);
+	dma.attachInterrupt(isr);
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
+	dma.enable();
 
 	I2S1_RCSR |= I2S_RCSR_RE;
 	I2S1_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
 	update_responsibility = update_setup();
-	dma.attachInterrupt(isr);
-	dma.enable();
 	return;
 #endif
 }
@@ -342,12 +342,7 @@ void AudioOutputPT8211::isr(void)
 			offsetR += AUDIO_BLOCK_SAMPLES / 2;
 		#endif //defined(AUDIO_PT8211_OVERSAMPLING)
 	} else {
-		#if defined(AUDIO_PT8211_OVERSAMPLING)
-			memset(dest,0,AUDIO_BLOCK_SAMPLES*8);
-		#else
-			memset(dest,0,AUDIO_BLOCK_SAMPLES*2);
-		#endif
-		return;
+		memset(dest,0,sizeof(i2s_tx_buffer) / 2);
 	}
 
 	arm_dcache_flush_delete(dest_copy, sizeof(i2s_tx_buffer) / 2);
