@@ -27,7 +27,7 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
-// #pragma GCC optimize("O0")
+#pragma GCC optimize("O0")
 
 /*
  * Prepare to play back from a file
@@ -49,8 +49,13 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		stagger = (bufSize>>1) / stagger;
 		
 		// load data
+digitalToggleFast(24+objnum*2);
 		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
+		delayMicroseconds(500);
+digitalToggleFast(24+objnum*2);
 		parseWAVheader(wavfile); 	// figure out WAV file structure
+		delayMicroseconds(500);
+digitalToggleFast(24+objnum*2);
 		getNextRead(&pb,&sz);		// find out where and how much the buffer pre-load is
 		
 		data_length = total_length = audioSize; // all available data
@@ -71,6 +76,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		}
 		
 		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
+digitalToggleFast(24+objnum*2);
 		read(nullptr,skip);	// skip the header
 		
 		fileLoaded = ARM_DWT_CYCCNT;
@@ -83,40 +89,60 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		rv = true;
 		setInUse(true); // prevent changes to buffer memory
 	}
+	else
+		asm("nop");
 	
 	return rv;
 }
 
 /* static */ uint8_t AudioPlayWAVbuffered::objcnt;
-/* static */ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
+void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 {
 	uint8_t* pb;
 	size_t sz;
-	AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
 	
 	switch (evref.getStatus())
 	{
 		case STATE_LOADING: // playing pre-load: open and prepare file, ready to switch over
-			pPWB->wavfile = pPWB->ppl->open();
-			if (pPWB->prepareFile(STATE_PAUSED == pPWB->state,0.0f,pPWB->ppl->fileOffset))
-				pPWB->fileState = fileReady;
+digitalWriteFast(24+objnum*2,1);
+			Serial.printf("load %s\n",ppl->filepath);
+			wavfile = ppl->open();
+digitalWriteFast(24+objnum*2,0);
+			if (prepareFile(STATE_PAUSED == state,0.0f,ppl->fileOffset))
+				fileState = fileReady;
 			else
-				pPWB->fileState = ending;
+			{
+				//fileState = ending;
+				triggerEvent(STATE_LOADING); // re-trigger first file read
+			}
+digitalWriteFast(24+objnum*2,1);
 			break;
 			
 		case STATE_PLAYING: // request from update() to re-fill buffer
-			pPWB->getNextRead(&pb,&sz);		// find out where and how much
-			if (sz > pPWB->bufSize / 2)
-				sz = pPWB->bufSize / 2;		// limit reads to a half-buffer at a time
-			pPWB->loadBuffer(pb,sz);		// load more file data to the buffer
+digitalToggleFast(24+objnum*2);
+			getNextRead(&pb,&sz);		// find out where and how much
+			if (sz > bufSize / 2)
+				sz = bufSize / 2;		// limit reads to a half-buffer at a time
+			loadBuffer(pb,sz);		// load more file data to the buffer
+digitalToggleFast(24+objnum*2);
 			break;
 			
 		case STATE_STOP: // stopped from interrupt - finish the job
-			pPWB->stop();
+			stop();
+			break;
+			
+		default:
+			asm("nop");
 			break;
 	}
 }
 
+static void EventDespatcher(EventResponderRef evref)
+{
+	AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
+	
+	pPWB->EventResponse(evref);
+}
 
 void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz)
 {
@@ -167,7 +193,7 @@ SCOPESER_ENABLE();
 	// prepare EventResponder to refill buffer
 	// during yield(), if triggered from update()
 	setContext(this);
-	attach(EventResponse);
+	attach(EventDespatcher);
 }
 
 
@@ -275,6 +301,7 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			else
 			{
 				wavfile.close();
+digitalWriteFast(24+objnum*2,0);
 				state = state_play = STATE_STOP;
 				playState = fileState = silent;
 				ppl = nullptr;

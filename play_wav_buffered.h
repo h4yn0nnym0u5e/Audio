@@ -64,6 +64,7 @@ public:
 	uint32_t positionMillis(void);
 	uint32_t lengthMillis(void);
 	virtual void update(void);
+	void EventResponse(EventResponderRef evref);
 	
 	static uint8_t objcnt;
 	// debug members
@@ -75,7 +76,6 @@ private:
 	File wavfile;
 	AudioPreload* ppl;
 	size_t preloadRemaining;
-	static void EventResponse(EventResponderRef evref);
 	void loadBuffer(uint8_t* pb, size_t sz);
 	bool prepareFile(bool paused, float startFrom, size_t startFromI);
 	
