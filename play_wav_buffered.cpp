@@ -171,7 +171,6 @@ SCOPE_LOW();
 AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
 		AudioStream(0, NULL),
 		lowWater(0xFFFFFFFF),
-		estop(0),
 		wavfile(0), ppl(0), preloadRemaining(0),
 		eof(false), readPending(false), objnum(objcnt++),
 		data_length(0), total_length(0),
@@ -466,7 +465,6 @@ void AudioPlayWAVbuffered::update(void)
 		{
 			memset(((uint8_t*) buf)+got,0,sizeof buf - got); // fill with silence
 			stop(true); // and stop (within ISR): brutal, but probably better than losing sync
-			estop++;
 		}
 		
 		// deinterleave to audio blocks

@@ -71,10 +71,6 @@ public:
 	// debug members
 	size_t lowWater;
 	uint32_t playCalled,firstUpdate,fileLoaded;
-uint8_t getState(void) {return state;}
-uint8_t getPlayState(void) { return (uint8_t) playState; }
-uint8_t getFileState(void) { return (uint8_t) fileState; }
-	uint32_t estop;
 
 private:
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};
