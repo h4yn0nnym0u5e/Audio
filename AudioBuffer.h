@@ -172,6 +172,7 @@ public:
 	size_t fileOffset;		// where in file the unbuffered data starts
 	size_t sampleSize;		// size of one sample, in bytes (depends on channels and bit depth)
 	size_t startSample;		// sample # of first pre-loaded sample
+	uint16_t chanCnt; 		// number of channels
   public:
 	AudioPreload() : filepath(0), pFS(0), fileOffset(0), sampleSize(0), startSample(0), valid(0) {}
 	AudioPreload(AudioBuffer::bufType bt, size_t sz);

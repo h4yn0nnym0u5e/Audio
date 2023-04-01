@@ -264,6 +264,7 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 		
 		ppl = &p;				// using this preload
 		preloadRemaining = ppl->valid; // got this much data left
+		chanCnt = ppl->chanCnt;	// we need to know the channel count to de-interleave
 		
 		if (startFrom > 0.0f)
 		{
@@ -379,7 +380,15 @@ void AudioPlayWAVbuffered::update(void)
 	int alloCnt = 0; // count of blocks successfully allocated
 	
 	// only update if we're playing and not paused
-	if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED) return;
+	if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED) 
+		return;
+	
+	// just possible the channel count will be zero, if a file suddenly goes AWOL:
+	if (0 == chanCnt)
+	{
+		stop(true);
+		return;
+	}
 
 	if (0 == firstUpdate)
 		firstUpdate = ARM_DWT_CYCCNT;
@@ -481,7 +490,7 @@ void AudioPlayWAVbuffered::update(void)
 			for (int i=1;i<chanCnt;i++)
 				transmit(blocks[i], i);
 		}
-		
+
 		// deal with position tracking
 		if (got <= data_length)
 			data_length -= got;
