@@ -81,6 +81,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 			state = STATE_PLAYING;
 		rv = true;
 		setInUse(true); // prevent changes to buffer memory
+		fileState = filePrepared;
 	}
 	
 	return rv;
@@ -96,6 +97,7 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 	switch (evref.getStatus())
 	{
 		case STATE_LOADING: // playing pre-load: open and prepare file, ready to switch over
+			fileState = fileEvent;
 			wavfile = ppl->open();
 			if (prepareFile(STATE_PAUSED == state,0.0f,ppl->fileOffset))
 				fileState = fileReady;
@@ -169,6 +171,7 @@ SCOPE_LOW();
 AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
 		AudioStream(0, NULL),
 		lowWater(0xFFFFFFFF),
+		estop(0),
 		wavfile(0), ppl(0), preloadRemaining(0),
 		eof(false), readPending(false), objnum(objcnt++),
 		data_length(0), total_length(0),
@@ -216,7 +219,7 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 	bool rv = false;
 	
 	playCalled = ARM_DWT_CYCCNT;
-	firstUpdate = 0;
+	firstUpdate = fileLoaded = 0;
 	
 	stop();
 	wavfile = _file;
@@ -251,7 +254,7 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 	bool rv = false;
 	
 	playCalled = ARM_DWT_CYCCNT;
-	firstUpdate = 0;
+	firstUpdate = fileLoaded = 0;
 	
 	stop();
 	
@@ -311,8 +314,13 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			{
 				wavfile.close();
 				state = state_play = STATE_STOP;
-				playState = fileState = silent;
+				playState /* = fileState */ = silent;
 			}
+		}
+		else // file is closed, can always stop immediately
+		{
+			state = state_play = STATE_STOP;
+			playState /* = fileState */ = silent;
 		}
 		
 		if (nullptr != ppl) // preload is in use
@@ -321,6 +329,7 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			ppl = nullptr;
 		}
 		
+		readPending = false;
 		eof = true;
 		setInUse(false); // allow changes to buffer memory
 	}
@@ -379,6 +388,7 @@ void AudioPlayWAVbuffered::update(void)
 	{
 		triggerEvent(STATE_LOADING); // trigger first file read
 		readPending = true;
+		fileState = fileReq;
 	}
 
 	// allocate the audio blocks to transmit
@@ -446,6 +456,7 @@ void AudioPlayWAVbuffered::update(void)
 		{
 			memset(((uint8_t*) buf)+got,0,sizeof buf - got); // fill with silence
 			stop(true); // and stop (within ISR): brutal, but probably better than losing sync
+			estop++;
 		}
 		
 		// deinterleave to audio blocks
