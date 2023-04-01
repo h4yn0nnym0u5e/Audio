@@ -455,7 +455,8 @@ AudioBuffer::result AudioPreload::preLoad(const char* fp, float startFrom /* = 0
 			
 			// get ready for possible play() calls with non-zero startFrom
 			sampleSize = wavd.chanCnt * wavd.bitsPerSample / 8;
-			startSample = 0;			
+			startSample = 0;
+			chanCnt = wavd.chanCnt; // need to know this
 			
 			if (startFrom > 0.0f) // start later in file?
 			{
@@ -543,9 +544,9 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 {
 	uint32_t seekTo;
 	RIFFhdr_t rhdr = {0};
-	ext_fmt_t dt = {0};
-  
-	chanCnt = 0;
+	ext_fmt_t dt = {0}; 
+	uint16_t tmpChanCnt = 0; // audio update may occur, don't use class member
+	
 	samples = 0;
 	dataChunks = 0;
 	f.seek(0);
@@ -566,19 +567,19 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 
 				format = dt.fmt.fmt;
 				bitsPerSample = dt.fmt.bitsPerSample; 
-				chanCnt = dt.fmt.chanCnt;
+				tmpChanCnt = dt.fmt.chanCnt;
 
 				if (format == 0xFFFE) // extensible
 				{
 					format = dt.ext.subFmt;
 				}
 
-				bytes2millis = getB2M(chanCnt,dt.fmt.sampleRate,bitsPerSample);
+				bytes2millis = getB2M(tmpChanCnt,dt.fmt.sampleRate,bitsPerSample);
 			  
 				break;
 			  
 			  case IDs.data:
-				samples += dt.fmt.hdr.clen / chanCnt / (bitsPerSample / 8);
+				samples += dt.fmt.hdr.clen / tmpChanCnt / (bitsPerSample / 8);
 				if (0 == dataChunks++) // first data chunk: we only allow use of one
 				{
 					firstAudio = f.position(); 		// audio data starts here
@@ -594,11 +595,16 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 		} while (seekTo < rhdr.flen);
 		
 		if (0 == samples)	// no data?
-			chanCnt = 0;	// say there are no channels!
+			tmpChanCnt = 0;	// say there are no channels!
 	}
 
 	f.seek(0);
 
+	// update playback channel count: this could cause mayhem if
+	// somehow the preload and file channel counts are different,
+	// but this should never happen!
+	chanCnt = tmpChanCnt;
+	
 	return chanCnt;
 }
 

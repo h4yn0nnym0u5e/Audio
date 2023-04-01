@@ -185,6 +185,11 @@ void AudioMixer4::update(void)
 			}
 		} else {
 			in = receiveReadOnly(channel);
+			
+CrashReport.breadcrumb(1,in);
+CrashReport.breadcrumb(2,channel);
+CrashReport.breadcrumb(3,millis());
+		
 			if (in) {
 				applyGainThenAdd(out->data, in->data, multiplier[channel]);
 				release(in);

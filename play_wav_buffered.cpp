@@ -171,7 +171,6 @@ SCOPE_LOW();
 AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
 		AudioStream(0, NULL),
 		lowWater(0xFFFFFFFF),
-		estop(0),
 		wavfile(0), ppl(0), preloadRemaining(0),
 		eof(false), readPending(false), objnum(objcnt++),
 		data_length(0), total_length(0),
@@ -264,6 +263,7 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 		
 		ppl = &p;				// using this preload
 		preloadRemaining = ppl->valid; // got this much data left
+		chanCnt = ppl->chanCnt;	// we need to know the channel count to de-interleave
 		
 		if (startFrom > 0.0f)
 		{
@@ -305,7 +305,6 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 		state = STATE_STOPPING; // prevent update() from doing anything
 		if (wavfile) // audio file is open
 		{
-			clearEvent();	// may have pending read, but file will be closed!
 			if (fromInt)	// can't close file, SD action may be in progress
 			{
 				triggerEvent(STATE_STOP); // close on next yield()
@@ -322,6 +321,8 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			state = state_play = STATE_STOP;
 			playState /* = fileState */ = silent;
 		}
+		
+		clearEvent();	// may have pending read, but file will be closed!
 		
 		if (nullptr != ppl) // preload is in use
 		{
@@ -378,7 +379,15 @@ void AudioPlayWAVbuffered::update(void)
 	int alloCnt = 0; // count of blocks successfully allocated
 	
 	// only update if we're playing and not paused
-	if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED) return;
+	if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED) 
+		return;
+	
+	// just possible the channel count will be zero, if a file suddenly goes AWOL:
+	if (0 == chanCnt)
+	{
+		stop(true);
+		return;
+	}
 
 	if (0 == firstUpdate)
 		firstUpdate = ARM_DWT_CYCCNT;
@@ -456,7 +465,6 @@ void AudioPlayWAVbuffered::update(void)
 		{
 			memset(((uint8_t*) buf)+got,0,sizeof buf - got); // fill with silence
 			stop(true); // and stop (within ISR): brutal, but probably better than losing sync
-			estop++;
 		}
 		
 		// deinterleave to audio blocks
@@ -480,7 +488,7 @@ void AudioPlayWAVbuffered::update(void)
 			for (int i=1;i<chanCnt;i++)
 				transmit(blocks[i], i);
 		}
-		
+
 		// deal with position tracking
 		if (got <= data_length)
 			data_length -= got;
