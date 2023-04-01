@@ -45,6 +45,7 @@ class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public A
 {
 public:
 	AudioPlayWAVbuffered(void);
+	~AudioPlayWAVbuffered(void);
 	
 	bool playSD(const char* filename, bool paused = false, float startFrom = 0.0f);
 	bool play(const File _file, bool paused = false, float startFrom = 0.0f);
@@ -70,6 +71,10 @@ public:
 	// debug members
 	size_t lowWater;
 	uint32_t playCalled,firstUpdate,fileLoaded;
+uint8_t getState(void) {return state;}
+uint8_t getPlayState(void) { return (uint8_t) playState; }
+uint8_t getFileState(void) { return (uint8_t) fileState; }
+	uint32_t estop;
 
 private:
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};
@@ -93,6 +98,9 @@ private:
 		silent,		// nothing being played
 		sample,		// sample is being played
 		fileLoad,	// file needs initial buffering (filestate only)
+		fileReq,
+		fileEvent,
+		filePrepared,
 		fileReady,	// file is buffered and ready (filestate only)
 		file,		// file is being played
 		ending

@@ -42,7 +42,7 @@ AudioBuffer::result MemBuffer::disposeBuffer()
 {
 	result rv = invalid;
 	
-	if (!inUse)
+	if (0 == inUse)
 	{
 		if (nullptr != buffer)
 		{
@@ -82,7 +82,7 @@ AudioBuffer::result MemBuffer::createBuffer(uint8_t* buf, //!< pointer to memory
 {
 	result rv = invalid;
 	
-	if (!inUse)
+	if (0 == inUse)
 	{
 		disposeBuffer(); // ensure existing buffer is freed, if possible
 		
@@ -110,7 +110,7 @@ AudioBuffer::result MemBuffer::createBuffer(size_t sz, //!< requested size of me
 	AudioBuffer::result rv = invalid;
 	void* buf = nullptr;
 
-	if (!inUse)
+	if (0 == inUse)
 	{
 		switch (typ)
 		{

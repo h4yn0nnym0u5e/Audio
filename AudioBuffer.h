@@ -32,17 +32,14 @@
 
 // Default to disabling oscilloscope debug
 // This will be removed in production code
-#define SCOPE_ENABLE(...) 
-#define SCOPE_HIGH(...) 
-#define SCOPE_LOW(...) 
-#define SCOPE_TOGGLE(...)
-#define SCOPESER_ENABLE(...) 
-#define SCOPESER_TX(...)  
+#define noSCOPE_PIN
+#include <oscope.h>  
 
 class MemBuffer
 {
+	int inUse;			// if true, buffer is in use and createBuffer() and disposeBuffer() will fail
   public:
-	MemBuffer() : buffer(0), inUse(false), 
+	MemBuffer() : inUse(0), buffer(0), 
 				  bufSize(0), bufTypeX(none) {}
 	~MemBuffer() { disposeBuffer(); }
 		
@@ -50,7 +47,6 @@ class MemBuffer
 	enum result  {ok,halfEmpty,underflow,full,invalid};
 
 	uint8_t* buffer;	// memory used for buffering
-	bool inUse;			// if true, buffer is in use and createBuffer() and disposeBuffer() will fail
 	size_t bufSize;		// total size of buffer
 	bufType bufTypeX;
 	
@@ -58,6 +54,12 @@ class MemBuffer
 	result createBuffer(size_t sz, bufType typ);  // create buffer for audio data, managed by class
 	result createBuffer(uint8_t* buf, size_t sz);  // create buffer for audio data, managed by application
 	result disposeBuffer(); // dispose of buffer: if it's of type "given", the application may free it after this call
+	void setInUse(bool flag) // lock the buffer while in use
+	{
+		inUse += flag?1:-1;
+		if (inUse < 0) // this never happens...
+			inUse = 0;
+	} 
 };
 
 
@@ -151,7 +153,6 @@ class AudioBuffer : public MemBuffer
 	
 	size_t getAvailable(); // find out how much valid data is available
 	void emptyBuffer(size_t offset=0) {queueOut = queueIn = offset; isFull = false; bufState = empty;} // initialise the buffer to its empty state
-	void setInUse(bool flag) {inUse = flag;} // lock the buffer while in use
 };
 
 

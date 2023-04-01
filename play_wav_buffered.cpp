@@ -27,7 +27,6 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
-#pragma GCC optimize("O0")
 
 /*
  * Prepare to play back from a file
@@ -49,13 +48,8 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		stagger = (bufSize>>1) / stagger;
 		
 		// load data
-digitalToggleFast(24+objnum*2);
 		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
-		delayMicroseconds(500);
-digitalToggleFast(24+objnum*2);
 		parseWAVheader(wavfile); 	// figure out WAV file structure
-		delayMicroseconds(500);
-digitalToggleFast(24+objnum*2);
 		getNextRead(&pb,&sz);		// find out where and how much the buffer pre-load is
 		
 		data_length = total_length = audioSize; // all available data
@@ -76,7 +70,6 @@ digitalToggleFast(24+objnum*2);
 		}
 		
 		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
-digitalToggleFast(24+objnum*2);
 		read(nullptr,skip);	// skip the header
 		
 		fileLoaded = ARM_DWT_CYCCNT;
@@ -88,12 +81,12 @@ digitalToggleFast(24+objnum*2);
 			state = STATE_PLAYING;
 		rv = true;
 		setInUse(true); // prevent changes to buffer memory
+		fileState = filePrepared;
 	}
-	else
-		asm("nop");
 	
 	return rv;
 }
+
 
 /* static */ uint8_t AudioPlayWAVbuffered::objcnt;
 void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
@@ -104,10 +97,8 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 	switch (evref.getStatus())
 	{
 		case STATE_LOADING: // playing pre-load: open and prepare file, ready to switch over
-digitalWriteFast(24+objnum*2,1);
-			Serial.printf("load %s\n",ppl->filepath);
+			fileState = fileEvent;
 			wavfile = ppl->open();
-digitalWriteFast(24+objnum*2,0);
 			if (prepareFile(STATE_PAUSED == state,0.0f,ppl->fileOffset))
 				fileState = fileReady;
 			else
@@ -115,16 +106,13 @@ digitalWriteFast(24+objnum*2,0);
 				//fileState = ending;
 				triggerEvent(STATE_LOADING); // re-trigger first file read
 			}
-digitalWriteFast(24+objnum*2,1);
 			break;
 			
 		case STATE_PLAYING: // request from update() to re-fill buffer
-digitalToggleFast(24+objnum*2);
 			getNextRead(&pb,&sz);		// find out where and how much
 			if (sz > bufSize / 2)
 				sz = bufSize / 2;		// limit reads to a half-buffer at a time
 			loadBuffer(pb,sz);		// load more file data to the buffer
-digitalToggleFast(24+objnum*2);
 			break;
 			
 		case STATE_STOP: // stopped from interrupt - finish the job
@@ -137,12 +125,14 @@ digitalToggleFast(24+objnum*2);
 	}
 }
 
+
 static void EventDespatcher(EventResponderRef evref)
 {
 	AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
 	
 	pPWB->EventResponse(evref);
 }
+
 
 void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz)
 {
@@ -177,9 +167,11 @@ SCOPE_LOW();
 }
 
 
+/* Constructor */
 AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
 		AudioStream(0, NULL),
 		lowWater(0xFFFFFFFF),
+		estop(0),
 		wavfile(0), ppl(0), preloadRemaining(0),
 		eof(false), readPending(false), objnum(objcnt++),
 		data_length(0), total_length(0),
@@ -197,6 +189,25 @@ SCOPESER_ENABLE();
 }
 
 
+/*
+ * Destructor
+ *
+ * Could be called while active, so need to take care that destruction
+ * is done in a sane order. 
+ *
+ * MUST NOT destruct the object from an ISR!
+ */
+AudioPlayWAVbuffered::~AudioPlayWAVbuffered(void)
+{
+	stop(); // close file, relinquish use of preload buffer, any triggered event cleared, set to STATE_STOPPING
+	// Further destructor actions:
+	// This destructor exits, wavfile is destructed
+	// ~AudioStream: unlinked from connections and update list
+	// ~AudioWAVdata
+	// ~AudioBuffer: ~MemBuffer disposes of buffer memory, if bufType != given
+	// ~EventResponder: detached from event list
+}
+
 bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
 	return play(SD.open(filename), paused, startFrom);
@@ -208,7 +219,7 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 	bool rv = false;
 	
 	playCalled = ARM_DWT_CYCCNT;
-	firstUpdate = 0;
+	firstUpdate = fileLoaded = 0;
 	
 	stop();
 	wavfile = _file;
@@ -227,6 +238,7 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 	return rv;
 }
 
+
 /*
  * Play audio starting from pre-loaded buffer, and switching to filesystem when that's exhausted.
  *
@@ -242,7 +254,7 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 	bool rv = false;
 	
 	playCalled = ARM_DWT_CYCCNT;
-	firstUpdate = 0;
+	firstUpdate = fileLoaded = 0;
 	
 	stop();
 	
@@ -290,10 +302,9 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 {
 	if (state != STATE_STOP) 
 	{
-		state = STATE_STOPPING;
-		if (wavfile)
+		state = STATE_STOPPING; // prevent update() from doing anything
+		if (wavfile) // audio file is open
 		{
-			clearEvent();	// may have pending read, but file will be closed!
 			if (fromInt)	// can't close file, SD action may be in progress
 			{
 				triggerEvent(STATE_STOP); // close on next yield()
@@ -301,12 +312,25 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			else
 			{
 				wavfile.close();
-digitalWriteFast(24+objnum*2,0);
 				state = state_play = STATE_STOP;
-				playState = fileState = silent;
-				ppl = nullptr;
+				playState /* = fileState */ = silent;
 			}
 		}
+		else // file is closed, can always stop immediately
+		{
+			state = state_play = STATE_STOP;
+			playState /* = fileState */ = silent;
+		}
+		
+		clearEvent();	// may have pending read, but file will be closed!
+		
+		if (nullptr != ppl) // preload is in use
+		{
+			ppl->setInUse(false);
+			ppl = nullptr;
+		}
+		
+		readPending = false;
 		eof = true;
 		setInUse(false); // allow changes to buffer memory
 	}
@@ -327,6 +351,7 @@ void AudioPlayWAVbuffered::togglePlayPause(void) {
 	}
 }
 
+
 // de-interleave channels of audio from buf into separate blocks
 static void deinterleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 {
@@ -346,7 +371,6 @@ static void deinterleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 }
 
 
-//#pragma GCC optimize ("O0")
 void AudioPlayWAVbuffered::update(void)
 {
 	int16_t buf[chanCnt * AUDIO_BLOCK_SAMPLES];
@@ -365,6 +389,7 @@ void AudioPlayWAVbuffered::update(void)
 	{
 		triggerEvent(STATE_LOADING); // trigger first file read
 		readPending = true;
+		fileState = fileReq;
 	}
 
 	// allocate the audio blocks to transmit
@@ -398,6 +423,8 @@ void AudioPlayWAVbuffered::update(void)
 				got = preloadRemaining;
 				preloadRemaining = 0;
 				toFill -= got;
+				ppl->setInUse(false); // finished with preload
+				ppl = nullptr;
 			}
 
 			if (0 == preloadRemaining)
@@ -430,6 +457,7 @@ void AudioPlayWAVbuffered::update(void)
 		{
 			memset(((uint8_t*) buf)+got,0,sizeof buf - got); // fill with silence
 			stop(true); // and stop (within ISR): brutal, but probably better than losing sync
+			estop++;
 		}
 		
 		// deinterleave to audio blocks
@@ -501,6 +529,7 @@ bool AudioPlayWAVbuffered::isStopped(void)
 	uint8_t s = *(volatile uint8_t *)&state;
 	return (s == STATE_STOP || s == STATE_STOP);
 }
+
 
 /**
  * Approximate progress in milliseconds.

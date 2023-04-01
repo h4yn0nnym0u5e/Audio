@@ -40,12 +40,22 @@
 #include "oscope.h"
 //*/
 
+#if !defined(SAFE_RELEASE_INPUTS)
+#define SAFE_RELEASE_INPUTS(...)
+#endif // !defined(SAFE_RELEASE_INPUTS)
+
 
 class AudioRecordWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
 {
 public:
 	AudioRecordWAVbuffered(unsigned char ninput, audio_block_t **iqueue);
 	AudioRecordWAVbuffered(void) : AudioRecordWAVbuffered(2,inputQueueArray) {}
+	~AudioRecordWAVbuffered(void) 
+	{
+		stop();
+		SAFE_RELEASE_INPUTS();
+	}
+	
 	bool recordSD(const char* filename, bool paused = false);
 	bool record(const File _file, bool paused = false);
 	bool record(const char* filename, FS& fs = SD, bool paused = false)
