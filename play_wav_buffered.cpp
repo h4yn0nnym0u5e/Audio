@@ -27,7 +27,6 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
-
 /*
  * Prepare to play back from a file
  */
@@ -40,15 +39,16 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		uint8_t* pb;
 		size_t sz,stagger,skip;
 		constexpr int SLOTS=16;
+		int actualSlots = SLOTS;
 		
 		//* stagger pre-load:
-		stagger = bufSize / 1024; 
-		if (stagger > SLOTS)
-			stagger = SLOTS;
-		stagger = (bufSize>>1) / stagger;
+		actualSlots = bufSize / 1024; 
+		if (actualSlots > SLOTS)
+			actualSlots = SLOTS;
+		stagger = (bufSize>>1) / actualSlots;
 		
 		// load data
-		emptyBuffer((objnum & (SLOTS-1)) * stagger); // ensure we start from scratch
+		emptyBuffer((objnum & (actualSlots-1)) * stagger); // ensure we start from scratch
 		parseWAVheader(wavfile); 	// figure out WAV file structure
 		getNextRead(&pb,&sz);		// find out where and how much the buffer pre-load is
 		
@@ -157,6 +157,7 @@ SCOPESER_TX(av & 0xFF);
 		{
 			if (got < 0)
 				got = 0;
+
 			memset(pb+got,0,sz-got); // zero the rest of the buffer
 			eof = true;
 		}
@@ -283,7 +284,7 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 		{
 			playState = sample;		// start by playing pre-loaded data
 			fileState = fileLoad;	// load file buffer on first event
-			setInUse(true); // prevent changes to buffer memory
+			ppl->setInUse(true); // prevent changes to buffer memory
 
 			state_play = STATE_PLAYING;
 			if (paused)
@@ -300,6 +301,7 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 
 void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 {
+	bool eventTriggered = false;
 	if (state != STATE_STOP) 
 	{
 		state = STATE_STOPPING; // prevent update() from doing anything
@@ -308,6 +310,7 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			if (fromInt)	// can't close file, SD action may be in progress
 			{
 				triggerEvent(STATE_STOP); // close on next yield()
+				eventTriggered = true;
 			}
 			else
 			{
@@ -324,7 +327,7 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 		
 		clearEvent();	// may have pending read, but file will be closed!
 		
-		if (nullptr != ppl) // preload is in use
+		if (!eventTriggered && nullptr != ppl) // preload is in use
 		{
 			ppl->setInUse(false);
 			ppl = nullptr;
@@ -431,12 +434,17 @@ void AudioPlayWAVbuffered::update(void)
 				got = preloadRemaining;
 				preloadRemaining = 0;
 				toFill -= got;
-				ppl->setInUse(false); // finished with preload
-				ppl = nullptr;
 			}
 
 			if (0 == preloadRemaining)
 				playState = file;
+		}
+		
+		// preload, if in use, is needed until the file buffer is ready
+		if (nullptr != ppl && file == playState && fileReady == fileState)
+		{
+			ppl->setInUse(false); // finished with preload
+			ppl = nullptr;
 		}
 		
 		// try to fill buffer from file, settle for what's available

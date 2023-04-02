@@ -299,10 +299,13 @@ bool AudioBuffer::getNextRead(uint8_t** pbuf, 	//!< pointer to pointer returning
 		
 	if (queueIn + sz > bufSize) // read would exceed buffer, limit it
 		sz = bufSize - queueIn;
+
+	if (isFull && queueOut == queueIn) // no room at all
+		sz = 0;
 	
 	*pbuf = buffer+queueIn;
 	*psz  = sz;
-	
+
 	return sz > bufSize / 2;
 }
 
