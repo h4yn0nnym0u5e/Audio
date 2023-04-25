@@ -345,19 +345,19 @@ span.mainfunction {color: #993300; font-weight: bolder}
 <script  type="text/x-red" data-container-name="InputOutputCompatibilityMetadata">
 	{"requirements":[
 		{"type":"AudioInputI2S",         "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioInputI2S",         "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputI2S",         "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioInputI2S",         "resource":"IN1 Pin",       "shareable":false},
 		{"type":"AudioInputI2SQuad",     "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioInputI2SQuad",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputI2SQuad",     "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioInputI2SQuad",     "resource":"IN1 Pin",       "shareable":false},
 		{"type":"AudioInputI2SQuad",     "resource":"OUT1D Pin",     "shareable":false},
 		{"type":"AudioInputI2SHex",      "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioInputI2SHex",      "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputI2SHex",      "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioInputI2SHex",      "resource":"IN1 Pin",       "shareable":false},
 		{"type":"AudioInputI2SHex",      "resource":"OUT1D Pin",     "shareable":false},
 		{"type":"AudioInputI2SHex",      "resource":"OUT1C Pin",     "shareable":false},
 		{"type":"AudioInputI2SOct",      "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioInputI2SOct",      "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputI2SOct",      "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioInputI2SOct",      "resource":"IN1 Pin",       "shareable":false},
 		{"type":"AudioInputI2SOct",      "resource":"OUT1D Pin",     "shareable":false},
 		{"type":"AudioInputI2SOct",      "resource":"OUT1C Pin",     "shareable":false},
@@ -393,19 +393,19 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioInputTDM2",        "resource":"IN2 Pin",       "shareable":false},
 		{"type":"AudioInputUSB",         "resource":"USB Rx Endpoint","shareable":false},
 		{"type":"AudioOutputI2S",        "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioOutputI2S",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputI2S",        "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputI2S",        "resource":"OUT1A Pin",     "shareable":false},
 		{"type":"AudioOutputI2SQuad",    "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioOutputI2SQuad",    "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputI2SQuad",    "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputI2SQuad",    "resource":"OUT1A Pin",     "shareable":false},
 		{"type":"AudioOutputI2SQuad",    "resource":"OUT1B Pin",     "shareable":false},
 		{"type":"AudioOutputI2SHex",     "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioOutputI2SHex",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputI2SHex",     "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputI2SHex",     "resource":"OUT1A Pin",     "shareable":false},
 		{"type":"AudioOutputI2SHex",     "resource":"OUT1B Pin",     "shareable":false},
 		{"type":"AudioOutputI2SHex",     "resource":"OUT1C Pin",     "shareable":false},
 		{"type":"AudioOutputI2SOct",     "resource":"I2S Device",    "shareable":true,  "setting":"I2S Master"},
-		{"type":"AudioOutputI2SOct",     "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputI2SOct",     "resource":"Sample Rate",   "shareable":true,  "setting":["Teensy Control", "SPDIF Control"]},
 		{"type":"AudioOutputI2SOct",     "resource":"OUT1A Pin",     "shareable":false},
 		{"type":"AudioOutputI2SOct",     "resource":"OUT1B Pin",     "shareable":false},
 		{"type":"AudioOutputI2SOct",     "resource":"OUT1C Pin",     "shareable":false},
@@ -568,6 +568,54 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	]}
 </script>
 
+
+<script type="text/x-red" data-help-name="Welcome">
+	<h3>Welcome</h3>
+	<p>The Audio System Design Tool lets you easily draw a system to process 16 bit, 
+	44.1 kHz streaming audio while your Arduino sketch also runs.</p>
+	<p>Export will generate code to copy into the Arduino editor, to implement your system.</p>
+	<p>Most objects provide simple functions you can call from setup() or loop() to control 
+	your audio project!</p><h3>Offline Use</h3><p>This tool does not use a server.  A 
+	stand-alone copy is provided with the Teensy Audio Library, in the gui folder.</p>
+	
+	<h3>Connections</h3>
+	<p>Audio connections made in the tool use AudioConnection objects, which route the output 
+	of an audio object to the input of another. Useful audio applications usually require several 
+	audio objects and of course connections between them. A number of functions are provided
+	(as of Teensyduino 1.57) to allow re-patching of your design while it is running:
+	</p>
+	
+	<h4>Functions</h4>
+	<p class=func><span class=keyword>connect</span>(source, sourcePort, destination, destinationPort);</p>
+	<p class=desc>Route audio data from the source object's sourcePort, 
+	to the destination object's destinationPort.
+	</p>	
+	<p class=desc>
+	If the destination port is in use this call will fail, as an input can only accept 
+	audio data from a single source. A source port, by contrast, can send data to as
+	many destinations as needed.
+	</p>	
+	<p class=func><span class=keyword>connect</span>(source, destination);</p>
+	<p class=desc>
+	Route audio data from the source object's output 0, to the destination object's input 0. 
+	This shorter form is convenient when using objects with only a single input and output.
+	</p>	
+	
+	<p class=func><span class=keyword>disconnect</span>();</p>
+	<p class=desc>
+	Disconnects an existing audio data route, allowing it to be re-connected using one
+	of the connect() variants. It is OK to leave a connection disconnected if it is not needed.
+	</p>	
+	
+
+	<h3>Credits</h3>
+	<p>Special thanks to Nicholas O'Leary, Dave Conway-Jones and IBM.</p>
+	<p>Without their work on the open source 
+	<a href=\"http://nodered.org/\" target=\"_blank\">Node-RED</a> project, 
+	this graphical design tool would not have been possible!</p>
+</script>
+
+
 <script type="text/x-red" data-help-name="AudioInputI2S">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
@@ -608,6 +656,13 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<p>Audio from
 		master mode I2S may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3 on a Teensy 4.x, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<p>Compatible CODEC Chips:
 		<ul>
 		<li><a href="https://www.pjrc.com/store/teensy3_audio.html">STGL5000</a>
@@ -707,6 +762,12 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<p>Audio from
 		master mode I2S may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
+	<p>With some degradation in quality, on a Teensy 4.x
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift if the sample rates are significantly different.
+	</p>
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughQuad
 	</p>
@@ -759,6 +820,13 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		<tr class=odd><td align=center>9</td><td>RX (ch 5+6)</td><td>Input</td></tr>
 		<tr class=odd><td align=center>20</td><td>LRCLK</td><td>Output</td></tr>
 	</table>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>	
 	<h3>Examples</h3>
 	<!--<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughQuad
 	</p>-->
@@ -804,6 +872,13 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<h3>Hardware</h3>
 	<p>The I2S signals are used in "master" mode, where Teensy creates
 		all 3 clock signals and controls all data timing.</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Teensy<br>4.x Pin</th><th>Signal</th><th>Direction</th></tr>
 		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output</td></tr>
@@ -878,8 +953,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<p>Receive S/PDIF digital audio, at the rate of the external digital audio source.</p>
 	<p><span style="color:red">This input is incompatible with most other inputs and outputs</span>
 		which run at a speed controlled by Teensy's internal sample rate.</p>
-		<p>It is compatible with the AudioOutputSPDIF3 output: when used together the audio system
-		will run at the external source's sample rate.</p>
+		<p>It is compatible with the AudioOutputSPDIF3 output and the I2S (but not I2S2) objects: when used together the audio system
+		will run at the external source's sample rate. See the AudioOutputI2S documentation for more detail.</p>
 	</div>
 	<h3>Boards Supported</h3>
 	<ul>
@@ -914,7 +989,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 	<h3>Notes</h3>
 	<p>This input tries to force the entire audio library to run at the
 		sample rate of the incoming data.  It usually can not be combined
-		with most other inputs and outputs which run at specific speeds.</p>
+		with most other inputs and outputs which run at specific speeds. I2S and
+		the SPDIF3 output can be used.</p>
 </script>
 <script type="text/x-red" data-template-name="AudioInputSPDIF3">
 	<div class="form-row">
@@ -1552,6 +1628,13 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p>Audio from
 		master mode I2S may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3 on a Teensy 4.x, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<p>Compatible CODEC Chips:
 		<ul>
 		<li><a href="https://www.pjrc.com/store/teensy3_audio.html">STGL5000</a>
@@ -1639,6 +1722,13 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p>Audio from
 		master mode I2S may be used in the same project as ADC, DAC and
 		PWM signals, because all remain in sync to Teensy's timing</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3 on a Teensy 4.x, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughQuad
 	</p>
@@ -1681,6 +1771,13 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<h3>Hardware</h3>
 	<p>The I2S signals are used in "master" mode, where Teensy creates
 		all 3 clock signals and controls all data timing.</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Teensy<br>4.x Pin</th><th>Signal</th><th>Direction</th></tr>
 		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output</td></tr>
@@ -1733,6 +1830,13 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<h3>Hardware</h3>
 	<p>The I2S signals are used in "master" mode, where Teensy creates
 		all 3 clock signals and controls all data timing.</p>
+	<p>With some degradation in quality, 
+	audio from master mode I2S may be used in the same project as
+	AudioInputSPDIF3, in which case the audio update clock will derive from
+	the input S/PDIF sample rate. Note that this may also result in a pitch
+	shift for synth objects, and incorrect frequency response for filters,
+	if the sample rates are significantly different.
+	</p>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Teensy<br>4.x Pin</th><th>Signal</th><th>Direction</th></tr>
 		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output</td></tr>
@@ -1915,9 +2019,9 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Transmit 16 bit stereo audio as Digital S/PDIF by use of the native S/PDIF port.</p>
-		<p>It is compatible with the AudioInputSPDIF3 input: when used together the audio system
+		<p>It is compatible with the AudioInputSPDIF3 input (and I2S, but not I2S2, objects): when used together the audio system
 		will run at the external source's sample rate, in which case other audio input or output
-		objects which use the internal clock should not be used.</p>	
+		objects which use the internal clock should not be used. See the AudioOutputI2S documentation for more detail.</p>	
 		<p>If AudioInputSPDIF3 is not used then the S/PDIF sample rate will be governed
 		by the audio system clock as usual, and other I/O objects can be used. 
 		In this case S/PDIF	input can still be achieved by use of the AsyncAudioInputSPDIF3 object.</p>
@@ -2533,7 +2637,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</table>
 	<h3>Functions</h3>
 	<p>This object has no functions to call from the Arduino sketch.  It
-		simply streams from it's 2 input ports to the USB.</p>
+		simply streams from its 2 input ports to the USB.</p>
 	<!--
 	<h3>Hardware</h3>
 	-->
@@ -6476,6 +6580,38 @@ value  frequency
 	<p class=func><span class=keyword>inputSelect</span>(input);</p>
 	<p class=desc>Select which input to use: AUDIO_INPUT_LINEIN or AUDIO_INPUT_MIC.
 	</p>
+	
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	WM8731.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	WM8731 is in use: 0 will select the "low" address (0x1A), and 1 will select
+	the "high" address (0x1B). 
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	WM8731.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	WM8731 is in use: 0 will select the "low" address (0x1A), and 1 will select
+	the "high" address (0x1B). 
+	</p>
+	
 	<!--
 <h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt;
@@ -6519,6 +6655,38 @@ value  frequency
 	<p class=func><span class=keyword>inputSelect</span>(input);</p>
 	<p class=desc>Select which input to use: AUDIO_INPUT_LINEIN or AUDIO_INPUT_MIC.
 	</p>
+	
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	WM8731.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	WM8731 is in use: 0 will select the "low" address (0x1A), and 1 will select
+	the "high" address (0x1B). 
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	WM8731.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	WM8731 is in use: 0 will select the "low" address (0x1A), and 1 will select
+	the "high" address (0x1B). 
+	</p>
+	
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; WM8731MikroSine
 	</p>
@@ -6579,6 +6747,39 @@ value  frequency
 	<p class=func><span class=keyword>inputSelect</span>(input);</p>
 	<p class=desc>not implemented yet
 	</p>
+		
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	AK4558.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the four possible I²C addresses for the 
+	AK4558 is in use: 0 will select the "low" address (0x10), and 1-3 will select
+	the higher addresses (0x11..0x13). 
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	AK4558.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the four possible I²C addresses for the 
+	AK4558 is in use: 0 will select the "low" address (0x10), and 1-3 will select
+	the higher addresses (0x11..0x13). 
+	</p>
+	
+	
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; AK4558 &gt; PassthroughTest
 	</p>
@@ -6643,6 +6844,38 @@ value  frequency
 	<p class=func><span class=keyword>disableDither</span>();</p>
 	<p class=desc>TODO: description
 	</p>
+	
+		
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	CS4272.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	CS4272 is in use: 0 will select the "low" address (0x10), and 1 will select
+	the "high" address (0x11). 	
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	CS4272.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the two possible I²C addresses for the 
+	CS4272 is in use: 0 will select the "low" address (0x10), and 1 will select
+	the "high" address (0x11). 	
+	</p>
 
 	<h3>Hardware</h3>
 	<p>Pin 2 must be connected to the CS4272 reset.  SDA &amp; SCL are used for all control.
@@ -6660,7 +6893,7 @@ value  frequency
 <script type="text/x-red" data-help-name="AudioControlCS42448">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
-	<p>Control the CS42448 chip in TDM mode, for 6 inputs and 8 outputs.
+	<p>Control the CS42448 chip in TDM mode, for 6 (or 8) inputs and 8 outputs.
 	</p>
 	<p align=center><img src="img/cs42448.jpg"></p>
 	</div>
@@ -6672,6 +6905,10 @@ value  frequency
 	<h3>Functions</h3>
 	<p class=func><span class=keyword>enable</span>();</p>
 	<p class=desc>Enables the CS42448 to work in TDM mode.
+	</p>
+	<p class=func><span class=keyword>enable</span>(magicBit);</p>
+	<p class=desc>Enables the CS42448 to work in TDM mode, with the option of setting the "magic bit" 
+	(see <a href="https://forum.pjrc.com/threads/41371?p=215881&viewfull=1#post215881">this forum post</a>).
 	</p>
 	<p class=func><span class=keyword>volume</span>(level);</p>
 	<p class=desc>Set the volume level for all output channels. Range is 0 to 1.0.
@@ -6685,6 +6922,39 @@ value  frequency
 	<p class=func><span class=keyword>inputLevel</span>(channel, level);</p>
 	<p class=desc>Set the input gain level for a single input. Channel is 1 to 6. Range is 0 to 15.85.
 	</p>
+	
+	<h3>I²C bus configuration</h3>
+	<p>These functions will be of use if you have modified hardware which changes the 
+	I²C address, or have wired it to use a different bus from the 
+	standard Wire one.
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire,address);</p>
+	<p class=desc>Select the I²C bus and address controlling the 
+	CS42448.  
+	This function must be called before enable(), if it is used. Default
+	is Wire, LOW address.
+	<br><br>
+	The wire parameter may be a reference to a TwoWire object (Wire, Wire1 etc.) or an integer between
+	0 and 3, which will select from Wire, Wire1, Wire2 and Wire3. If a non-existent selection
+	is attempted then the highest available value will be used.
+	<br><br>
+	The address parameter selects which of the four possible I²C addresses for the 
+	CS42448 is in use: 0 will select the "low" address (0x49), and 1-3 will select
+	the higher addresses (0x49..0x4B). 
+	</p>
+	
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Select the I²C address controlling the 
+	CS42448.  
+	This function must be called before enable(), if it is used. The library default
+	is LOW address, so if your hardware is unmodified you won't need this function.
+	<br><br>
+	The address parameter selects which of the four possible I²C addresses for the 
+	CS42448 is in use: 0 will select the "low" address (0x49), and 1-3 will select
+	the higher addresses (0x49..0x4B). 
+	</p>
+	
+	
 	<h3>Hardware</h3>
 	<p>Tested with this <a href="https://oshpark.com/shared_projects/2Yj6rFaW">
 		CS42448 Board for Teensy 3.x</a> and this

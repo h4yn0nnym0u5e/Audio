@@ -74,7 +74,6 @@ AudioAmplifier	KEYWORD2
 AudioOutputAnalog	KEYWORD2
 AudioOutputAnalogStereo	KEYWORD2
 
-
 AudioBuffer	KEYWORD2
 AudioPreload	KEYWORD2
 AudioPlayWAVstereo	KEYWORD2

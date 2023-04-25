@@ -273,7 +273,7 @@ a.brand img {
 #workspace {
     position: absolute;
     margin: 0;
-    top:5px; left:160px; bottom: 10px; right: 330px;
+    top:5px; left:180px; bottom: 10px; right: 330px;
 }
 #chart-zoom-controls {
     position: absolute;

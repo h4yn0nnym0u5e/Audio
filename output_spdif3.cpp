@@ -28,6 +28,7 @@
 #include "output_spdif3.h"
 
 #if defined(__IMXRT1062__)
+#include "output_i2s.h"
 
 #include "utility/imxrt_hw.h"
 #include "memcpy_audio.h"
@@ -245,7 +246,14 @@ void AudioOutputSPDIF3::config_spdif3(bool extSync /* = false */)
 {
 	delay(1); //WHY IS THIS NEEDED?
 
+	// Changing this modifies the "static" sounding clicking on I2S outputs
+	// when they're clocked from S/PDIF input. It's unclear why this is the
+	// case, as the internal clock source should not be in use under those
+	// conditions. The clicking seems to result from insertion or deletion
+	// of a single sample at a rate related (equal?) to the difference 
+	// between the bit clocks' frequencies.
 	uint32_t fs = AUDIO_SAMPLE_RATE_EXACT;
+	
 	// PLL between 27*24 = 648MHz und 54*24=1296MHz
 	// n1, n2 choosen for compatibility with I2S (same PLL frequency) :
 	int n1 = 4; //SAI prescaler 4 => (n1*n2) = multiple of 4
@@ -280,7 +288,14 @@ void AudioOutputSPDIF3::config_spdif3(bool extSync /* = false */)
 		if (extSync && !syncToInput) // ...but not completely
 		{
 			syncToInput = true;
-			SPDIF_SCR = (SPDIF_SCR & ~SPDIF_SCR_TXSEL(7)) | SPDIF_SCR_TXSEL(1); // Feed-though SPDIFIN
+			AudioOutputI2S::config_i2s(false,true);
+			
+			// switch the clock source to sync to S/PDIF input
+			SPDIF_STC = (SPDIF_STC & ~(SPDIF_STC_TXCLK_SOURCE(0x7) | SPDIF_STC_TXCLK_DF(0x7F))) | 
+				SPDIF_STC_TXCLK_SOURCE(2) |	// tx_clk input (from SAI1 / MCLK3 = SPDIF in)
+				SPDIF_STC_TXCLK_DF(0); 		// /2 clock division factor			
+
+			I2S1_RCSR |= I2S_RCSR_RE;
 		}
 		return; // because for some reason configuring twice crashes it
 	}
@@ -290,7 +305,11 @@ void AudioOutputSPDIF3::config_spdif3(bool extSync /* = false */)
 	// we ensure it "sticks" in sync even if the output object is
 	// the second to be configured.
 	if (extSync)
+	{
 		syncToInput = true;
+		AudioOutputI2S::config_i2s(false,true);
+		I2S1_RCSR |= I2S_RCSR_RE;
+	}
 
 	SPDIF_SCR =
 		SPDIF_SCR_RXFIFOFULL_SEL(0) |	// Full interrupt if at least 1 sample in Rx left and right FIFOs
@@ -299,7 +318,7 @@ void AudioOutputSPDIF3::config_spdif3(bool extSync /* = false */)
 		SPDIF_SCR_TXFIFOEMPTY_SEL(2) |	// Empty interrupt if at most 8 samples in Tx left and right FIFOs
 		SPDIF_SCR_TXFIFO_CTRL(1) |	// 0:Send zeros 1: normal operation
 		SPDIF_SCR_VALCTRL |		// Outgoing Validity always clear
-		SPDIF_SCR_TXSEL(syncToInput?1:5) |	// 0: off and output 0; 1: Feed-though SPDIFIN; 5: Tx Normal operation
+		SPDIF_SCR_TXSEL(5) |	// 0: off and output 0; 1: Feed-though SPDIFIN; 5: Tx Normal operation
 		SPDIF_SCR_USRC_SEL(3);
 
 	SPDIF_SRPC =
@@ -318,9 +337,18 @@ void AudioOutputSPDIF3::config_spdif3(bool extSync /* = false */)
 	Serial.printf("clkdiv: %d\n", clkdiv);
 #endif
 
-	SPDIF_STC =
-		SPDIF_STC_TXCLK_SOURCE(1) |	//tx_clk input (from SPDIF0_CLK_ROOT)
-		SPDIF_STC_TXCLK_DF(clkdiv - 1);
+	if (syncToInput)
+	{
+		SPDIF_STC =
+			SPDIF_STC_TXCLK_SOURCE(2) |	// tx_clk input (from SAI1 / MCLK3 = SPDIF in)
+			SPDIF_STC_TXCLK_DF(0); 		// /2 clock division factor
+	}
+	else
+	{
+		SPDIF_STC =
+			SPDIF_STC_TXCLK_SOURCE(1) |		// tx_clk input (from SPDIF0_CLK_ROOT)
+			SPDIF_STC_TXCLK_DF(clkdiv - 1); // computed division factor
+	}
 }
 
 #endif // __IMXRT1062__
