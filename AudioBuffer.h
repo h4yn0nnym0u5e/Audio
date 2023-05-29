@@ -43,7 +43,11 @@ class MemBuffer
 				  bufSize(0), bufTypeX(none) {}
 	~MemBuffer() { disposeBuffer(); }
 		
-	enum bufType {none,given,inHeap,inExt};
+	enum bufType {none,given,inHeap
+#if defined(ARDUINO_TEENSY41)
+					,inExt
+#endif // defined(ARDUINO_TEENSY41)
+				 };
 	enum result  {ok,halfEmpty,underflow,full,invalid};
 
 	uint8_t* buffer;	// memory used for buffering
