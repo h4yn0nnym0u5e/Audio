@@ -34,17 +34,24 @@
 
 class AudioEffectDelayExternal : public AudioStream, public AudioExtMem
 {
+	static const int   CHANNEL_COUNT = 8;
+	static const int   SIG_SHIFT = 24; 			// bit shift to preserve significance
+	static const int   SIG_MULT = 1<<SIG_SHIFT;	// multiplier to preserve significance
+	static constexpr float MOD_SCALE = AUDIO_SAMPLE_RATE_EXACT / 1000.0f * 2.0f
+								  / pow(256,sizeof ((audio_block_t*) 0)->data[0]) // assume audio block data is integer type
+								  * SIG_MULT;
 public:
 	AudioEffectDelayExternal(AudioEffectDelayMemoryType_t type, float milliseconds=1e6)
-	  : AudioStream(1, inputQueueArray), 
+	  : AudioStream(CHANNEL_COUNT+1, inputQueueArray), 
 		AudioExtMem(type, (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f),
 		activemask(0)
 		{}
 	AudioEffectDelayExternal() : AudioEffectDelayExternal(AUDIO_MEMORY_23LC1024) {}
 	
 	~AudioEffectDelayExternal() {}
+	
 	void delay(uint8_t channel, float milliseconds) {
-		if (channel >= 8 || memory_type >= AUDIO_MEMORY_UNDEFINED) return;
+		if (channel >= CHANNEL_COUNT || memory_type >= AUDIO_MEMORY_UNDEFINED) return;
 		if (!initialisationDone)
 			initialize();
 		if (milliseconds < 0.0f) milliseconds = 0.0f;
@@ -57,19 +64,49 @@ public:
 		if (activemask == 0 && IS_SPI_TYPE) AudioStartUsingSPI();
 		activemask = mask | (1<<channel);
 	}
+	
 	void disable(uint8_t channel) {
-		if (channel >= 8) return;
+		if (channel >= CHANNEL_COUNT) return;
 		if (!initialisationDone)
 			initialize();
 		uint8_t mask = activemask & ~(1<<channel);
 		activemask = mask;
 		if (mask == 0 && IS_SPI_TYPE) AudioStopUsingSPI();
 	}
+	
+	float setModDepth(uint8_t channel,
+					  float milliseconds) //!< how far from nominal delay a full-scale modulation input gives
+	{
+		float result = -1.0f;
+		
+		if (channel < CHANNEL_COUNT)
+		{
+			float base = (float) (delay_length[channel] - AUDIO_BLOCK_SAMPLES)
+						/ (AUDIO_SAMPLE_RATE_EXACT/1000.0f); // unmodulated delay
+			float maxl = (float) memory_length
+						/ (AUDIO_SAMPLE_RATE_EXACT/1000.0f); // max delay in milliseconds
+			if (base - milliseconds < 0.0f) // modulation too big
+				milliseconds = base;		// max possble
+			if (base + milliseconds > maxl)
+				milliseconds = maxl - base;
+			
+			// modulation depth is now sane
+			uint32_t n = milliseconds*MOD_SCALE + 0.5f; // scale to usable integer
+			mod_depth[channel] = n;
+			result = (float) n / MOD_SCALE; // actual exact modulation depth
+		}
+		
+		return result;
+	}
+	
 	virtual void update(void);
+	
+// move these to private later
+	uint32_t mod_depth[CHANNEL_COUNT];
 private:
-	uint32_t delay_length[8]; // # of sample delay for each channel (128 = no delay)
+	uint32_t delay_length[CHANNEL_COUNT]; // # of sample delay for each channel (128 = no delay)
 	uint8_t  activemask;      // which output channels are active
-	audio_block_t *inputQueueArray[1];
+	audio_block_t *inputQueueArray[CHANNEL_COUNT+1];
 };
 
 #endif
