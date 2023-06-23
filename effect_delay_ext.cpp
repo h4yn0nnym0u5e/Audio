@@ -31,7 +31,7 @@
 
 void AudioEffectDelayExternal::update(void)
 {
-	audio_block_t *block;
+	audio_block_t *block, *modBlock;
 	uint32_t n, channel, read_offset;
 
 	// grab incoming data and put it into the memory
@@ -72,26 +72,64 @@ void AudioEffectDelayExternal::update(void)
 
 	// transmit the delayed outputs
 	for (channel = 0; channel < 8; channel++) {
-		if (!(activemask & (1<<channel))) continue;
-		block = allocate();
-		if (!block) continue;
-		// compute the delayed location where we read
-		if (delay_length[channel] <= head_offset) {
-			read_offset = head_offset - delay_length[channel];
-		} else {
-			read_offset = memory_length + head_offset - delay_length[channel];
-		}
-		if (read_offset + AUDIO_BLOCK_SAMPLES <= memory_length) {
-			// a single read will do it
-			read(read_offset, AUDIO_BLOCK_SAMPLES, block->data);
-		} else {
-			// read wraps across end-of-memory
-			n = memory_length - read_offset;
-			read(read_offset, n, block->data);
-			read(0, AUDIO_BLOCK_SAMPLES - n, block->data + n);
-		}
-		transmit(block, channel);
-		release(block);
+		modBlock = receiveReadOnly(channel+1); // get modulation signal, if any
+		do {
+			if (0 == (activemask & (1<<channel)))
+				break;
+			block = allocate();
+			if (!block) 
+				break;
+			
+			// compute the delayed location where we read
+			if (delay_length[channel] <= head_offset) {
+				read_offset = head_offset - delay_length[channel];
+			} else {
+				read_offset = memory_length + head_offset - delay_length[channel];
+			}
+			
+			if (nullptr == modBlock 		// no modulation, all samples delayed the same
+			 || 0 == mod_depth[channel])
+			{
+				if (read_offset + AUDIO_BLOCK_SAMPLES <= memory_length) {
+					// a single read will do it
+					read(read_offset, AUDIO_BLOCK_SAMPLES, block->data);
+				} else {
+					// read wraps across end-of-memory
+					n = memory_length - read_offset;
+					read(read_offset, n, block->data);
+					read(0, AUDIO_BLOCK_SAMPLES - n, block->data + n);
+				}
+			}
+			else
+			{
+				// Create offsets from the baseline delay.
+				// These are fixed-point integers in samples*256, so e.g.
+				// 44.25 samples = 44.5*256 = 11392
+				int offsets[AUDIO_BLOCK_SAMPLES], depth = mod_depth[channel];
+				uint32_t* p = (uint32_t*) modBlock->data;
+				uint32_t read_offset256 = read_offset<<8; // scale the read offset the same way
+				for (int i=0;i<AUDIO_BLOCK_SAMPLES;i+=2)
+				{
+					uint32_t modhl = *p++;
+					offsets[i+0] = signed_multiply_32x16b(depth,modhl) + read_offset256;
+					offsets[i+1] = signed_multiply_32x16t(depth,modhl) + read_offset256;
+				}
+				
+				// offsets[] now indexes the samples we want, most probably
+				// fractional ones. Retrieve what we want from delay memory
+				// and interpolate. This could get really inefficient with
+				// super-high modulation rates or depths!
+				//
+				// For now we only do linear interpolation.
+				
+			}
+			
+			transmit(block, channel);
+			release(block);
+			
+		} while (0);
+		if (nullptr != modBlock)
+			release(modBlock);
 	}
 }
 

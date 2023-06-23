@@ -523,7 +523,7 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioEffectMultiply","data":{"defaults":{"name":{"value":"new"}},"shortName":"multiply","inputs":2,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectRectifier","data":{"defaults":{"name":{"value":"new"}},"shortName":"rectify","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectDelay","data":{"defaults":{"name":{"value":"new"}},"shortName":"delay","inputs":1,"outputs":8,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioEffectDelayExternal","data":{"defaults":{"name":{"value":"new"}},"shortName":"delayExt","inputs":1,"outputs":8,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioEffectDelayExternal","data":{"defaults":{"name":{"value":"new"}},"shortName":"delayExt","inputs":9,"outputs":8,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectBitcrusher","data":{"shortName":"bitcrusher","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectMidSide","data":{"shortName":"midside","inputs":2,"outputs":2,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectWaveshaper","data":{"shortName":"waveshape","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -4187,32 +4187,38 @@ double s_freq = .0625;</p>
 <script type="text/x-red" data-help-name="AudioEffectDelayExternal">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
-	<p>Delay a signal, using external memory for longer delay times!  Up to 8 separate delay taps can be used.</p>
+	<p>Delay a signal, using external memory for longer delay times!  Up to 8 separate delay taps can be used.
+	Each tap can have its delay modulated by a control signal.</p>
 	<p align=center><img src="img/delay.png"><br><small>1 kHz burst, delayed 5.2 ms.</small></p>
 	</div>
 	<h3>Audio Connections</h3>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Port</th><th>Purpose</th></tr>
-		<tr class=odd><td align=center>In 0</td><td>Signal Input</td></tr>
-		<tr class=odd><td align=center>Out 0</td><td>Delay Tap #1</td></tr>
-		<tr class=odd><td align=center>Out 1</td><td>Delay Tap #2</td></tr>
-		<tr class=odd><td align=center>Out 2</td><td>Delay Tap #3</td></tr>
-		<tr class=odd><td align=center>Out 3</td><td>Delay Tap #4</td></tr>
-		<tr class=odd><td align=center>Out 4</td><td>Delay Tap #5</td></tr>
-		<tr class=odd><td align=center>Out 5</td><td>Delay Tap #6</td></tr>
-		<tr class=odd><td align=center>Out 6</td><td>Delay Tap #7</td></tr>
-		<tr class=odd><td align=center>Out 7</td><td>Delay Tap #8</td></tr>
+		<tr class=odd><td align=center>In 0</td><td>Signal input</td></tr>
+		<tr class=odd><td align=center>In 1-8</td><td>Delay modulation input</td></tr>
+		<tr class=odd><td align=center>Out 0-7</td><td>Delay Tap #1-#8</td></tr>
 	</table>
 	<h3>Functions</h3>
 	<p class=func><span class=keyword>delay</span>(tap, milliseconds);</p>
 	<p class=desc>Set output "tap" (0 to 7) to delay the signals by
-		milliseconds.  The maximum delay is approx 1.5 seconds for a 1Mb / 128kB 23LC1024 chip.
+		"milliseconds".  The maximum delay is approx 1.5 seconds for a 1Mb / 128kB 23LC1024 chip.
 		A 64Mb / 8MB PSRAM gives ~95s max delay, and so on.
 		The actual delay
 		is rounded to the nearest sample.  Each tap can be configured for
-		any delay, up to the maximum value specified when the delay obejct was defined.  
+		any delay, up to the maximum value specified when the delay object was defined.  
 		There is no requirement to configure the taps in increasing
 		delay order.
+	</p>
+	<p class=func><span class=keyword>setModDepth</span>(tap, milliseconds);</p>
+	<p class=desc>Set the modulation depth for a given tap. A signal of 1.0 at the
+	modulation input will add "milliseconds" to the fixed delay
+	set by the delay() function; at -1.0, the delay time will be reduced by the same
+	amount; at 0.0, no change is applied. 
+	</p>
+	<p class=desc>This function returns a float value which is the exact modulation depth set.
+	The requested value may be adjusted for cases where the depth+delay could exceed the  
+	buffer length, or delay-depth is less than zero. 
+	A value of -1.0 is returned if an invalid tap number is specified.
 	</p>
 	<p class=func><span class=keyword>disable</span>(tap);</p>
 	<p class=desc>Disable a tap.  The output of this tap becomes
