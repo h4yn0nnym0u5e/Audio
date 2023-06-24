@@ -76,6 +76,7 @@ public:
 	static uint8_t objcnt;
 	// debug members
 	size_t lowWater;
+	Instrument readMicros, bufferAvail;
 	
 	friend class AudioRecordWAVmono;
 	friend class AudioRecordWAVstereo;

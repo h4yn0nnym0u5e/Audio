@@ -71,6 +71,7 @@ public:
 	// debug members
 	size_t lowWater;
 	uint32_t playCalled,firstUpdate,fileLoaded;
+	Instrument readMicros, bufferAvail;
 
 private:
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};

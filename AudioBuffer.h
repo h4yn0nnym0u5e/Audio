@@ -273,6 +273,32 @@ class AudioWAVdata
 	void makeWAVheader(wavhdr_t* wav, uint16_t chans = 1, uint16_t fmt = 1, uint16_t bits = 16, uint32_t rate = AUDIO_SAMPLE_RATE);
 	size_t millisToPosition(float m, float sr); // convert time in milliseconds to file position
 };
+
+class Instrument
+{
+	uint32_t last, lowest, highest, updates;
+  public:
+	Instrument() { reset(); }
+	void newValue(uint32_t val)
+	{
+		updates++;
+		last = val;
+		if (val > highest) 
+			highest = val;
+		if (val < lowest) 
+			lowest = val;
+	}
+	void reset(void)
+	{
+		last = highest = updates = 0;
+		lowest = -1;
+	}
+	
+	uint32_t getLast(void) { return last; }
+	uint32_t getLowest(void) { return lowest; }
+	uint32_t getHighest(void) { return highest; }
+	uint32_t getUpdates(void) { return updates; }	
+};
  
  #endif // !defined(_AUDIO_BUFFER_H_)
  

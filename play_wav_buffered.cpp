@@ -152,7 +152,10 @@ SCOPESER_TX((av >> 8) & 0xFF);
 SCOPESER_TX(av & 0xFF);
 }//----------------------------------------------------
 
+		uint32_t now = micros();
 		got = wavfile.read(pb,sz);	// try for that
+		readMicros.newValue(micros() - now);
+		
 		if (got < sz) // there wasn't enough data
 		{
 			if (got < 0)
@@ -161,6 +164,7 @@ SCOPESER_TX(av & 0xFF);
 			memset(pb+got,0,sz-got); // zero the rest of the buffer
 			eof = true;
 		}
+		bufferAvail.newValue(getAvailable()); // worse than lowWater
 		readExecuted(got);
 	}
 	readPending = false;
