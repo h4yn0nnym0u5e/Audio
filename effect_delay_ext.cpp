@@ -27,6 +27,7 @@
 #include <Arduino.h>
 #include "extmem.h"
 #include "effect_delay_ext.h"
+#include "utility/dspinst.h"
 
 
 void AudioEffectDelayExternal::update(void)
@@ -102,17 +103,22 @@ void AudioEffectDelayExternal::update(void)
 			}
 			else
 			{
-				// Create offsets from the baseline delay.
+				// Create offsets from the start of delay memory.
 				// These are fixed-point integers in samples*256, so e.g.
 				// 44.25 samples = 44.5*256 = 11392
 				int offsets[AUDIO_BLOCK_SAMPLES], depth = mod_depth[channel];
 				uint32_t* p = (uint32_t*) modBlock->data;
-				uint32_t read_offset256 = read_offset<<8; // scale the read offset the same way
+				uint32_t read_offset256 = read_offset<<SIG_SHIFT; // scale the read offset the same way
+				
+				// Fill in the offsets. Even with zero modulation we stiil expect to increment
+				// through the delay memory one sample at a time, so we add that to the
+				// read offset as we go.
 				for (int i=0;i<AUDIO_BLOCK_SAMPLES;i+=2)
 				{
 					uint32_t modhl = *p++;
 					offsets[i+0] = signed_multiply_32x16b(depth,modhl) + read_offset256;
-					offsets[i+1] = signed_multiply_32x16t(depth,modhl) + read_offset256;
+					offsets[i+1] = signed_multiply_32x16t(depth,modhl) + read_offset256 + SIG_MULT;
+					read_offset256 += SIG_MULT + SIG_MULT;
 				}
 				
 				// offsets[] now indexes the samples we want, most probably

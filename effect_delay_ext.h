@@ -35,10 +35,11 @@
 class AudioEffectDelayExternal : public AudioStream, public AudioExtMem
 {
 	static const int   CHANNEL_COUNT = 8;
-	static const int   SIG_SHIFT = 24; 			// bit shift to preserve significance
+	static const int   SAMPLE_BITS = sizeof ((audio_block_t*) 0)->data[0]; // assume audio block data is integer type
+	static const int   SIG_SHIFT = 8; 			// bit shift to preserve significance
 	static const int   SIG_MULT = 1<<SIG_SHIFT;	// multiplier to preserve significance
-	static constexpr float MOD_SCALE = AUDIO_SAMPLE_RATE_EXACT / 1000.0f * 2.0f
-								  / pow(256,sizeof ((audio_block_t*) 0)->data[0]) // assume audio block data is integer type
+	static constexpr float MOD_SCALE = AUDIO_SAMPLE_RATE_EXACT / 1000.0f 
+								  / pow(2, SAMPLE_BITS-1) 
 								  * SIG_MULT;
 public:
 	AudioEffectDelayExternal(AudioEffectDelayMemoryType_t type, float milliseconds=1e6)
