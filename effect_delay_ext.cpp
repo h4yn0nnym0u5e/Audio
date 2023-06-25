@@ -45,36 +45,22 @@ void AudioEffectDelayExternal::update(void)
 		return;
 	}
 	if (block) {
-		if (head_offset + AUDIO_BLOCK_SAMPLES <= memory_length) {
-			// a single write is enough
-			write(head_offset, AUDIO_BLOCK_SAMPLES, block->data);
-			head_offset += AUDIO_BLOCK_SAMPLES;
-		} else {
-			// write wraps across end-of-memory
-			n = memory_length - head_offset;
-			write(head_offset, n, block->data);
-			head_offset = AUDIO_BLOCK_SAMPLES - n;
-			write(0, head_offset, block->data + n);
-		}
+		writeWrap(head_offset, AUDIO_BLOCK_SAMPLES, block->data);
 		release(block);
 	} else {
 		// if no input, store zeros, so later playback will
 		// not be random garbage previously stored in memory
-		if (head_offset + AUDIO_BLOCK_SAMPLES <= memory_length) {
-			zero(head_offset, AUDIO_BLOCK_SAMPLES);
-			head_offset += AUDIO_BLOCK_SAMPLES;
-		} else {
-			n = memory_length - head_offset;
-			zero(head_offset, n);
-			head_offset = AUDIO_BLOCK_SAMPLES - n;
-			zero(0, head_offset);
-		}
+		zero(head_offset, AUDIO_BLOCK_SAMPLES);
 	}
+	head_offset += AUDIO_BLOCK_SAMPLES;
+	if (head_offset >= memory_length)
+		head_offset -= memory_length;
 
 	// transmit the delayed outputs
-	for (channel = 0; channel < 8; channel++) {
+	for (channel = 0; channel < CHANNEL_COUNT; channel++) {
 		modBlock = receiveReadOnly(channel+1); // get modulation signal, if any
-		do {
+		do 
+		{
 			if (0 == (activemask & (1<<channel)))
 				break;
 			block = allocate();
@@ -82,32 +68,22 @@ void AudioEffectDelayExternal::update(void)
 				break;
 			
 			// compute the delayed location where we read
-			if (delay_length[channel] <= head_offset) {
-				read_offset = head_offset - delay_length[channel];
-			} else {
-				read_offset = memory_length + head_offset - delay_length[channel];
-			}
+			read_offset = head_offset - delay_length[channel];
+			if (delay_length[channel] > head_offset) 
+				read_offset += memory_length;
 			
 			if (nullptr == modBlock 		// no modulation, all samples delayed the same
 			 || 0 == mod_depth[channel])
 			{
-				if (read_offset + AUDIO_BLOCK_SAMPLES <= memory_length) {
-					// a single read will do it
-					read(read_offset, AUDIO_BLOCK_SAMPLES, block->data);
-				} else {
-					// read wraps across end-of-memory
-					n = memory_length - read_offset;
-					read(read_offset, n, block->data);
-					read(0, AUDIO_BLOCK_SAMPLES - n, block->data + n);
-				}
+				readWrap(read_offset, AUDIO_BLOCK_SAMPLES, block->data); // read in delayed samples, wrapping as needed
 			}
 			else
 			{
 				// Create offsets from the start of delay memory.
 				// These are fixed-point integers in samples*256, so e.g.
 				// 44.25 samples = 44.5*256 = 11392
-				int offsets[AUDIO_BLOCK_SAMPLES], depth = mod_depth[channel];
-				uint32_t* p = (uint32_t*) modBlock->data;
+				uint32_t offsets[AUDIO_BLOCK_SAMPLES], depth = mod_depth[channel];
+				uint32_t* pl = (uint32_t*) modBlock->data;
 				uint32_t read_offset256 = read_offset<<SIG_SHIFT; // scale the read offset the same way
 				
 				// Fill in the offsets. Even with zero modulation we stiil expect to increment
@@ -115,7 +91,7 @@ void AudioEffectDelayExternal::update(void)
 				// read offset as we go.
 				for (int i=0;i<AUDIO_BLOCK_SAMPLES;i+=2)
 				{
-					uint32_t modhl = *p++;
+					uint32_t modhl = *pl++;
 					offsets[i+0] = signed_multiply_32x16b(depth,modhl) + read_offset256;
 					offsets[i+1] = signed_multiply_32x16t(depth,modhl) + read_offset256 + SIG_MULT;
 					read_offset256 += SIG_MULT + SIG_MULT;
@@ -127,7 +103,53 @@ void AudioEffectDelayExternal::update(void)
 				// super-high modulation rates or depths!
 				//
 				// For now we only do linear interpolation.
+#define BUF_COUNT (AUDIO_BLOCK_SAMPLES*2)
+				int16_t samples[BUF_COUNT+2]; // extra at the end for last sample interpolation
+				int16_t* p = block->data;
+for (int k=0;k<AUDIO_BLOCK_SAMPLES;k++) p[k] = 0;
+				int i = 0;
+				int maxDiff = BUF_COUNT << SIG_SHIFT;
 				
+				while (i < AUDIO_BLOCK_SAMPLES)
+				{
+					// divide memory block reads into chunks that fit our on-stack buffer
+					uint32_t min = offsets[i], max = min;
+					int j;
+					for (j = i+1;j < AUDIO_BLOCK_SAMPLES; j++)
+					{
+						if (offsets[j] > max)
+						{
+							if (offsets[j] >  min + maxDiff)
+								break;
+							max = offsets[j];
+						}
+						if (offsets[j] < min) 
+						{
+							if (max > maxDiff + offsets[j])
+								break;
+							min = offsets[j];
+						}
+					}
+					
+					// min and max now define the delay memory zone we need
+					// to load in order to process output samples i to j-1
+					min >>= SIG_SHIFT;
+					max >>= SIG_SHIFT;
+					
+for (int k=0;k<BUF_COUNT+1;k++) samples[k] = 0;
+					readWrap(min,max-min+2,samples);
+					for(;i<j;i++)
+					{
+						// linear interpolation between two samples
+						int idx = (offsets[i]>>SIG_SHIFT) - min;
+						int sl = samples[idx]   * (SIG_MULT - (offsets[i] & SIG_MASK)),
+							sh = samples[idx+1] *             (offsets[i] & SIG_MASK);
+						sl = (sl + sh)>>SIG_SHIFT;
+						p[i] = sl;
+					}
+					activemask += 256;
+					
+				}
 			}
 			
 			transmit(block, channel);

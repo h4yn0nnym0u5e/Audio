@@ -530,6 +530,33 @@ void AudioExtMem::read(uint32_t offset, uint32_t count, int16_t *data)
 #endif
 }
 
+
+void AudioExtMem::readWrap(uint32_t offset, uint32_t count, int16_t *data)
+{
+	if (offset+count < memory_length)
+		read(offset,count,data);
+	else
+	{
+		uint32_t esz = memory_length - offset; // number of samples we can fit in at the end
+		read(offset,esz,data);
+		read(0,count - esz,data + esz);
+	}
+}
+
+
+void AudioExtMem::writeWrap(uint32_t offset, uint32_t count, const int16_t *data)
+{
+	if (offset+count < memory_length)
+		write(offset,count,data);
+	else
+	{
+		uint32_t esz = memory_length - offset; // number of samples we can fit in at the end
+		write(offset,esz,data);
+		write(0,count - esz,data + esz);
+	}
+}
+
+
 void AudioExtMem::write(uint32_t offset, uint32_t count, const int16_t *data)
 {
 	uint32_t addr = memory_begin + offset;

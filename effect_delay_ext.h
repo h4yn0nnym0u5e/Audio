@@ -35,17 +35,18 @@
 class AudioEffectDelayExternal : public AudioStream, public AudioExtMem
 {
 	static const int   CHANNEL_COUNT = 8;
-	static const int   SAMPLE_BITS = sizeof ((audio_block_t*) 0)->data[0]; // assume audio block data is integer type
+	static const int   SAMPLE_BITS = 8*sizeof ((audio_block_t*) 0)->data[0]; // assume audio block data is integer type
 	static const int   SIG_SHIFT = 8; 			// bit shift to preserve significance
 	static const int   SIG_MULT = 1<<SIG_SHIFT;	// multiplier to preserve significance
+	static const int   SIG_MASK = SIG_MULT-1;	// mask of fractional bits
 	static constexpr float MOD_SCALE = AUDIO_SAMPLE_RATE_EXACT / 1000.0f 
 								  / pow(2, SAMPLE_BITS-1) 
-								  * SIG_MULT;
+								  * SIG_MULT * (1<<16);
 public:
 	AudioEffectDelayExternal(AudioEffectDelayMemoryType_t type, float milliseconds=1e6)
 	  : AudioStream(CHANNEL_COUNT+1, inputQueueArray), 
 		AudioExtMem(type, (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f),
-		activemask(0)
+		mod_depth{0}, activemask(0)
 		{}
 	AudioEffectDelayExternal() : AudioEffectDelayExternal(AUDIO_MEMORY_23LC1024) {}
 	
@@ -106,7 +107,7 @@ public:
 	uint32_t mod_depth[CHANNEL_COUNT];
 private:
 	uint32_t delay_length[CHANNEL_COUNT]; // # of sample delay for each channel (128 = no delay)
-	uint8_t  activemask;      // which output channels are active
+	uint16_t  activemask;      // which output channels are active
 	audio_block_t *inputQueueArray[CHANNEL_COUNT+1];
 };
 
