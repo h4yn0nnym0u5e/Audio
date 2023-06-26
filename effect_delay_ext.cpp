@@ -38,20 +38,23 @@ void AudioEffectDelayExternal::update(void)
 	// grab incoming data and put it into the memory
 	block = receiveReadOnly();
 	if (memory_type >= AUDIO_MEMORY_UNDEFINED
-	 || !initialisationDone) {
+	 || !initialisationDone) 
+	{
 		// ignore input and do nothing if undefined memory type
 		if (nullptr != block)
 			release(block);
 		return;
 	}
-	if (block) {
-CrashReport.breadcrumb(1,1);
+	
+	if (block) 
+	{
 		writeWrap(head_offset, AUDIO_BLOCK_SAMPLES, block->data);
 		release(block);
-	} else {
+	} 
+	else 
+	{
 		// if no input, store zeros, so later playback will
 		// not be random garbage previously stored in memory
-CrashReport.breadcrumb(1,2);
 		zero(head_offset, AUDIO_BLOCK_SAMPLES);
 	}
 	head_offset += AUDIO_BLOCK_SAMPLES;
@@ -59,7 +62,8 @@ CrashReport.breadcrumb(1,2);
 		head_offset -= memory_length;
 
 	// transmit the delayed outputs
-	for (channel = 0; channel < CHANNEL_COUNT; channel++) {
+	for (channel = 0; channel < CHANNEL_COUNT; channel++) 
+	{
 		modBlock = receiveReadOnly(channel+1); // get modulation signal, if any
 		do 
 		{
@@ -77,7 +81,6 @@ CrashReport.breadcrumb(1,2);
 			if (nullptr == modBlock 		// no modulation, all samples delayed the same
 			 || 0 == mod_depth[channel])
 			{
-CrashReport.breadcrumb(1,3);
 				readWrap(read_offset, AUDIO_BLOCK_SAMPLES, block->data); // read in delayed samples, wrapping as needed
 			}
 			else
@@ -116,7 +119,6 @@ CrashReport.breadcrumb(1,3);
 #define BUF_COUNT (AUDIO_BLOCK_SAMPLES*2)
 				int16_t samples[BUF_COUNT+2]; // extra at the end for last sample interpolation
 				int16_t* p = block->data;
-for (int k=0;k<AUDIO_BLOCK_SAMPLES;k++) p[k] = 0;
 				int i = 0;
 				int maxDiff = BUF_COUNT << SIG_SHIFT;
 				
@@ -146,8 +148,6 @@ for (int k=0;k<AUDIO_BLOCK_SAMPLES;k++) p[k] = 0;
 					min >>= SIG_SHIFT;
 					max >>= SIG_SHIFT;
 					
-for (int k=0;k<BUF_COUNT+1;k++) samples[k] = 0;
-CrashReport.breadcrumb(1,4);
 					readWrap(min,max-min+2,samples);
 					for(;i<j;i++)
 					{
@@ -158,8 +158,6 @@ CrashReport.breadcrumb(1,4);
 						sl = (sl + sh)>>SIG_SHIFT;
 						p[i] = sl;
 					}
-					activemask += 256;
-					
 				}
 			}
 			
@@ -167,6 +165,7 @@ CrashReport.breadcrumb(1,4);
 			release(block);
 			
 		} while (0);
+		
 		if (nullptr != modBlock)
 			release(modBlock);
 	}
