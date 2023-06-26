@@ -543,7 +543,9 @@ void AudioExtMem::readWrap(uint32_t offset, uint32_t count, int16_t *data)
 	{
 		uint32_t esz = memory_length - offset; // number of samples we can fit in at the end
 		read(offset,esz,data);
-		read(0,count - esz,data + esz);
+		if (nullptr != data) // get null pointer when discarding
+			data += esz;
+		read(0,count - esz,data);
 	}
 }
 
@@ -556,7 +558,9 @@ void AudioExtMem::writeWrap(uint32_t offset, uint32_t count, const int16_t *data
 	{
 		uint32_t esz = memory_length - offset; // number of samples we can fit in at the end
 		write(offset,esz,data);
-		write(0,count - esz,data + esz);
+		if (nullptr != data) // get null pointer when zeroing
+			data += esz;
+		write(0,count - esz,data);
 	}
 }
 
