@@ -458,6 +458,10 @@ void AudioExtMem::read(uint32_t offset, uint32_t count, int16_t *data)
 {
 	uint32_t addr = memory_begin + offset;
 
+CrashReport.breadcrumb(4,memory_length);
+CrashReport.breadcrumb(5,offset);
+CrashReport.breadcrumb(6,count);
+
 #ifdef INTERNAL_TEST
 	if (nullptr != data) while (count) { *data++ = testmem[addr++]; count--; } // testing only
 #else

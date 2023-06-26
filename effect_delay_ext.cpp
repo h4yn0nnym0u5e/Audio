@@ -45,11 +45,13 @@ void AudioEffectDelayExternal::update(void)
 		return;
 	}
 	if (block) {
+CrashReport.breadcrumb(1,1);
 		writeWrap(head_offset, AUDIO_BLOCK_SAMPLES, block->data);
 		release(block);
 	} else {
 		// if no input, store zeros, so later playback will
 		// not be random garbage previously stored in memory
+CrashReport.breadcrumb(1,2);
 		zero(head_offset, AUDIO_BLOCK_SAMPLES);
 	}
 	head_offset += AUDIO_BLOCK_SAMPLES;
@@ -75,6 +77,7 @@ void AudioEffectDelayExternal::update(void)
 			if (nullptr == modBlock 		// no modulation, all samples delayed the same
 			 || 0 == mod_depth[channel])
 			{
+CrashReport.breadcrumb(1,3);
 				readWrap(read_offset, AUDIO_BLOCK_SAMPLES, block->data); // read in delayed samples, wrapping as needed
 			}
 			else
@@ -144,6 +147,7 @@ for (int k=0;k<AUDIO_BLOCK_SAMPLES;k++) p[k] = 0;
 					max >>= SIG_SHIFT;
 					
 for (int k=0;k<BUF_COUNT+1;k++) samples[k] = 0;
+CrashReport.breadcrumb(1,4);
 					readWrap(min,max-min+2,samples);
 					for(;i<j;i++)
 					{
