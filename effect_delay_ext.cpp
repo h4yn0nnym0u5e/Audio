@@ -84,7 +84,8 @@ void AudioEffectDelayExternal::update(void)
 				// 44.25 samples = 44.5*256 = 11392
 				uint32_t offsets[AUDIO_BLOCK_SAMPLES], depth = mod_depth[channel];
 				uint32_t* pl = (uint32_t*) modBlock->data;
-				uint32_t read_offset256 = read_offset<<SIG_SHIFT; // scale the read offset the same way
+				uint32_t read_offset256   = read_offset<<SIG_SHIFT; 	// scale the read offset the same way
+				uint32_t memory_length256 = memory_length<<SIG_SHIFT;	// biggest allowed offset
 				
 				// Fill in the offsets. Even with zero modulation we stiil expect to increment
 				// through the delay memory one sample at a time, so we add that to the
@@ -94,6 +95,12 @@ void AudioEffectDelayExternal::update(void)
 					uint32_t modhl = *pl++;
 					offsets[i+0] = signed_multiply_32x16b(depth,modhl) + read_offset256;
 					offsets[i+1] = signed_multiply_32x16t(depth,modhl) + read_offset256 + SIG_MULT;
+					
+					// correct for wrapping: weird-looking because it's unsigned
+					if (offsets[i+0] > memory_length256) offsets[i+0] -= memory_length256;
+					if (offsets[i+0] > memory_length256) offsets[i+0] += memory_length256<<1;
+					if (offsets[i+1] > memory_length256) offsets[i+1] -= memory_length256;
+					if (offsets[i+1] > memory_length256) offsets[i+1] += memory_length256<<1;
 					read_offset256 += SIG_MULT + SIG_MULT;
 				}
 				
