@@ -69,7 +69,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 			data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
 		}
 		
-		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
+		loadBuffer(pb,sz,true);	// load initial file data to the buffer: may set eof
 		read(nullptr,skip);	// skip the header
 		
 		fileLoaded = ARM_DWT_CYCCNT;
@@ -134,7 +134,7 @@ static void EventDespatcher(EventResponderRef evref)
 }
 
 
-void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz)
+void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz, bool firstLoad /* = false */)
 {
 	size_t got;
 	
@@ -164,7 +164,8 @@ SCOPESER_TX(av & 0xFF);
 			memset(pb+got,0,sz-got); // zero the rest of the buffer
 			eof = true;
 		}
-		bufferAvail.newValue(getAvailable()); // worse than lowWater
+		if (!firstLoad) // empty on first load, don't record result
+			bufferAvail.newValue(getAvailable()); // worse than lowWater
 		readExecuted(got);
 	}
 	readPending = false;

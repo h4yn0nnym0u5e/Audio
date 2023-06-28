@@ -274,12 +274,23 @@ class AudioWAVdata
 	size_t millisToPosition(float m, float sr); // convert time in milliseconds to file position
 };
 
-class Instrument
+
+/**
+ * Class to keep track of the last, minimum and maximum value of some entity.
+ * For example, the write or read time on a filesystem, or the 
+ * lo/high water marks on a buffer. It also records the number of times
+ * the values were updated; if this is a low number then the results may be
+ * more-or-less misleading.
+ */
+template <class T>
+class LogLastMinMax
 {
-	uint32_t last, lowest, highest, updates;
+	T last, lowest, highest, updates;
   public:
-	Instrument() { reset(); }
-	void newValue(uint32_t val)
+	LogLastMinMax() { reset(); }
+	
+	/** Log a new value */
+	void newValue(T val) 
 	{
 		updates++;
 		last = val;
@@ -288,17 +299,18 @@ class Instrument
 		if (val < lowest) 
 			lowest = val;
 	}
+	
+	/** Reset the tracked value before a new logging run */
 	void reset(void)
 	{
 		last = highest = updates = 0;
 		lowest = -1;
 	}
 	
-	uint32_t getLast(void) { return last; }
-	uint32_t getLowest(void) { return lowest; }
-	uint32_t getHighest(void) { return highest; }
-	uint32_t getUpdates(void) { return updates; }	
-};
- 
+	T getLast(void) { return last; }
+	T getLowest(void) { return lowest; }
+	T getHighest(void) { return highest; }
+	T getUpdates(void) { return updates; }	
+}; 
  #endif // !defined(_AUDIO_BUFFER_H_)
  

@@ -263,9 +263,9 @@ void printInstrumentPlay(AudioPlayWAVbuffered& o, const char* nam)
 //======================================================================================================
 void printInstrumentRec(AudioRecordWAVbuffered& o, const char* nam)
 {
-  Serial.printf("%s: low-water: %u/%u; worst write time: %uus; updates: %u\n",
+  Serial.printf("%s: high-water: %u/%u; worst write time: %uus; updates: %u\n",
                 nam,
-                o.bufferAvail.getLowest(), o.bufSize,
+                o.bufferAvail.getHighest(), o.bufSize,
                 o.readMicros.getHighest(), 
                 o.bufferAvail.getUpdates());
   o.bufferAvail.reset(); 
