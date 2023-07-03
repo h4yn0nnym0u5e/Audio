@@ -116,6 +116,7 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 			break;
 			
 		case STATE_STOP: // stopped from interrupt - finish the job
+Serial.println("STOP event");		
 			stop();
 			break;
 			
@@ -330,7 +331,8 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			playState /* = fileState */ = silent;
 		}
 		
-		clearEvent();	// may have pending read, but file will be closed!
+		if (!eventTriggered) // if we didn't just trigger a stop event...
+			clearEvent();	 // ...clear pending read, file will be closed!
 		
 		if (!eventTriggered && nullptr != ppl) // preload is in use
 		{
