@@ -70,14 +70,17 @@ void AudioEffectFade::update(void)
 			sample = block->data[i];
 			sample = (sample * val) >> 15;
 			block->data[i] = sample;
-			if (dir > 0) {
-				// output is increasing
-				if (inc < MAX_FADE - pos) pos += inc;
-				else pos = MAX_FADE;
-			} else {
-				// output is decreasing
-				if (inc < pos) pos -= inc;
-				else pos = 0;
+			if (!paused)
+			{
+				if (dir > 0) {
+					// output is increasing
+					if (inc < MAX_FADE - pos) pos += inc;
+					else pos = MAX_FADE;
+				} else {
+					// output is decreasing
+					if (inc < pos) pos -= inc;
+					else pos = 0;
+				}
 			}
 		}
 		position = pos;
@@ -86,22 +89,29 @@ void AudioEffectFade::update(void)
 	}
 	else // no audio, but must still change fader position!
 	{
-		int64_t newPos = (int64_t) rate * AUDIO_BLOCK_SAMPLES;
-		if (direction <= 0) // change is downwards
-			newPos = (int64_t) position - newPos;
-		else
-			newPos = (int64_t) position + newPos;
-		
-		if (newPos <= 0LL) 			position = 0;
-		else if (newPos > MAX_FADE) position = MAX_FADE;
-		else 						position = newPos;
+		if (!paused)
+		{
+			int64_t newPos = (int64_t) rate * AUDIO_BLOCK_SAMPLES;
+			if (direction <= 0) // change is downwards
+				newPos = (int64_t) position - newPos;
+			else
+				newPos = (int64_t) position + newPos;
+			
+			if (newPos <= 0LL) 			position = 0;
+			else if (newPos > MAX_FADE) position = MAX_FADE;
+			else 						position = newPos;
+		}
 	}
 }
 
 void AudioEffectFade::fadeBegin(uint32_t samples, uint8_t dir)
 {
 	__disable_irq();
-	if (0 == samples) samples = 1; // avoid divide-by-zero error
+	if (0 == samples) 
+	{
+		samples = 1; // avoid divide-by-zero error
+		position = dir?MAX_FADE:0; // and go immediately to limit
+	}
 	uint32_t newrate = MAX_FADE / samples; // worst case is 1: takes 27 hours...
 	uint32_t pos = position;
 	

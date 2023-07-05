@@ -35,23 +35,29 @@ class AudioEffectFade : public AudioStream
 	const uint32_t MAX_FADE = 0xFFFFFFFFu; // fader fully up - pass through
 public:
 	AudioEffectFade(void)
-	  : AudioStream(1, inputQueueArray), position(MAX_FADE) {}
+	  : AudioStream(1, inputQueueArray), position(MAX_FADE), paused(false) {}
 	void fadeIn(uint32_t milliseconds) {
-		uint32_t samples = (uint32_t)(milliseconds * 441u + 5u) / 10u;
+		uint32_t samples = (uint32_t)(milliseconds * AUDIO_SAMPLE_RATE_EXACT / 100.0f + 5.0f) / 10u;
 		//Serial.printf("fadeIn, %u samples\n", samples);
 		fadeBegin(samples, 1);
 	}
 	void fadeOut(uint32_t milliseconds) {
-		uint32_t samples = (uint32_t)(milliseconds * 441u + 5u) / 10u;
+		uint32_t samples = (uint32_t)(milliseconds * AUDIO_SAMPLE_RATE_EXACT / 100.0f + 5.0f) / 10u;
 		//Serial.printf("fadeOut, %u samples\n", samples);
 		fadeBegin(samples, 0);
 	}
+	void stop(void) { position = direction?0:MAX_FADE; }
+	void pause(void) { paused = true; }
+	void play(void) { paused = false; }
+	uint32_t getPosition(void) { return position; }
+
 	virtual void update(void);
 private:
 	void fadeBegin(uint32_t samples, uint8_t dir);
 	uint32_t position; // 0 = off, MAX_FADE = on
 	uint32_t rate;
 	uint8_t direction; // 0 = fading out, 1 = fading in
+	bool paused;
 	audio_block_t *inputQueueArray[1];
 };
 
