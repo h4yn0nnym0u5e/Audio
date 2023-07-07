@@ -43,9 +43,11 @@ class AudioEffectDelayExternal : public AudioStream, public AudioExtMem
 								  / pow(2, SAMPLE_BITS-1) 
 								  * SIG_MULT * (1<<16);
 public:
-	AudioEffectDelayExternal(AudioEffectDelayMemoryType_t type, float milliseconds=1e6)
+	AudioEffectDelayExternal(AudioEffectDelayMemoryType_t type, 
+							 float milliseconds=1e6,
+							 bool forceInitialize = true)
 	  : AudioStream(CHANNEL_COUNT+1, inputQueueArray), 
-		AudioExtMem(type, (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f),
+		AudioExtMem(type, (milliseconds*(AUDIO_SAMPLE_RATE_EXACT/1000.0f))+0.5f, forceInitialize),
 		mod_depth{0}, activemask(0)
 		{}
 	AudioEffectDelayExternal() : AudioEffectDelayExternal(AUDIO_MEMORY_23LC1024) {}
