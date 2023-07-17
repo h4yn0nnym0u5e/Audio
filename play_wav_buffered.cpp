@@ -69,7 +69,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 			data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
 		}
 		
-		loadBuffer(pb,sz);	// load initial file data to the buffer: may set eof
+		loadBuffer(pb,sz,true);	// load initial file data to the buffer: may set eof
 		read(nullptr,skip);	// skip the header
 		
 		fileLoaded = ARM_DWT_CYCCNT;
@@ -134,7 +134,7 @@ static void EventDespatcher(EventResponderRef evref)
 }
 
 
-void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz)
+void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz, bool firstLoad /* = false */)
 {
 	size_t got;
 	
@@ -152,7 +152,9 @@ SCOPESER_TX((av >> 8) & 0xFF);
 SCOPESER_TX(av & 0xFF);
 }//----------------------------------------------------
 
+		uint32_t now = micros();
 		got = wavfile.read(pb,sz);	// try for that
+		readMicros.newValue(micros() - now);
 		if (got < sz) // there wasn't enough data
 		{
 			if (got < 0)
@@ -161,6 +163,8 @@ SCOPESER_TX(av & 0xFF);
 			memset(pb+got,0,sz-got); // zero the rest of the buffer
 			eof = true;
 		}
+		if (!firstLoad) // empty on first load, don't record result
+			bufferAvail.newValue(getAvailable()); // worse than lowWater
 		readExecuted(got);
 	}
 	readPending = false;
@@ -325,7 +329,8 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			playState /* = fileState */ = silent;
 		}
 		
-		clearEvent();	// may have pending read, but file will be closed!
+		if (!eventTriggered) // if we didn't just trigger a stop event...
+			clearEvent();	 // ...clear pending read, file will be closed!
 		
 		if (!eventTriggered && nullptr != ppl) // preload is in use
 		{

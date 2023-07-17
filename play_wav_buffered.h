@@ -71,13 +71,14 @@ public:
 	// debug members
 	size_t lowWater;
 	uint32_t playCalled,firstUpdate,fileLoaded;
+	LogLastMinMax<uint32_t> readMicros, bufferAvail;
 
 private:
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};
 	File wavfile;
 	AudioPreload* ppl;
 	size_t preloadRemaining;
-	void loadBuffer(uint8_t* pb, size_t sz);
+	void loadBuffer(uint8_t* pb, size_t sz, bool firstLoad = false);
 	bool prepareFile(bool paused, float startFrom, size_t startFromI);
 	
 	bool eof;

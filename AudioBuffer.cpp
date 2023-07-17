@@ -52,9 +52,11 @@ AudioBuffer::result MemBuffer::disposeBuffer()
 					free(buffer);
 					break;
 
+#if defined(ARDUINO_TEENSY41)
 				case inExt:
 					extmem_free(buffer);
 					break;
+#endif // defined(ARDUINO_TEENSY41)
 					
 				default:
 					break;
@@ -118,9 +120,11 @@ AudioBuffer::result MemBuffer::createBuffer(size_t sz, //!< requested size of me
 				buf = malloc(sz);
 				break;
 
+#if defined(ARDUINO_TEENSY41)
 			case inExt:
 				buf = extmem_malloc(sz);
 				break;
+#endif // defined(ARDUINO_TEENSY41)
 				
 			default:
 				break;

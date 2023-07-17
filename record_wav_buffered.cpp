@@ -59,8 +59,11 @@ SCOPESER_TX((av >> 8) & 0xFF);
 SCOPESER_TX(av & 0xFF);
 }//----------------------------------------------------
 
+		uint32_t now = micros();
 		outN = wavfile.write(pb,sz);	// try for that
 		//wavfile.flush();
+		readMicros.newValue(micros() - now);
+		
 		if (outN < sz) // failed to write out all data
 		{
 			Serial.printf("write of %d bytes failed: wrote %d\n",sz,outN);
@@ -69,6 +72,7 @@ SCOPESER_TX(av & 0xFF);
 		if (0 == total_length) 		// first write, includes WAV header...
 			outN -= sizeof header;	// ...so remove that
 		total_length += outN; 		// add to number of audio bytes recorded
+		bufferAvail.newValue(getAvailable()); // worse than lowWater
 		writeExecuted(sz);
 	}
 	writePending = false;
