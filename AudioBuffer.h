@@ -43,7 +43,11 @@ class MemBuffer
 				  bufSize(0), bufTypeX(none) {}
 	~MemBuffer() { disposeBuffer(); }
 		
-	enum bufType {none,given,inHeap,inExt};
+	enum bufType {none,given,inHeap
+#if defined(ARDUINO_TEENSY41)
+					,inExt
+#endif // defined(ARDUINO_TEENSY41)
+				 };
 	enum result  {ok,halfEmpty,underflow,full,invalid};
 
 	uint8_t* buffer;	// memory used for buffering
@@ -270,5 +274,43 @@ class AudioWAVdata
 	size_t millisToPosition(float m, float sr); // convert time in milliseconds to file position
 };
  
+
+/**
+ * Class to keep track of the last, minimum and maximum value of some entity.
+ * For example, the write or read time on a filesystem, or the 
+ * lo/high water marks on a buffer. It also records the number of times
+ * the values were updated; if this is a low number then the results may be
+ * more-or-less misleading.
+ */
+template <class T>
+class LogLastMinMax
+{
+	T last, lowest, highest, updates;
+  public:
+	LogLastMinMax() { reset(); }
+	
+	/** Log a new value */
+	void newValue(T val) 
+	{
+		updates++;
+		last = val;
+		if (val > highest) 
+			highest = val;
+		if (val < lowest) 
+			lowest = val;
+	}
+	
+	/** Reset the tracked value before a new logging run */
+	void reset(void)
+	{
+		last = highest = updates = 0;
+		lowest = -1;
+	}
+	
+	T getLast(void) { return last; }
+	T getLowest(void) { return lowest; }
+	T getHighest(void) { return highest; }
+	T getUpdates(void) { return updates; }	
+}; 
  #endif // !defined(_AUDIO_BUFFER_H_)
  
