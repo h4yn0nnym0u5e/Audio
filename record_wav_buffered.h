@@ -71,6 +71,7 @@ public:
 	bool isStopped(void);	
 	uint32_t positionMillis(void);
 	uint32_t lengthMillis(void);
+	uint32_t writeCurrentHeader(void);
 	virtual void update(void);
 	
 	static uint8_t objcnt;
@@ -82,6 +83,7 @@ public:
 	friend class AudioRecordWAVstereo;
 	
 private:
+	uint32_t _writeCurrentHeader(void);
 	audio_block_t *inputQueueArray[2];
 	enum state_e {STATE_STOP,STATE_PAUSED,STATE_RECORDING};
 	File wavfile;

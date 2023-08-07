@@ -157,6 +157,50 @@ bool AudioRecordWAVbuffered::record(const File _file, bool paused /* = false */)
 }
 
 
+/**
+ * Write the current header data at the start of the file.
+ * NOTE does NOT seek back to the current write position!
+ * \return current file end position, or 0 if the header write failed
+ */
+uint32_t AudioRecordWAVbuffered::_writeCurrentHeader(void)
+{
+	uint32_t endPos = 0;
+	
+	if (wavfile)
+	{
+		// fix up the WAV file header with the correct lengths
+		header.data.clen = total_length;
+		header.riff.flen = total_length + sizeof header - offsetof(wavhdr_t,riff.wav);
+		wavfile.seek(0);
+		if (sizeof header == wavfile.write(&header,sizeof header))
+			endPos = total_length;
+	}
+	
+	return endPos;
+}
+
+
+/**
+ * Write the current header data at the start of the file.
+ * Seeks back to the current write position after the header write, so recording can continue.
+ * \return current file end position, or 0 if the header write failed
+ */
+uint32_t AudioRecordWAVbuffered::writeCurrentHeader(void)
+{
+	uint32_t endPos = 0;
+	
+	if (wavfile)
+	{
+		size_t sz = wavfile.position();	// get current file position
+		endPos = _writeCurrentHeader(); // seek to 0 and write header
+		
+		wavfile.seek(sz); // back to old write position
+	}
+	
+	return endPos;
+}
+
+
 void AudioRecordWAVbuffered::stop(void)
 {
 	if (state != STATE_STOP) 
@@ -180,10 +224,7 @@ void AudioRecordWAVbuffered::stop(void)
 		wavfile.truncate(sz);
 		
 		// fix up the WAV file header with the correct lengths
-		header.data.clen = total_length;
-		header.riff.flen = total_length + sizeof header - offsetof(wavhdr_t,riff.wav);
-		wavfile.seek(0);
-		wavfile.write(&header,sizeof header);
+		_writeCurrentHeader();
 		
 		wavfile.close();
 		eof = true;
@@ -211,7 +252,12 @@ void AudioRecordWAVbuffered::toggleRecordPause(void) {
 static void interleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 {
 	if (1 == channels) // mono, do the simple thing
-		memcpy(buf,blocks[0],AUDIO_BLOCK_SAMPLES * sizeof *buf);
+	{
+		if (nullptr != blocks[0])
+			memcpy(buf,blocks[0],AUDIO_BLOCK_SAMPLES * sizeof *buf);
+		else
+			memset(buf,0,AUDIO_BLOCK_SAMPLES * sizeof *buf);
+	}
 	else
 		for (uint16_t i=0;i<channels;i++)
 		{

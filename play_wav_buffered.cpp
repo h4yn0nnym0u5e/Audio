@@ -116,7 +116,7 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 			break;
 			
 		case STATE_STOP: // stopped from interrupt - finish the job
-Serial.println("STOP event");		
+// if (!eof) Serial.printf("STOP event before EOF at %lu\n",millis());		
 			stop();
 			break;
 			
@@ -171,6 +171,44 @@ SCOPESER_TX(av & 0xFF);
 	}
 	readPending = false;
 SCOPE_LOW();
+}
+
+
+/**
+ * Adjust header information if file has changed since playback started.
+ * This can happen in looper applications, where we want to begin playback
+ * while still recording the tail of the file.
+ *
+ * Called from the application, so we are guaranteed the EventResponder
+ * will not access the file to re-fill buffers during this function.
+ *
+ * \return amount the audio size changed by: could be 0
+ */
+uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
+{
+	uint32_t result = 0;
+	
+	if (wavfile) // we'd better be playing, really!
+	{
+		size_t readPos = wavfile.position(); // keep current position safe
+		AudioWAVdata newWAV;
+		
+		// parse the current header, then seek back to where we were
+		newWAV.parseWAVheader(wavfile);
+		wavfile.seek(readPos);
+		
+		if (newWAV.audioSize != audioSize) // file header has been changed since we started
+		{
+			result = newWAV.audioSize - audioSize;  // change is this (in bytes)
+			__disable_irq(); // audio update may change this...
+				data_length += result;
+			__enable_irq(); // ...safe now
+			total_length += result;
+			samples = newWAV.samples;
+		}
+	}
+	
+	return result;
 }
 
 

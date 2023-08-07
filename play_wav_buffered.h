@@ -64,6 +64,7 @@ public:
 	bool isStopped(void);	
 	uint32_t positionMillis(void);
 	uint32_t lengthMillis(void);
+	uint32_t adjustHeaderInfo(void);
 	virtual void update(void);
 	void EventResponse(EventResponderRef evref);
 	
