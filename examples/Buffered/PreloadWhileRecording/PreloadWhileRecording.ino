@@ -66,10 +66,10 @@ void setup()
   audioShield.volume(0.1f);
 
   // 16k @ 44.1kHz is ~186ms
-  playWAVstereo1.createBuffer(16384,AudioBuffer::inExt);
-  playWAVstereo2.createBuffer(32768,AudioBuffer::inExt);
-  recordWAVmono1.createBuffer(16384,AudioBuffer::inExt);
-  preLoad1.createBuffer(16384,AudioBuffer::inExt);
+  playWAVstereo1.createBuffer(16384,AudioBuffer::inHeap);
+  playWAVstereo2.createBuffer(16384,AudioBuffer::inHeap);
+  recordWAVmono1.createBuffer(16384,AudioBuffer::inHeap);
+  preLoad1.createBuffer(16384,AudioBuffer::inHeap);
 
   
   next = millis() / 1000;
