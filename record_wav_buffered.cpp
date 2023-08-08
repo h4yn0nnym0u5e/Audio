@@ -61,7 +61,7 @@ SCOPESER_TX(av & 0xFF);
 
 		uint32_t now = micros();
 		outN = wavfile.write(pb,sz);	// try for that
-		//wavfile.flush();
+		wavfile.flush();
 		readMicros.newValue(micros() - now);
 		
 		if (outN < sz) // failed to write out all data
