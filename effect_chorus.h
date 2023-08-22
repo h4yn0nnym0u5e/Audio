@@ -39,7 +39,8 @@ public AudioStream
 {
 public:
   AudioEffectChorus(void):
-  AudioStream(1,inputQueueArray), num_chorus(2)
+  AudioStream(1,inputQueueArray), 
+  l_delayline(nullptr), num_chorus(2)
   { }
   ~AudioEffectChorus() {SAFE_RELEASE_INPUTS();}
 

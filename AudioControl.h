@@ -39,6 +39,7 @@
 class AudioControl
 {
 public:
+	virtual ~AudioControl() = default;
 	virtual bool enable(void) = 0;
 	virtual bool disable(void) = 0;
 	virtual bool volume(float volume) = 0;      // volume 0.0 to 1.0
@@ -52,6 +53,7 @@ class AudioControlI2C : public AudioControl
 		AudioControlI2C(TwoWire& _wire, uint8_t a, uint8_t b, uint8_t s, uint8_t m) :
 			wire(&_wire), i2c_base(b), i2c_step(s), i2c_max(m)
 			{ setAddress(a); }
+		virtual ~AudioControlI2C() = default;
 		void setAddress(uint8_t addr); // include-in-OSC
 		void setWire(uint8_t wnum, uint8_t addr); // include-in-OSC
 		void setWire(TwoWire& wref, uint8_t addr);
