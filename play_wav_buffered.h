@@ -49,8 +49,7 @@ public:
 	
 	bool playSD(const char* filename, bool paused = false, float startFrom = 0.0f);
 	bool play(const File _file, bool paused = false, float startFrom = 0.0f);
-	bool play(const char* filename, FS& fs = SD, bool paused = false, float startFrom = 0.0f) 
-		{ return play(fs.open(filename), paused, startFrom); }
+	bool play(const char* filename, FS& fs = SD, bool paused = false, float startFrom = 0.0f); 
 	bool play(AudioPreload& p, bool paused = false, float startFrom = 0.0f);
 		
 	bool play(void)  { if (isPaused())  togglePlayPause(); return isPlaying(); }
@@ -58,7 +57,7 @@ public:
 	bool cueSD(const char* filename, float startFrom = 0.0f) { return playSD(filename,true,startFrom); }
 	bool cue(const File _file, float startFrom = 0.0f) { return play(_file,true,startFrom); }
 	void togglePlayPause(void);
-	void stop(uint8_t fromInt=0);
+	void stop();
 	bool isPlaying(void);
 	bool isPaused(void);
 	bool isStopped(void);	
@@ -75,7 +74,11 @@ public:
 	LogLastMinMax<uint32_t> readMicros, bufferAvail;
 
 private:
-	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};
+	uint32_t _adjustHeaderInfo(void);
+	const uint32_t pleaseStop = 0xCAFEBABE;
+	struct dp_s {union {char* filename; const File* pfile; uint32_t stopMessage;}; FS* pFS; bool paused; float startFrom;} deferredPlay;
+	static uint32_t isInISR(void) { return (SCB_ICSR & 0x1FF);} // 0 if in thread; vector number if in ISR
+	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING,STATE_WAIT_LOAD,STATE_ADJUST_HEADER};
 	File wavfile;
 	AudioPreload* ppl;
 	size_t preloadRemaining;

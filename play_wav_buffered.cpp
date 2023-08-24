@@ -28,7 +28,7 @@
 #include "play_wav_buffered.h"
 
 /*
- * Prepare to play back from a file
+ * Prepare to play back from a file.
  */
 bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t startFromI)
 {
@@ -96,9 +96,21 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 	
 	switch (evref.getStatus())
 	{
-		case STATE_LOADING: // playing pre-load: open and prepare file, ready to switch over
+		case STATE_WAIT_LOAD: // started from interrupt
+			if (nullptr != deferredPlay.pFS) // named file and filesystem
+			{
+				play(deferredPlay.filename,*deferredPlay.pFS,deferredPlay.paused,deferredPlay.startFrom);
+				free(deferredPlay.filename);
+			}
+			else // file object
+				play(*deferredPlay.pfile,deferredPlay.paused,deferredPlay.startFrom);			
+			break;
+			
+		case STATE_LOADING:   // playing pre-load: open and prepare file, ready to switch over
 			fileState = fileEvent;
-			wavfile = ppl->open();
+			if (pleaseStop == deferredPlay.stopMessage && wavfile) // need to clean up old file
+				wavfile.close();
+			wavfile = ppl->open(); // open new file
 			if (prepareFile(STATE_PAUSED == state,0.0f,ppl->fileOffset))
 				fileState = fileReady;
 			else
@@ -118,6 +130,10 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 		case STATE_STOP: // stopped from interrupt - finish the job
 // if (!eof) Serial.printf("STOP event before EOF at %lu\n",millis());		
 			stop();
+			break;
+			
+		case STATE_ADJUST_HEADER:
+			_adjustHeaderInfo();
 			break;
 			
 		default:
@@ -176,15 +192,12 @@ SCOPE_LOW();
 
 /**
  * Adjust header information if file has changed since playback started.
- * This can happen in looper applications, where we want to begin playback
- * while still recording the tail of the file.
  *
- * Called from the application, so we are guaranteed the EventResponder
- * will not access the file to re-fill buffers during this function.
+ * Called from the application or the EventResponder.
  *
  * \return amount the audio size changed by: could be 0
  */
-uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
+uint32_t AudioPlayWAVbuffered::_adjustHeaderInfo(void)
 {
 	uint32_t result = 0;
 	
@@ -210,6 +223,34 @@ uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
 	
 	return result;
 }
+
+
+/**
+ * Adjust header information if file has changed since playback started.
+ * This can happen in looper applications, where we want to begin playback
+ * while still recording the tail of the file.
+ *
+ * Called from the application, so we are guaranteed the EventResponder
+ * will not access the file to re-fill buffers during this function.
+ *
+ * \return amount the audio size changed by: could be 0 or 0xFFFFFFFF,
+ * which signals the adjustment has been deferred until EventResponder
+ * can do it. If so, poll lengthMillis() until it changes.
+ */
+uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
+{
+	uint32_t result = 0xFFFFFFFF; // flag deferred adjustment
+	
+	if (0 == isInISR()) // we're in thread, can do filesystem accesses
+		result = adjustHeaderInfo();
+	else
+	{
+		triggerEvent(STATE_ADJUST_HEADER); // adjust header
+	}
+	
+	return result;
+}
+
 
 
 /* Constructor */
@@ -254,9 +295,31 @@ AudioPlayWAVbuffered::~AudioPlayWAVbuffered(void)
 
 bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
-	return play(SD.open(filename), paused, startFrom);
+	return play(filename, SD, paused, startFrom);
 }
 
+bool AudioPlayWAVbuffered::play(const char* filename, FS& fs /* = SD */, bool paused /* = false */, float startFrom /* = 0.0f */) 
+{ 
+	bool result = true;
+	
+	if (0 == isInISR()) // we're in thread, can do filesystem accesses
+		result = play(fs.open(filename), paused, startFrom); 
+	else
+	{
+		char* fnptr = (char*) malloc(strlen(filename) + 1);
+		if (nullptr != fnptr)
+		{
+			dp_s tmp{{.filename = fnptr}, .pFS = &fs, .paused = paused, .startFrom = startFrom};
+			deferredPlay = tmp;
+			strcpy(fnptr,filename);
+			triggerEvent(STATE_WAIT_LOAD); // defer filesystem access to next event
+		}
+		else
+			triggerEvent(STATE_STOP); // stop on next event
+	}
+		
+	return result;
+}
 
 bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
@@ -266,17 +329,26 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 	firstUpdate = fileLoaded = 0;
 	
 	stop();
-	wavfile = _file;
 	
 	// ensure a minimal buffer exists
 	if (nullptr == buffer)
 		createBuffer(1024,inHeap);
 	
-	rv = prepareFile(paused,startFrom,0); // get file ready to play
-	if (rv)
+	if (0 == isInISR()) // we're in thread, can do filesystem accesses
 	{
-		fileState = fileReady;
-		playState = file;
+		wavfile = _file;
+		rv = prepareFile(paused,startFrom,0); // get file ready to play
+		if (rv)
+		{
+			fileState = fileReady;
+			playState = file;
+		}
+	}
+	else
+	{
+		dp_s tmp{{.pfile = &_file}, .pFS = nullptr, .paused = paused, .startFrom = startFrom};
+		deferredPlay = tmp; ;
+		triggerEvent(STATE_WAIT_LOAD); // defer filesystem access to next event
 	}
 
 	return rv;
@@ -329,6 +401,12 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 			playState = sample;		// start by playing pre-loaded data
 			fileState = fileLoad;	// load file buffer on first event
 			ppl->setInUse(true); // prevent changes to buffer memory
+			
+			if (STATE_STOPPING == state) // must have been called from interrupt
+			{
+				deferredPlay.stopMessage = pleaseStop;
+				clearEvent(); // clear pending stop event
+			}
 
 			state_play = STATE_PLAYING;
 			if (paused)
@@ -343,9 +421,11 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 }
 
 
-void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
+void AudioPlayWAVbuffered::stop(void)
 {
 	bool eventTriggered = false;
+	uint8_t fromInt = isInISR() != 0;
+	
 	if (state != STATE_STOP) 
 	{
 		state = STATE_STOPPING; // prevent update() from doing anything
@@ -433,7 +513,7 @@ void AudioPlayWAVbuffered::update(void)
 	// just possible the channel count will be zero, if a file suddenly goes AWOL:
 	if (0 == chanCnt)
 	{
-		stop(true);
+		stop();
 		return;
 	}
 
@@ -517,7 +597,7 @@ void AudioPlayWAVbuffered::update(void)
 		if (got < sizeof buf) // not enough data in buffer
 		{
 			memset(((uint8_t*) buf)+got,0,sizeof buf - got); // fill with silence
-			stop(true); // and stop (within ISR): brutal, but probably better than losing sync
+			stop(); // and stop (within ISR): brutal, but probably better than losing sync
 		}
 		
 		// deinterleave to audio blocks
