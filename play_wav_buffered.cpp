@@ -583,7 +583,6 @@ void AudioPlayWAVbuffered::update(void)
 		{
 			ppl->setInUse(false); // finished with preload
 			ppl = nullptr;
-			delayMicroseconds(5);
 		}
 		
 		// try to fill buffer from file, settle for what's available
