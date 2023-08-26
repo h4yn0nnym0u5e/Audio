@@ -27,6 +27,7 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
+//============================================================================================================
 /*
  * Prepare to play back from a file.
  */
@@ -87,23 +88,17 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 	return rv;
 }
 
-#define STOP_PIN 27
-#define EVENT_PIN 28
-#define WAIT_LOAD_PIN 29
-#define LOAD_PIN 31
 
-
+//============================================================================================================
 /* static */ uint8_t AudioPlayWAVbuffered::objcnt;
 void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 {
 	uint8_t* pb;
 	size_t sz;
-digitalWriteFast(EVENT_PIN,HIGH);
 	
 	switch (evref.getStatus())
 	{
 		case STATE_WAIT_LOAD: // started from interrupt
-digitalWriteFast(WAIT_LOAD_PIN,HIGH);
 			if (nullptr != deferredPlay.pFS) // named file and filesystem
 			{
 				play(deferredPlay.filename,*deferredPlay.pFS,deferredPlay.paused,deferredPlay.startFrom);
@@ -112,17 +107,13 @@ digitalWriteFast(WAIT_LOAD_PIN,HIGH);
 			else // file object
 				play(*deferredPlay.pfile,deferredPlay.paused,deferredPlay.startFrom);
 			deferredPlay.stopMessage = 0; // done this, clear the flag				
-digitalWriteFast(WAIT_LOAD_PIN,LOW);
 			break;
 			
 		case STATE_LOADING:   // playing pre-load: open and prepare file, ready to switch over
-digitalWriteFast(LOAD_PIN,HIGH);
 			fileState = fileEvent;
 			if ((pleaseStop == deferredPlay.stopMessage) && wavfile) // need to clean up old file
 				wavfile.close();
-digitalWriteFast(LOAD_PIN,LOW);
 			wavfile = ppl->open(); // open new file
-digitalWriteFast(LOAD_PIN,HIGH);
 			if (prepareFile(STATE_PAUSED == state,0.0f,ppl->fileOffset))
 				fileState = fileReady;
 			else
@@ -131,7 +122,6 @@ digitalWriteFast(LOAD_PIN,HIGH);
 				triggerEvent(STATE_LOADING); // re-trigger first file read
 			}
 			deferredPlay.stopMessage = 0; // done this, clear the flag
-digitalWriteFast(LOAD_PIN,LOW);
 			break;
 			
 		case STATE_PLAYING: // request from update() to re-fill buffer
@@ -142,7 +132,6 @@ digitalWriteFast(LOAD_PIN,LOW);
 			break;
 			
 		case STATE_STOP: // stopped from interrupt - finish the job
-// if (!eof) Serial.printf("STOP event before EOF at %lu\n",millis());		
 			stop();
 			break;
 			
@@ -154,7 +143,6 @@ digitalWriteFast(LOAD_PIN,LOW);
 			asm("nop");
 			break;
 	}
-digitalWriteFast(EVENT_PIN,LOW);
 }
 
 
@@ -205,6 +193,7 @@ SCOPE_LOW();
 }
 
 
+//============================================================================================================
 /**
  * Adjust header information if file has changed since playback started.
  *
@@ -228,9 +217,9 @@ uint32_t AudioPlayWAVbuffered::_adjustHeaderInfo(void)
 		if (newWAV.audioSize != audioSize) // file header has been changed since we started
 		{
 			result = newWAV.audioSize - audioSize;  // change is this (in bytes)
-			__disable_irq(); // audio update may change this...
+			bool irq = MemBuffer::disableInterrupts(); // audio update may change this...
 				data_length += result;
-			__enable_irq(); // ...safe now
+			MemBuffer::enableInterrupts(irq); // ...safe now
 			total_length += result;
 			samples = newWAV.samples;
 		}
@@ -267,7 +256,7 @@ uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
 }
 
 
-
+//============================================================================================================
 /* Constructor */
 AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
 		AudioStream(0, NULL),
@@ -285,12 +274,7 @@ SCOPESER_ENABLE();
 	// prepare EventResponder to refill buffer
 	// during yield(), if triggered from update()
 	setContext(this);
-	attach(EventDespatcher);
-	
-pinMode(STOP_PIN,OUTPUT);
-pinMode(EVENT_PIN,OUTPUT);
-pinMode(WAIT_LOAD_PIN,OUTPUT);
-pinMode(LOAD_PIN,OUTPUT);
+	attach(EventDespatcher);	
 }
 
 
@@ -313,10 +297,12 @@ AudioPlayWAVbuffered::~AudioPlayWAVbuffered(void)
 	// ~EventResponder: detached from event list
 }
 
+//============================================================================================================
 bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
 	return play(filename, SD, paused, startFrom);
 }
+
 
 bool AudioPlayWAVbuffered::play(const char* filename, FS& fs /* = SD */, bool paused /* = false */, float startFrom /* = 0.0f */) 
 { 
@@ -340,6 +326,7 @@ bool AudioPlayWAVbuffered::play(const char* filename, FS& fs /* = SD */, bool pa
 		
 	return result;
 }
+
 
 bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
@@ -428,7 +415,7 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 				clearEvent(); // clear pending stop event
 			}
 			else
-				deferredPlay.stopMessage = dontStop; // prevent update from calling stop()
+				deferredPlay.stopMessage = dontStop; // prevent update() from calling stop()
 			ppl = &p;				// using this preload
 			MemBuffer::enableInterrupts(irq);
 
@@ -445,13 +432,12 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 }
 
 
+//============================================================================================================
 void AudioPlayWAVbuffered::stop(void)
 {
 	bool eventTriggered = false;
 	uint8_t fromInt = isInISR() != 0;
 
-digitalWriteFast(STOP_PIN,HIGH);
-	
 	if (state != STATE_STOP) 
 	{
 		state = STATE_STOPPING; // prevent update() from doing anything
@@ -480,19 +466,14 @@ digitalWriteFast(STOP_PIN,HIGH);
 		
 		if (!eventTriggered && nullptr != ppl) // preload is in use
 		{
-#define AUDIO_PIN 30			
-digitalWriteFast(AUDIO_PIN,LOW);			
 			ppl->setInUse(false);
 			ppl = nullptr;
-delayMicroseconds(10);			
-digitalWriteFast(AUDIO_PIN,HIGH);			
 		}
 		
 		readPending = false;
 		eof = true;
 		setInUse(false); // allow changes to buffer memory
 	}
-digitalWriteFast(STOP_PIN,LOW);
 }
 
 
@@ -511,6 +492,7 @@ void AudioPlayWAVbuffered::togglePlayPause(void) {
 }
 
 
+//============================================================================================================
 // de-interleave channels of audio from buf into separate blocks
 static void deinterleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 {
@@ -599,11 +581,9 @@ void AudioPlayWAVbuffered::update(void)
 		// preload, if in use, is needed until the file buffer is ready
 		if (nullptr != ppl && file == playState && fileReady == fileState)
 		{
-digitalWriteFast(AUDIO_PIN,LOW);			
 			ppl->setInUse(false); // finished with preload
 			ppl = nullptr;
 			delayMicroseconds(5);
-digitalWriteFast(AUDIO_PIN,HIGH);
 		}
 		
 		// try to fill buffer from file, settle for what's available
@@ -667,26 +647,11 @@ digitalWriteFast(AUDIO_PIN,HIGH);
 	
 	// relinquish our interest in these blocks
 	while (--alloCnt >= 0)
-		release(blocks[alloCnt]);
-	
-digitalWriteFast(AUDIO_PIN,HIGH);
+		release(blocks[alloCnt]);	
 }
 
-/*
-00000000  52494646 66EA6903 57415645 666D7420  RIFFf.i.WAVEfmt 
-00000010  10000000 01000200 44AC0000 10B10200  ........D.......
-00000020  04001000 4C495354 3A000000 494E464F  ....LIST:...INFO
-00000030  494E414D 14000000 49205761 6E742054  INAM....I Want T
-00000040  6F20436F 6D65204F 76657200 49415254  o Come Over.IART
-00000050  12000000 4D656C69 73736120 45746865  ....Melissa Ethe
-00000060  72696467 65006461 746100EA 69030100  ridge.data..i...
-00000070  FEFF0300 FCFF0400 FDFF0200 0000FEFF  ................
-00000080  0300FDFF 0200FFFF 00000100 FEFF0300  ................
-00000090  FDFF0300 FDFF0200 FFFF0100 0000FFFF  ................
-*/
 
-
-
+//============================================================================================================
 bool AudioPlayWAVbuffered::isPlaying(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
