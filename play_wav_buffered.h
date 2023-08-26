@@ -76,6 +76,7 @@ public:
 private:
 	uint32_t _adjustHeaderInfo(void);
 	const uint32_t pleaseStop = 0xCAFEBABE;
+	const uint32_t dontStop   = 0xCAFED00D;
 	struct dp_s {union {char* filename; const File* pfile; uint32_t stopMessage;}; FS* pFS; bool paused; float startFrom;} deferredPlay;
 	static uint32_t isInISR(void) { return (SCB_ICSR & 0x1FF);} // 0 if in thread; vector number if in ISR
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING,STATE_WAIT_LOAD,STATE_ADJUST_HEADER};

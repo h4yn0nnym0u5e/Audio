@@ -63,7 +63,18 @@ class MemBuffer
 		inUse += flag?1:-1;
 		if (inUse < 0) // this never happens...
 			inUse = 0;
-	} 
+	}
+	
+	// stolen from EventResponder: no idea why this isn't a standard library function...
+	static bool disableInterrupts() {
+		uint32_t primask;
+		__asm__ volatile("mrs %0, primask\n" : "=r" (primask)::);
+		__disable_irq();
+		return (primask == 0) ? true : false;
+	}
+	static void enableInterrupts(bool doit) {
+		if (doit) __enable_irq();
+	}
 };
 
 
