@@ -95,7 +95,7 @@ public:
 				milliseconds = maxl - base;
 			
 			// modulation depth is now sane
-			uint32_t n = milliseconds*MOD_SCALE + 0.5f; // scale to usable integer
+			int32_t n = milliseconds*MOD_SCALE + 0.5f; // scale to usable integer
 			mod_depth[channel] = n;
 			result = (float) n / MOD_SCALE; // actual exact modulation depth
 		}
@@ -106,7 +106,7 @@ public:
 	virtual void update(void);
 	
 // move these to private later
-	uint32_t mod_depth[CHANNEL_COUNT];
+	int32_t mod_depth[CHANNEL_COUNT];
 private:
 	uint32_t delay_length[CHANNEL_COUNT]; // # of sample delay for each channel (128 = no delay)
 	uint16_t  activemask;      // which output channels are active

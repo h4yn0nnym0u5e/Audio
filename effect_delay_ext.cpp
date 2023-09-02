@@ -88,10 +88,10 @@ void AudioEffectDelayExternal::update(void)
 				// Create offsets from the start of delay memory.
 				// These are fixed-point integers in samples*256, so e.g.
 				// 44.25 samples = 44.5*256 = 11392
-				uint32_t offsets[AUDIO_BLOCK_SAMPLES], depth = mod_depth[channel];
+				 int32_t offsets[AUDIO_BLOCK_SAMPLES], depth = mod_depth[channel];
 				uint32_t* pl = (uint32_t*) modBlock->data;
 				uint32_t read_offset256   = read_offset<<SIG_SHIFT; 	// scale the read offset the same way
-				uint32_t memory_length256 = memory_length<<SIG_SHIFT;	// biggest allowed offset
+				 int32_t memory_length256 = memory_length*SIG_MULT;	// biggest allowed offset
 				
 				// Fill in the offsets. Even with zero modulation we stiil expect to increment
 				// through the delay memory one sample at a time, so we add that to the
@@ -102,11 +102,12 @@ void AudioEffectDelayExternal::update(void)
 					offsets[i+0] = signed_multiply_32x16b(depth,modhl) + read_offset256;
 					offsets[i+1] = signed_multiply_32x16t(depth,modhl) + read_offset256 + SIG_MULT;
 					
-					// correct for wrapping: weird-looking because it's unsigned
+					// correct for wrapping: should end up with offsets that
+					// are a positive value and within the provided delay memory
 					if (offsets[i+0] > memory_length256) offsets[i+0] -= memory_length256;
-					if (offsets[i+0] > memory_length256) offsets[i+0] += memory_length256<<1;
+					if (offsets[i+0] < 0) offsets[i+0] += memory_length256;
 					if (offsets[i+1] > memory_length256) offsets[i+1] -= memory_length256;
-					if (offsets[i+1] > memory_length256) offsets[i+1] += memory_length256<<1;
+					if (offsets[i+1] < 0) offsets[i+1] += memory_length256;
 					read_offset256 += SIG_MULT + SIG_MULT;
 				}
 				
@@ -129,15 +130,15 @@ void AudioEffectDelayExternal::update(void)
 					int j;
 					for (j = i+1;j < AUDIO_BLOCK_SAMPLES; j++)
 					{
-						if (offsets[j] > max)
+						if ((uint32_t) offsets[j] > max)
 						{
-							if (offsets[j] >  min + maxDiff)
+							if ((uint32_t) offsets[j] >  min + maxDiff)
 								break;
 							max = offsets[j];
 						}
-						if (offsets[j] < min) 
+						if ((uint32_t) offsets[j] < min) 
 						{
-							if (max > maxDiff + offsets[j])
+							if (max > maxDiff + (uint32_t) offsets[j])
 								break;
 							min = offsets[j];
 						}
