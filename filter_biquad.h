@@ -30,8 +30,11 @@
 #include "Arduino.h"
 #include "AudioStream.h"
 
+#define AUDIO_BIQUAD_HAS_PASSTHRU
+
 class AudioFilterBiquad : public AudioStream
 {
+	const double SCALE_FACTOR = pow(2.0,30);
 public:
 	AudioFilterBiquad(void) : AudioStream(1, inputQueueArray) {
 		// by default, the filter will not pass anything
@@ -44,11 +47,11 @@ public:
 	void setCoefficients(uint32_t stage, const int *coefficients);
 	void setCoefficients(uint32_t stage, const double *coefficients) {
 		int coef[5];
-		coef[0] = coefficients[0] * 1073741824.0;
-		coef[1] = coefficients[1] * 1073741824.0;
-		coef[2] = coefficients[2] * 1073741824.0;
-		coef[3] = coefficients[3] * 1073741824.0;
-		coef[4] = coefficients[4] * 1073741824.0;
+		coef[0] = coefficients[0] * SCALE_FACTOR;
+		coef[1] = coefficients[1] * SCALE_FACTOR;
+		coef[2] = coefficients[2] * SCALE_FACTOR;
+		coef[3] = coefficients[3] * SCALE_FACTOR;
+		coef[4] = coefficients[4] * SCALE_FACTOR;
 		setCoefficients(stage, coef);
 	}
 
@@ -60,7 +63,7 @@ public:
 		double sinW0 = sin(w0);
 		double alpha = sinW0 / ((double)q * 2.0);
 		double cosW0 = cos(w0);
-		double scale = 1073741824.0 / (1.0 + alpha);
+		double scale = SCALE_FACTOR / (1.0 + alpha);
 		/* b0 */ coef[0] = ((1.0 - cosW0) / 2.0) * scale;
 		/* b1 */ coef[1] = (1.0 - cosW0) * scale;
 		/* b2 */ coef[2] = coef[0];
@@ -74,7 +77,7 @@ public:
 		double sinW0 = sin(w0);
 		double alpha = sinW0 / ((double)q * 2.0);
 		double cosW0 = cos(w0);
-		double scale = 1073741824.0 / (1.0 + alpha);
+		double scale = SCALE_FACTOR / (1.0 + alpha);
 		/* b0 */ coef[0] = ((1.0 + cosW0) / 2.0) * scale;
 		/* b1 */ coef[1] = -(1.0 + cosW0) * scale;
 		/* b2 */ coef[2] = coef[0];
@@ -88,7 +91,7 @@ public:
 		double sinW0 = sin(w0);
 		double alpha = sinW0 / ((double)q * 2.0);
 		double cosW0 = cos(w0);
-		double scale = 1073741824.0 / (1.0 + alpha);
+		double scale = SCALE_FACTOR / (1.0 + alpha);
 		/* b0 */ coef[0] = alpha * scale;
 		/* b1 */ coef[1] = 0;
 		/* b2 */ coef[2] = (-alpha) * scale;
@@ -102,7 +105,7 @@ public:
 		double sinW0 = sin(w0);
 		double alpha = sinW0 / ((double)q * 2.0);
 		double cosW0 = cos(w0);
-		double scale = 1073741824.0 / (1.0 + alpha);
+		double scale = SCALE_FACTOR / (1.0 + alpha);
 		/* b0 */ coef[0] = scale;
 		/* b1 */ coef[1] = (-2.0 * cosW0) * scale;
 		/* b2 */ coef[2] = coef[0];
@@ -121,7 +124,7 @@ public:
 		double sinsq = sinW0 * sqrt( (pow(a,2.0)+1.0)*(1.0/(double)slope-1.0)+2.0*a );
 		double aMinus = (a-1.0)*cosW0;
 		double aPlus = (a+1.0)*cosW0;
-		double scale = 1073741824.0 / ( (a+1.0) + aMinus + sinsq);
+		double scale = SCALE_FACTOR / ( (a+1.0) + aMinus + sinsq);
 		/* b0 */ coef[0] =		a *	( (a+1.0) - aMinus + sinsq	) * scale;
 		/* b1 */ coef[1] =  2.0*a * ( (a-1.0) - aPlus  			) * scale;
 		/* b2 */ coef[2] =		a * ( (a+1.0) - aMinus - sinsq 	) * scale;
@@ -140,12 +143,20 @@ public:
 		double sinsq = sinW0 * sqrt( (pow(a,2.0)+1.0)*(1.0/(double)slope-1.0)+2.0*a );
 		double aMinus = (a-1.0)*cosW0;
 		double aPlus = (a+1.0)*cosW0;
-		double scale = 1073741824.0 / ( (a+1.0) - aMinus + sinsq);
+		double scale = SCALE_FACTOR / ( (a+1.0) - aMinus + sinsq);
 		/* b0 */ coef[0] =		a *	( (a+1.0) + aMinus + sinsq	) * scale;
 		/* b1 */ coef[1] = -2.0*a * ( (a-1.0) + aPlus  			) * scale;
 		/* b2 */ coef[2] =		a * ( (a+1.0) + aMinus - sinsq 	) * scale;
 		/* a1 */ coef[3] =  2.0*	( (a-1.0) - aPlus			) * scale;
 		/* a2 */ coef[4] =  		( (a+1.0) - aMinus - sinsq	) * scale;
+		setCoefficients(stage, coef);
+	}
+	void setPassThru(uint32_t stage) {
+		int coef[5]{(int) SCALE_FACTOR,0,0,0,0};
+		setCoefficients(stage, coef);
+	}
+	void setSilent(uint32_t stage) {
+		int coef[5]{0,0,0,0,0};
 		setCoefficients(stage, coef);
 	}
 
