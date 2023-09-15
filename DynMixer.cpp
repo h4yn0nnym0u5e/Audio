@@ -287,9 +287,30 @@ void AudioMixerStereo::setGainPan(unsigned int channel,float gain,float pan)
 	pgL  = sqrt((pan-1.0f)/-2.0f) * gain;
 	pgR  = sqrt((pan+1.0f)/ 2.0f) * gain;
 	*/
-	// Analogue simulation
-	pgL = 1.0f / (-2.0f / (panLaw * (pan - 1.0f) + EPSILON) + 1.0f); pgL = gain * normalise * pgL / (pgL+1.0f);
-	pgR = 1.0f / ( 2.0f / (panLaw * (pan + 1.0f) + EPSILON) + 1.0f); pgR = gain * normalise * pgR / (pgR+1.0f);
+	switch (panType)
+	{
+		default: // suppress warning: should never happen
+		case PanLawType::analogue:
+			// Analogue simulation
+			pgL = 1.0f / (-2.0f / (panLaw * (pan - 1.0f) + EPSILON) + 1.0f); pgL = gain * normalise * pgL / (pgL+1.0f);
+			pgR = 1.0f / ( 2.0f / (panLaw * (pan + 1.0f) + EPSILON) + 1.0f); pgR = gain * normalise * pgR / (pgR+1.0f);
+			break;
+			
+		case PanLawType::DAW:
+			if (pan > 0.0f)
+			{
+				pgL = 1.0f - pan*pan;
+				pgR = 1.0f;
+			}
+			else
+			{
+				pgL = 1.0f;
+				pgR = 1.0f - pan*pan;
+			}
+			pgL *= gain;
+			pgR *= gain;
+			break;
+	}
 	multiplier[channel].mL   = (MULTI_TYPE) (pgL * MULTI_UNITYGAIN); // TODO: proper roundoff?
 	if (multiplier[channel].balanceChannel < 0) // panning
 		multiplier[channel].mR   = (MULTI_TYPE) (pgR * MULTI_UNITYGAIN);

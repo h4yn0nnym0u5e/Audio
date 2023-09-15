@@ -202,7 +202,7 @@ void AudioMixer4::update(void)
 			if (nullptr != in) 
 			{
 				if (0 != multiplier[channel]) // only apply non-zero gain!
-				applyGainThenAdd(out->data, in->data, multiplier[channel]);
+					applyGainThenAdd(out->data, in->data, multiplier[channel]);
 				release(in);
 			}
 		}

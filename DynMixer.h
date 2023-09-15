@@ -133,7 +133,9 @@ public:
 		{
 			for (int i=0; i<_ninputs; i++) 
 				multiplier[i] = {1.0f, 0.0f, -1, false, MULTI_CENTRED,MULTI_CENTRED};
-			setPanLaw(0.22f);
+			// can only do this once "multipler" has been initialised:
+			panLaw = 0.22f; 
+			setPanType(PanLawType::analogue);
 		}
 	}
 	
@@ -236,7 +238,7 @@ public:
 	 */
 	void setPanLaw(float law)
 	{
-		panLaw = law;//sqrt(0.5f);
+		panLaw = law;
 		normalise = 1.0f/(1.0f / panLaw + 1.0f);
 		normalise = (normalise + 1.0f)/normalise;
 		
@@ -247,10 +249,23 @@ public:
 		}
 	}
 	
+	/**
+	 * Set the "pan type"
+	 * DAW pan seems to keep one channel at maximum gain while reducing the
+	 * gain on the other.
+	 */
+	enum class PanLawType {analogue,DAW};
+	void setPanType(PanLawType pt) 
+	{ 
+		panType = pt; 		// store the setting
+		setPanLaw(panLaw);	// re-compute all the channel gains
+	}
+	
 	uint8_t getChannels(void) {return num_inputs;}; // actual number, not requested
 	void setSoftKnee(float startPoint) {AudioMixerBase::setSoftKnee(startPoint);}	
 private:
 	float panLaw;
+	PanLawType panType;
 	float normalise;
 	
 	void setGainPan(unsigned int channel,float gain,float pan);

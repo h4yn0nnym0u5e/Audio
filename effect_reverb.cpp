@@ -171,11 +171,13 @@ AudioEffectReverb::update(void)
 {
   audio_block_t *block;
 
-  if (!(block = receiveWritable()))
-    return;
-
-  if (!block->data)
-    return;
+  if (nullptr == (block = receiveWritable()))
+  {
+	if (nullptr == (block = allocate()))
+		return;
+	else
+		memset(block->data,0,sizeof block->data);
+  }
 
   arm_q15_to_q31(block->data, q31_buf, AUDIO_BLOCK_SAMPLES);
 
