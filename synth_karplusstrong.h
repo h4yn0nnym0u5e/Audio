@@ -35,13 +35,11 @@ class AudioSynthKarplusStrong : public AudioStream
 public:
 	AudioSynthKarplusStrong() 
 		: AudioStream(0, NULL),
-		  state(0), _feedbackLevel(32686)
+		  state(0), buffers{0}, _feedbackLevel(32686)
 		{}
 
 	
-	void noteOff(float velocity) {
-		state = 0;
-	}
+	void noteOff(float velocity); 
 	
 	
 	void setFeedbackLevel(float level)
@@ -54,14 +52,19 @@ public:
 	
 	void noteOn(float frequency, float velocity);
 	virtual void update(void);
+	static constexpr float lowestFreq = 15.7f; // gets down to C0 / MIDI 12
 	
 private:
 	uint8_t  state;     // 0=steady output, 1=begin on next update, 2=playing
-	uint16_t bufferLen;
-	uint16_t bufferIndex;
+	uint16_t bufferLen;		// total length of buffered audio (samples)
+	uint16_t bufferCount;	// number of audio blocks currently used for buffering
+	uint16_t bufferNum;		// index of current buffer
+	uint16_t bufferIndex;	// index into current buffer
+	uint16_t bufferIndexLimit;	// max index into last buffer, +1
 	int32_t  magnitude; // current output
 	static uint32_t seed;  // must start at 1
-	int16_t buffer[536]; // TODO: dynamically use audio memory blocks
+	static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
+	audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks
 	int16_t _feedbackLevel;
 };
 

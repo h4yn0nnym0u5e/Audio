@@ -51,11 +51,61 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 		return;
 	}
 	magnitude = velocity * 65535.0f;
-	int len = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f;
-	if (len > 536) len = 536;
-	bufferLen = len;
+	if (state != 0) 	// already playing...
+		noteOff(1.0f); 	// ... release buffers
+	
+	if (frequency < lowestFreq)
+		frequency = lowestFreq;
+	bufferLen = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f;
+	bufferCount = bufferLen / AUDIO_BLOCK_SAMPLES + 1;
+	bufferIndexLimit = bufferLen - (bufferCount - 1)*AUDIO_BLOCK_SAMPLES;
+	//if (len > 536) len = 536;
 	bufferIndex = 0;
-	state = 1;
+	bufferNum = 0;
+	
+	size_t i;
+	for (i=0; i < bufferCount; i++)
+	{
+		buffers[i] = allocate();
+		if (nullptr == buffers[i])
+		{
+			bufferLen = 0;
+			break;
+		}
+	}
+	
+	if (0 == bufferLen) // couldn't allocate, stay silent
+	{
+		for (i=0; i < bufferCount; i++)
+		{
+			if (nullptr == buffers[i]) // nothing beyond here, quite
+				break;
+			else
+			{
+				release(buffers[i]);
+				buffers[i] = nullptr;
+			}
+		}
+	}
+	else
+		state = 1; // allocated, we're playing
+Serial.printf("buffers: %d; state: %d\n",bufferCount,state);	
+}
+
+
+void AudioSynthKarplusStrong::noteOff(float velocity) 
+{
+	state = 0; // first, to prevent update() using stale pointers
+	for (size_t i=0;i<maxBufferCount;i++)
+	{
+		if (nullptr == buffers[i])
+			break;
+		else
+		{
+			release(buffers[i]);
+			buffers[i] = nullptr;
+		}
+	}
 }
 
 
@@ -63,39 +113,73 @@ void AudioSynthKarplusStrong::update(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
 	audio_block_t *block;
-
+	
 	if (state == 0) return;
 
-	if (state == 1) {
+	block = allocate();
+	if (nullptr == block)
+	{
+		state = 0;
+		return;
+	}
+
+	int16_t *data = block->data;
+
+	if (state == 1) 
+	{
 		uint32_t lo = seed;
-		for (int i=0; i < bufferLen; i++) {
-			lo = pseudorand(lo);
-			buffer[i] = signed_multiply_32x16b(magnitude, lo);
+		int samples = bufferLen;
+		
+		for (size_t i=0; i < bufferCount; i++) 		
+		{
+			int16_t* buffer = buffers[i]->data;
+			for (size_t j=0; j < AUDIO_BLOCK_SAMPLES; j++)
+			{
+				lo = pseudorand(lo);
+				buffer[j] = signed_multiply_32x16b(magnitude, lo);
+				if (0 >= --samples)
+					break;
+			}
 		}
 		seed = lo;
 		state = 2;
 	}
 
-	block = allocate();
-	if (!block) {
-		state = 0;
-		return;
-	}
-
 	int16_t prior;
-	if (bufferIndex > 0) {
-		prior = buffer[bufferIndex - 1];
-	} else {
-		prior = buffer[bufferLen - 1];
+	if (bufferIndex > 0) 
+		prior = buffers[bufferNum]->data[bufferIndex - 1];
+	else 
+	{
+		if (bufferNum > 0)
+			prior = buffers[bufferNum - 1]->data[AUDIO_BLOCK_SAMPLES - 1];
+		else
+			prior = buffers[bufferCount - 1]->data[bufferIndexLimit - 1];
 	}
-	int16_t *data = block->data;
-	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+	
+	int16_t* buffer = buffers[bufferNum]->data;
+	size_t limit = (bufferNum == bufferCount - 1)
+							?bufferIndexLimit
+							:AUDIO_BLOCK_SAMPLES;
+	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
+	{
 		int16_t in = buffer[bufferIndex];
 		int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
 		*data++ = out;
 		buffer[bufferIndex] = out;
 		prior = in;
-		if (++bufferIndex >= bufferLen) bufferIndex = 0;
+		
+		if (++bufferIndex >= limit) // reached the end of this audio block
+		{
+			bufferIndex = 0;
+			bufferNum++;
+			if (bufferNum >= bufferCount) // end of all blocks
+				bufferNum = 0;
+			
+			buffer = buffers[bufferNum]->data;
+			limit = (bufferNum == bufferCount - 1)
+							?bufferIndexLimit
+							:AUDIO_BLOCK_SAMPLES;
+		}
 	}
 
 	transmit(block);
