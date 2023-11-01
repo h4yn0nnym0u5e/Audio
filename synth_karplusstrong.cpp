@@ -42,6 +42,23 @@ static uint32_t pseudorand(uint32_t lo)
 #endif
 
 
+void AudioSynthKarplusStrong::noteOn(float frequency, float velocity) 
+{
+	if (velocity > 1.0f) {
+		velocity = 0.0f;
+	} else if (velocity <= 0.0f) {
+		noteOff(1.0f);
+		return;
+	}
+	magnitude = velocity * 65535.0f;
+	int len = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f;
+	if (len > 536) len = 536;
+	bufferLen = len;
+	bufferIndex = 0;
+	state = 1;
+}
+
+
 void AudioSynthKarplusStrong::update(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
@@ -74,9 +91,7 @@ void AudioSynthKarplusStrong::update(void)
 	int16_t *data = block->data;
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
 		int16_t in = buffer[bufferIndex];
-		//int16_t out = (in * 32604 + prior * 32604) >> 16;
-		int16_t out = (in * 32686 + prior * 32686) >> 16;
-		//int16_t out = (in * 32768 + prior * 32768) >> 16;
+		int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
 		*data++ = out;
 		buffer[bufferIndex] = out;
 		prior = in;

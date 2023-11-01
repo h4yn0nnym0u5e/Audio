@@ -33,27 +33,28 @@
 class AudioSynthKarplusStrong : public AudioStream
 {
 public:
-	AudioSynthKarplusStrong() : AudioStream(0, NULL) {
-		state = 0;
-	}
-	void noteOn(float frequency, float velocity) {
-		if (velocity > 1.0f) {
-			velocity = 0.0f;
-		} else if (velocity <= 0.0f) {
-			noteOff(1.0f);
-			return;
-		}
-		magnitude = velocity * 65535.0f;
-		int len = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f;
-		if (len > 536) len = 536;
-		bufferLen = len;
-		bufferIndex = 0;
-		state = 1;
-	}
+	AudioSynthKarplusStrong() 
+		: AudioStream(0, NULL),
+		  state(0), _feedbackLevel(32686)
+		{}
+
+	
 	void noteOff(float velocity) {
 		state = 0;
 	}
+	
+	
+	void setFeedbackLevel(float level)
+	{
+		if (level > 1.0f)
+			level = 1.0f;
+		_feedbackLevel = (int16_t) (level * 32767);
+	}
+	
+	
+	void noteOn(float frequency, float velocity);
 	virtual void update(void);
+	
 private:
 	uint8_t  state;     // 0=steady output, 1=begin on next update, 2=playing
 	uint16_t bufferLen;
@@ -61,6 +62,7 @@ private:
 	int32_t  magnitude; // current output
 	static uint32_t seed;  // must start at 1
 	int16_t buffer[536]; // TODO: dynamically use audio memory blocks
+	int16_t _feedbackLevel;
 };
 
 #endif
