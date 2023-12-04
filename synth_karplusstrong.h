@@ -34,7 +34,7 @@ class AudioSynthKarplusStrong : public AudioStream
 {
 public:
 	AudioSynthKarplusStrong() 
-		: AudioStream(0, NULL),
+		: AudioStream(1, inputQueueArray),
 		  state(0), buffers{0}, _feedbackLevel(32686)
 		{}
 
@@ -61,11 +61,17 @@ private:
 	uint16_t bufferNum;		// index of current buffer
 	uint16_t bufferIndex;	// index into current buffer
 	uint16_t bufferIndexLimit;	// max index into last buffer, +1
-	int32_t  magnitude; // current output
+	
+	// keep track of where feedback goes
+	uint16_t fbkNum;	// index of feedback buffer
+	uint16_t fbkIndex;	// index into feedback buffer
+	
+	int32_t  magnitude; // current output level
 	static uint32_t seed;  // must start at 1
 	static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
 	audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks
 	int16_t _feedbackLevel;
+	audio_block_t* inputQueueArray[1];
 };
 
 #endif

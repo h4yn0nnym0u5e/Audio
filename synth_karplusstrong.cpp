@@ -56,10 +56,9 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 	
 	if (frequency < lowestFreq)
 		frequency = lowestFreq;
-	bufferLen = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f;
-	bufferCount = bufferLen / AUDIO_BLOCK_SAMPLES + 1;
+	bufferLen = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f; // length of one cycle
+	bufferCount = bufferLen / AUDIO_BLOCK_SAMPLES + 1; // one cycle, rounded up
 	bufferIndexLimit = bufferLen - (bufferCount - 1)*AUDIO_BLOCK_SAMPLES;
-	//if (len > 536) len = 536;
 	bufferIndex = 0;
 	bufferNum = 0;
 	
@@ -112,7 +111,39 @@ void AudioSynthKarplusStrong::noteOff(float velocity)
 void AudioSynthKarplusStrong::update(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
-	audio_block_t *block;
+	audio_block_t *block, *input;
+	
+	// deal with feedback
+	input = receiveReadOnly();	// do we have an explicit feedback block?
+	if (nullptr != input) // yes
+	{
+		int16_t* data = input->data; // feedback data
+		int toCopy = state != 0		 // do nothing if not playing!
+						?AUDIO_BLOCK_SAMPLES
+						:0;
+		while (toCopy > 0)
+		{
+			int thisCopy = AUDIO_BLOCK_SAMPLES - fbkIndex; // number we can copy to complete block
+			if (fbkNum >= bufferCount-1) // is it last block?
+				thisCopy = bufferIndexLimit - fbkIndex; // yes, likely to be < AUDIO_BLOCK_SAMPLES allowed
+			if (thisCopy > toCopy)
+				thisCopy = toCopy;
+				
+			// copy a chunk of audio
+			memcpy(buffers[fbkNum]->data + fbkIndex, data, thisCopy);
+			toCopy -= thisCopy;
+			data += thisCopy;
+			
+			if (toCopy > 0) // anything left?
+			{
+				fbkIndex = 0; 	// must start at beginning of ...
+				fbkNum++;		// ...next block
+				if (fbkNum >= bufferCount)
+					fbkNum = 0;
+			}
+		}
+		release(input);
+	}
 	
 	if (state == 0) return;
 
@@ -160,12 +191,18 @@ void AudioSynthKarplusStrong::update(void)
 	size_t limit = (bufferNum == bufferCount - 1)
 							?bufferIndexLimit
 							:AUDIO_BLOCK_SAMPLES;
+							
+	// remember where feedback data gets stored, in case
+	// we want to overwite it
+	fbkNum = bufferNum;
+	fbkIndex = bufferIndex;
+	
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 	{
 		int16_t in = buffer[bufferIndex];
 		int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
 		*data++ = out;
-		buffer[bufferIndex] = out;
+		buffer[bufferIndex] = out; // store feedback data for next cycle
 		prior = in;
 		
 		if (++bufferIndex >= limit) // reached the end of this audio block
@@ -183,7 +220,7 @@ void AudioSynthKarplusStrong::update(void)
 	}
 
 	transmit(block);
-	release(block);
+	release(block); 
 #endif
 }
 
