@@ -51,7 +51,7 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 		return;
 	}
 	magnitude = velocity * 65535.0f;
-	if (state != 0) 	// already playing...
+	if (state != silent) 	// already playing...
 		noteOff(1.0f); 	// ... release buffers
 	
 	if (frequency < lowestFreq)
@@ -87,14 +87,14 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 		}
 	}
 	else
-		state = 1; // allocated, we're playing
+		state = started; // allocated, we're playing
 Serial.printf("buffers: %d; state: %d\n",bufferCount,state);	
 }
 
 
 void AudioSynthKarplusStrong::noteOff(float velocity) 
 {
-	state = 0; // first, to prevent update() using stale pointers
+	state = silent; // first, to prevent update() using stale pointers
 	for (size_t i=0;i<maxBufferCount;i++)
 	{
 		if (nullptr == buffers[i])
@@ -108,45 +108,29 @@ void AudioSynthKarplusStrong::noteOff(float velocity)
 }
 
 
+void AudioSynthKarplusStrong::setLevel(float level,int16_t* levelPtr)
+{
+	if (level > 1.0f)
+		level = 1.0f;
+	*levelPtr = (int16_t) (level * 32767);
+}
+
+
 void AudioSynthKarplusStrong::update(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
 	audio_block_t *block, *input;
 	
-	// deal with feedback
-	input = receiveReadOnly();	// do we have an explicit feedback block?
-	if (nullptr != input) // yes
+	// deal with drive
+	input = receiveReadOnly();	// do we have a drive block?
+
+	if (state == silent) 
 	{
-		int16_t* data = input->data; // feedback data
-		int toCopy = state != 0		 // do nothing if not playing!
-						?AUDIO_BLOCK_SAMPLES
-						:0;
-		while (toCopy > 0)
-		{
-			int thisCopy = AUDIO_BLOCK_SAMPLES - fbkIndex; // number we can copy to complete block
-			if (fbkNum >= bufferCount-1) // is it last block?
-				thisCopy = bufferIndexLimit - fbkIndex; // yes, likely to be < AUDIO_BLOCK_SAMPLES allowed
-			if (thisCopy > toCopy)
-				thisCopy = toCopy;
-				
-			// copy a chunk of audio
-			memcpy(buffers[fbkNum]->data + fbkIndex, data, thisCopy);
-			toCopy -= thisCopy;
-			data += thisCopy;
-			
-			if (toCopy > 0) // anything left?
-			{
-				fbkIndex = 0; 	// must start at beginning of ...
-				fbkNum++;		// ...next block
-				if (fbkNum >= bufferCount)
-					fbkNum = 0;
-			}
-		}
-		release(input);
+		if (nullptr != input)
+			release(input);
+		return;
 	}
 	
-	if (state == 0) return;
-
 	block = allocate();
 	if (nullptr == block)
 	{
@@ -155,8 +139,11 @@ void AudioSynthKarplusStrong::update(void)
 	}
 
 	int16_t *data = block->data;
+	int16_t* drive = nullptr;
+	if (nullptr != input)
+		drive = input->data;
 
-	if (state == 1) 
+	if (state == started) 
 	{
 		uint32_t lo = seed;
 		int samples = bufferLen;
@@ -173,7 +160,7 @@ void AudioSynthKarplusStrong::update(void)
 			}
 		}
 		seed = lo;
-		state = 2;
+		state = playing;
 	}
 
 	int16_t prior;
@@ -201,6 +188,8 @@ void AudioSynthKarplusStrong::update(void)
 	{
 		int16_t in = buffer[bufferIndex];
 		int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
+		if (nullptr != drive)
+			out += (*drive++ * _driveLevel) >> 16;
 		*data++ = out;
 		buffer[bufferIndex] = out; // store feedback data for next cycle
 		prior = in;
@@ -221,6 +210,9 @@ void AudioSynthKarplusStrong::update(void)
 
 	transmit(block);
 	release(block); 
+	
+	if (nullptr != input)
+		release(input);
 #endif
 }
 

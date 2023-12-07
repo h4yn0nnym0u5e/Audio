@@ -32,6 +32,7 @@
 
 class AudioFilterBiquad : public AudioStream
 {
+	void processPart(int16_t* data, int samples);
 public:
 	AudioFilterBiquad(void) : AudioStream(1, inputQueueArray) {
 		// by default, the filter will not pass anything

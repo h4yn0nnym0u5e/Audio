@@ -29,28 +29,25 @@
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include "utility/dspinst.h"
+#include "filter_biquad.h"
 
-class AudioSynthKarplusStrong : public AudioStream
+class AudioSynthKarplusStrong : public AudioFilterBiquad
 {
+	enum state_e {silent, started, playing};
+	void setLevel(float level,int16_t* levelPtr);
 public:
 	AudioSynthKarplusStrong() 
-		: AudioStream(1, inputQueueArray),
-		  state(0), buffers{0}, _feedbackLevel(32686)
+		: //AudioStream(1, inputQueueArray),
+		  state(silent), buffers{0}, 
+		  _feedbackLevel(32686),
+		  _driveLevel(0)
 		{}
 
-	
-	void noteOff(float velocity); 
-	
-	
-	void setFeedbackLevel(float level)
-	{
-		if (level > 1.0f)
-			level = 1.0f;
-		_feedbackLevel = (int16_t) (level * 32767);
-	}
-	
-	
 	void noteOn(float frequency, float velocity);
+	void noteOff(float velocity); 
+	void setFeedbackLevel(float level) { setLevel(level,&_feedbackLevel); }
+	void setDriveLevel(float level) { setLevel(level,&_driveLevel); }	
+	
 	virtual void update(void);
 	static constexpr float lowestFreq = 15.7f; // gets down to C0 / MIDI 12
 	
@@ -71,6 +68,7 @@ private:
 	static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
 	audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks
 	int16_t _feedbackLevel;
+	int16_t _driveLevel;
 	audio_block_t* inputQueueArray[1];
 };
 

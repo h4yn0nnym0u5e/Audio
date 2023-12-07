@@ -30,16 +30,14 @@
 
 #if defined(__ARM_ARCH_7EM__)
 
-void AudioFilterBiquad::update(void)
+void AudioFilterBiquad::processPart(int16_t* data16, int samples)
 {
-	audio_block_t *block;
 	int32_t b0, b1, b2, a1, a2, sum;
 	uint32_t in2, out2, bprev, aprev, flag;
-	uint32_t *data, *end;
+	uint32_t* data, *end;
 	int32_t *state;
-	block = receiveWritable();
-	if (!block) return;
-	end = (uint32_t *)(block->data) + AUDIO_BLOCK_SAMPLES/2;
+	
+	end = (uint32_t *) data16 + samples/2;
 	state = (int32_t *)definition;
 	do {
 		b0 = *state++;
@@ -50,7 +48,7 @@ void AudioFilterBiquad::update(void)
 		bprev = *state++;
 		aprev = *state++;
 		sum = *state & 0x3FFF;
-		data = end - AUDIO_BLOCK_SAMPLES/2;
+		data = end - samples/2;
 		do {
 			in2 = *data;
 			sum = signed_multiply_accumulate_32x16b(sum, b0, in2);
@@ -81,7 +79,20 @@ void AudioFilterBiquad::update(void)
 		*state++ = sum | flag;
 		*(state-2) = aprev;
 		*(state-3) = bprev;
-	} while (flag);
+	} while (flag);	
+}
+
+
+void AudioFilterBiquad::update(void)
+{
+	audio_block_t *block;
+
+	block = receiveWritable();
+	if (!block) return;
+	
+	processPart(block->data,AUDIO_BLOCK_SAMPLES/4);
+	processPart(block->data+AUDIO_BLOCK_SAMPLES/4,AUDIO_BLOCK_SAMPLES*3/4);
+	
 	transmit(block);
 	release(block);
 }
@@ -91,7 +102,7 @@ void AudioFilterBiquad::setCoefficients(uint32_t stage, const int *coefficients)
 	if (stage >= 4) return;
 	int32_t *dest = definition + (stage << 3);
 	__disable_irq();
-	if (stage > 0) *(dest - 1) |= 0x80000000;
+	if (stage > 0) *(dest - 1) |= 0x80000000; // flag to previous stage that this one is active
 	*dest++ = *coefficients++;
 	*dest++ = *coefficients++;
 	*dest++ = *coefficients++;
@@ -100,7 +111,7 @@ void AudioFilterBiquad::setCoefficients(uint32_t stage, const int *coefficients)
 	//*dest++ = 0;
 	//*dest++ = 0;  // clearing filter state causes loud pop
 	dest += 2;
-	*dest   &= 0x80000000;
+	*dest   &= 0x80000000; // disable subsequent atage - *** UNDOCUMENTED ***
 	__enable_irq();
 }
 
