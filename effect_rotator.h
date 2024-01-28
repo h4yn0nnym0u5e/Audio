@@ -54,17 +54,4 @@ class AudioEffectRotator : public AudioStream
 };
 
 
-class AudioMixerSummer : public AudioStream
-{
-    audio_block_t *inputQueueArray[4];   // like AudioMixer4
-    void update(void);
-    
-  public:
-    AudioMixerSummer() 
-      : AudioStream(4, inputQueueArray)
-      {}
-};
-
-
-
 #endif // !defined(_effect_rotator_h_)

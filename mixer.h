@@ -66,6 +66,7 @@ private:
 #endif
 };
 
+
 class AudioAmplifier : public AudioStream
 {
 public:
@@ -80,6 +81,18 @@ public:
 private:
 	int32_t multiplier;
 	audio_block_t *inputQueueArray[1];
+};
+
+
+class AudioMixerSummer : public AudioStream
+{
+    audio_block_t *inputQueueArray[4];   // like AudioMixer4
+    void update(void);
+    
+  public:
+    AudioMixerSummer() 
+      : AudioStream(4, inputQueueArray)
+      {}
 };
 
 #endif

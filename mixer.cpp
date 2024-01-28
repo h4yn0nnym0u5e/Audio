@@ -105,6 +105,7 @@ static void applyGainThenAdd(int16_t *dst, const int16_t *src, int32_t mult)
 
 #endif
 
+
 void AudioMixer4::update(void)
 {
 	audio_block_t *in, *out=NULL;
@@ -131,6 +132,8 @@ void AudioMixer4::update(void)
 	}
 }
 
+
+//=========================================================================
 void AudioAmplifier::update(void)
 {
 	audio_block_t *block;
@@ -157,3 +160,38 @@ void AudioAmplifier::update(void)
 		}
 	}
 }
+
+
+//=========================================================================
+void AudioMixerSummer::update(void)
+{
+  audio_block_t* block = nullptr, *toAdd;
+
+  for (int i=0;i<3;i++)
+  {
+    toAdd = receiveReadOnly(i);
+    if (nullptr != toAdd)
+    {
+      if (nullptr == block)
+      {
+        block = allocate();
+        if (nullptr != block)
+          memcpy(block->data,toAdd->data, sizeof block->data);
+      }
+      else
+      {
+        // simple add, allowing over/underflow - good for rotation!
+        for (int k=0;k<AUDIO_BLOCK_SAMPLES;k++)
+          block->data[k] += toAdd->data[k];
+      }
+      release(toAdd);
+    }
+  }
+
+  if (nullptr != block)
+  {
+    transmit(block,0);
+    release(block);
+  }
+}
+
