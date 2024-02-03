@@ -27,6 +27,14 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
+#if !defined(htons)
+#define htons(x) (((((x) >> 8) & 0xFF) | ((x) << 8)) & 0xFFFF)
+#endif // !defined(htons)
+
+
+const int AudioPlayILDA::sizes[6] = {sizeof(ILDAformat0), sizeof(ILDAformat1), sizeof(ILDAformat2), 
+                                             -1, sizeof(ILDAformat4), sizeof(ILDAformat5)};
+
 /*
  * Prepare to play back from a file
  */
@@ -52,21 +60,35 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		parseWAVheader(wavfile); 	// figure out WAV file structure
 		getNextRead(&pb,&sz);		// find out where and how much the buffer pre-load is
 		
-		data_length = total_length = audioSize; // all available data
-		eof = false;
-		
-		if (startFrom <= 0.0f && 0 == startFromI) // not starting later in time or bytes
+		switch (fileFormat)
 		{
-			skip = firstAudio;
-		}
-		else // we want to start playback later into the file: compute sector containing start point
-		{
-			if (0 == startFromI) // use time, not absolute file position
-				startFromI = millisToPosition(startFrom,AUDIO_SAMPLE_RATE);
-			skip = startFromI & (512-1);	// skip partial sector...
-			startFromI -= skip;				// ...having loaded from sector containing start point
-			wavfile.seek(startFromI);
-			data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
+			default:
+				eof = true;
+				
+			case WAV:
+				data_length = total_length = audioSize; // all available data
+				eof = false;
+				
+				if (startFrom <= 0.0f && 0 == startFromI) // not starting later in time or bytes
+				{
+					skip = firstAudio;
+				}
+				else // we want to start playback later into the file: compute sector containing start point
+				{
+					if (0 == startFromI) // use time, not absolute file position
+						startFromI = millisToPosition(startFrom,AUDIO_SAMPLE_RATE);
+					skip = startFromI & (512-1);	// skip partial sector...
+					startFromI -= skip;				// ...having loaded from sector containing start point
+					wavfile.seek(startFromI);
+					data_length  = audioSize - skip + firstAudio - startFromI; // where we started playing, so already "used"
+				}
+				break;
+				
+			case ILDA:
+				((AudioPlayILDA*) this)->records = 0;
+				((AudioPlayILDA*) this)->samples = 0;
+				skip = 0;
+				break;
 		}
 		
 		loadBuffer(pb,sz,true);	// load initial file data to the buffer: may set eof
@@ -137,7 +159,8 @@ static void EventDespatcher(EventResponderRef evref)
 
 void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz, bool firstLoad /* = false */)
 {
-	size_t got;
+	size_t got = 0;
+	int gotNothingCount = 0;
 	
 SCOPE_HIGH();	
 SCOPESER_TX(objnum);
@@ -154,20 +177,56 @@ SCOPESER_TX(av & 0xFF);
 }//----------------------------------------------------
 
 		uint32_t now = micros();
-		got = wavfile.read(pb,sz);	// try for that
-		readMicros.newValue(micros() - now);
 		
-		if (got < sz) // there wasn't enough data
+		switch (fileFormat)
 		{
-			if (got < 0)
-				got = 0;
+			default:
+			case WAV:
+				got = wavfile.read(pb,sz);	// try for that
+				
+				if (got < sz) // there wasn't enough data
+				{
+					if (got < 0)
+						got = 0;
 
-			memset(pb+got,0,sz-got); // zero the rest of the buffer
-			eof = true;
+					memset(pb+got,0,sz-got); // zero the rest of the buffer
+					eof = true;
+				}
+				readExecuted(got);
+				
+				break;
+				
+			case ILDA: // we need to loop, but try to keep reads on SD card boundary
+				while (sz >= 512 && gotNothingCount < 2)
+				{
+					size_t toGet = sz & (-(512LL));
+					got = wavfile.read(pb,toGet);	// try for that, rounded to sector size
+					
+					if (got < toGet) // there wasn't enough data
+					{
+						if (got < 0) // error
+						{
+							got = 0;
+							gotNothingCount = 99; // bail immediately
+						}
+						else if (0 == got) // only allow one EOF in a row
+							gotNothingCount++;
+						else
+							gotNothingCount = 0;
+						wavfile.seek(0); // assume failure was no more data: loop
+					}
+					pb += got;
+					sz -= got;
+					readExecuted(got);
+				}
+				if (sz > 0)
+					dummyReadExecuted(sz); // tell buffer to flip to other half
+				
+				break;
 		}
 		if (!firstLoad) // empty on first load, don't record result
 			bufferAvail.newValue(getAvailable()); // worse than lowWater
-		readExecuted(got);
+		readMicros.newValue(micros() - now); // a slight over-estimate, but not by much
 	}
 	readPending = false;
 SCOPE_LOW();
@@ -421,7 +480,6 @@ static void deinterleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 
 void AudioPlayWAVbuffered::update(void)
 {
-	int16_t buf[chanCnt * AUDIO_BLOCK_SAMPLES];
 	audio_block_t* blocks[chanCnt];	
 	int16_t* data[chanCnt];
 	int alloCnt = 0; // count of blocks successfully allocated
@@ -460,75 +518,176 @@ void AudioPlayWAVbuffered::update(void)
 	
 	if (alloCnt >= chanCnt) // allocated enough - fill them with data
 	{
-		size_t toFill = sizeof buf, got = 0;
-		result rdr = ok;
-		
-		// if we're using pre-load buffer, try to fill from there
-		if (sample == playState)
+		switch (fileFormat)
 		{
-			if (preloadRemaining >= toFill) // enough or more!
+			case WAV:
 			{
-				memcpy(buf,ppl->buffer+(ppl->valid - preloadRemaining),toFill);
-				preloadRemaining -= toFill;
-				got = toFill;
-				toFill = 0;
-			}
-			else // not enough, but some
-			{
-				memcpy(buf,ppl->buffer+(ppl->valid - preloadRemaining),preloadRemaining);
-				got = preloadRemaining;
-				preloadRemaining = 0;
-				toFill -= got;
-			}
+				int16_t buf[chanCnt * AUDIO_BLOCK_SAMPLES];
+				size_t toFill = sizeof buf, got = 0;
+				result rdr = ok;
+				
+				// if we're using pre-load buffer, try to fill from there
+				if (sample == playState)
+				{
+					if (preloadRemaining >= toFill) // enough or more!
+					{
+						memcpy(buf,ppl->buffer+(ppl->valid - preloadRemaining),toFill);
+						preloadRemaining -= toFill;
+						got = toFill;
+						toFill = 0;
+					}
+					else // not enough, but some
+					{
+						memcpy(buf,ppl->buffer+(ppl->valid - preloadRemaining),preloadRemaining);
+						got = preloadRemaining;
+						preloadRemaining = 0;
+						toFill -= got;
+					}
 
-			if (0 == preloadRemaining)
-				playState = file;
-		}
-		
-		// preload, if in use, is needed until the file buffer is ready
-		if (nullptr != ppl && file == playState && fileReady == fileState)
-		{
-			ppl->setInUse(false); // finished with preload
-			ppl = nullptr;
-		}
-		
-		// try to fill buffer from file, settle for what's available
-		if (file == playState && toFill > 0) // file is ready and we still need data
-		{
-			size_t toRead = getAvailable();
-			if (toRead > toFill)
-			{
-				toRead = toFill;
-			}
-			
-			// also, don't play past end of data
-			// could leave some data unread in buffer, but
-			// it's not audio!
-			if (toRead > data_length)
-				toRead = data_length;
-			
-			// unbuffer
-			rdr = read((uint8_t*) buf + got,toRead);
-			
-			if (invalid != rdr) // we got enough
-				got += toRead;				
-		}
-		
-		if (got < sizeof buf) // not enough data in buffer
-		{
-			memset(((uint8_t*) buf)+got,0,sizeof buf - got); // fill with silence
-			stop(true); // and stop (within ISR): brutal, but probably better than losing sync
-		}
-		
-		// deinterleave to audio blocks
-		deinterleave(buf,data,chanCnt);
+					if (0 == preloadRemaining)
+						playState = file;
+				}
+				
+				// preload, if in use, is needed until the file buffer is ready
+				if (nullptr != ppl && file == playState && fileReady == fileState)
+				{
+					ppl->setInUse(false); // finished with preload
+					ppl = nullptr;
+				}
+				
+				// try to fill buffer from file, settle for what's available
+				if (file == playState && toFill > 0) // file is ready and we still need data
+				{
+					size_t toRead = getAvailable();
+					if (toRead > toFill)
+					{
+						toRead = toFill;
+					}
+					
+					// also, don't play past end of data
+					// could leave some data unread in buffer, but
+					// it's not audio!
+					if (toRead > data_length)
+						toRead = data_length;
+					
+					// unbuffer
+					rdr = read((uint8_t*) buf + got,toRead);
+					
+					if (invalid != rdr) // we got enough
+						got += toRead;				
+				}
+				
+				if (got < sizeof buf) // not enough data in buffer
+				{
+					memset(((uint8_t*) buf)+got,0,sizeof buf - got); // fill with silence
+					stop(true); // and stop (within ISR): brutal, but probably better than losing sync
+				}
+				
+				// deinterleave to audio blocks
+				deinterleave(buf,data,chanCnt);
 
-		if (ok != rdr 			// there's now room for a buffer read,
-			&& !eof 			// and more file data available
-			&& !readPending)  	// and we haven't already asked
-		{
-			triggerEvent(STATE_PLAYING); // trigger a file read
-			readPending = true;
+				if (ok != rdr 			// there's now room for a buffer read,
+					&& !eof 			// and more file data available
+					&& !readPending)  	// and we haven't already asked
+				{
+					triggerEvent(STATE_PLAYING); // trigger a file read
+					readPending = true;
+				}
+				
+				// deal with position tracking
+				if (got <= data_length)
+					data_length -= got;
+				else
+					data_length = 0;
+					}
+				break;
+				
+			case ILDA:
+			{
+				result rdr = ok;
+				bool readNeeded = false;
+				int toRead = AUDIO_BLOCK_SAMPLES; 	// we need to create this many samples
+				AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
+				ILDAformatAny rec;
+				
+				while (toRead > 0)
+				{
+					if (0 == thisILDA->samples)
+					{
+						if (thisILDA->records > 0) // we're still reading the current set of records
+						{
+							// unbuffer
+							rdr = read((uint8_t*) &rec, AudioPlayILDA::sizes[thisILDA->recFormat]);
+							if (ok != rdr)
+								readNeeded = true;
+							
+							// convert to unpacked audio data
+							switch (thisILDA->recFormat)
+							{
+								case 0: // XYZp
+									break;
+									
+								case 4:
+									thisILDA->unpacked.X = htons(rec.f4.X);
+									thisILDA->unpacked.Y = htons(rec.f4.Y);
+									thisILDA->unpacked.Z = htons(rec.f4.Z);
+									thisILDA->unpacked.R = ((int) rec.f4.R * 257)/2;
+									thisILDA->unpacked.G = ((int) rec.f4.G * 257)/2;
+									thisILDA->unpacked.B = ((int) rec.f4.B * 257)/2;
+									thisILDA->unpacked.status = rec.f4.status;
+									break;
+									
+								case 5:
+									thisILDA->unpacked.X = htons(rec.f4.X);
+									thisILDA->unpacked.Y = htons(rec.f4.Y);
+									thisILDA->unpacked.Z = 0;
+									thisILDA->unpacked.R = ((int) rec.f4.R * 257)/2;
+									thisILDA->unpacked.G = ((int) rec.f4.G * 257)/2;
+									thisILDA->unpacked.B = ((int) rec.f4.B * 257)/2;
+									thisILDA->unpacked.status = rec.f4.status;
+									break;
+							}
+							
+						}
+						thisILDA->samples = thisILDA->samplesPerPoint;
+					}
+					
+					*data[0]++ = thisILDA->unpacked.X;
+					*data[1]++ = thisILDA->unpacked.Y;
+					*data[2]++ = thisILDA->unpacked.Z;
+					
+					if (thisILDA->unpacked.status & 0x40) // blanked
+					{
+						*data[3]++ = 0;
+						*data[4]++ = 0;
+						*data[5]++ = 0;
+						*data[6]++ = 32767;
+					}
+					else
+					{
+						*data[3]++ = thisILDA->unpacked.R;
+						*data[4]++ = thisILDA->unpacked.G;
+						*data[5]++ = thisILDA->unpacked.B;
+						*data[6]++ = 0;
+					}
+
+					toRead--;
+					thisILDA->samples--;
+				}
+				
+				if (readNeeded 			// there's now room for a buffer read,
+					&& !eof 			// and more file data available
+					&& !readPending)  	// and we haven't already asked
+				{
+					triggerEvent(STATE_PLAYING); // trigger a file read
+					readPending = true;
+				}
+				
+			}
+				break;
+				
+			default:
+				break;
 		}
 		
 		// transmit: mono goes to both outputs, stereo
@@ -542,11 +701,6 @@ void AudioPlayWAVbuffered::update(void)
 				transmit(blocks[i], i);
 		}
 
-		// deal with position tracking
-		if (got <= data_length)
-			data_length -= got;
-		else
-			data_length = 0;
 	}
 	
 	// relinquish our interest in these blocks

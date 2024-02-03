@@ -32,7 +32,7 @@
 
 // Default to disabling oscilloscope debug
 // This will be removed in production code
-#define noSCOPE_PIN
+// #define SCOPE_PIN 25
 #include <oscope.h>  
 
 class MemBuffer
@@ -120,15 +120,21 @@ class MemBuffer
   */
 class AudioBuffer : public MemBuffer
 {
+	void _readExecuted(size_t bytes, bool dummy = false);
+	
   public:
-	AudioBuffer() : queueOut(0), queueIn(0), isFull(false), bufState(empty) {}
+	AudioBuffer() 
+		: queueOut(0), queueIn(0), isFull(false), 
+		  bufState(empty), validCount{0}
+		{}
 	enum bufState_e {empty,firstValid,secondValid,bothValid}; // state of buffer
 	
   //private:
-	size_t queueOut;	// next read() will start from here
-	size_t queueIn;		// next write() will start from here
+	size_t queueOut;	// next read() will start from here: index into buffer[]
+	size_t queueIn;		// next write() will start from here: index into buffer[]
 	bool isFull;		// if true, queueIn == queueOut means buffer is completely full
 	bufState_e bufState;
+	size_t validCount[2]; // count of valid data in each half-buffer
 	
   public:
 	// buffer memory maintenance:
@@ -146,9 +152,10 @@ class AudioBuffer : public MemBuffer
 		}
 
 	// "playback" mode:
-	bool getNextRead(uint8_t** pbuf, size_t* psz);  // find out where (media) data needs to be read to
-	void readExecuted(size_t bytes);  		// signal that buffer data has been read in (from  media)
-	result read(uint8_t* dest, size_t bytes); 	// read buffer data into destination
+	bool getNextRead(uint8_t** pbuf, size_t* psz);  		// find out where (media) data needs to be read to
+	void readExecuted(size_t bytes) { _readExecuted(bytes); }  // signal that buffer data has been read in (from  media)
+	void dummyReadExecuted(size_t bytes) { _readExecuted(bytes, true); }  	// flip queueIn to other half, not affecting valid data count
+	result read(uint8_t* dest, size_t bytes); 				// read buffer data into destination
 	
 	// "recording" mode
 	result write(uint8_t* src, size_t bytes); 	// copy source data into buffer
@@ -198,14 +205,92 @@ public:
  
  
 class AudioWAVdata
-{
+{	
   public:
 	union tag_t
 	{
 	  char c[4];
 	  uint32_t u;
 	};
+	
+	//=========== ILDA stuff ===================
+	// NOTE THAT in the file 16-bit numbers are
+	// stored in big-endian format
+	struct __attribute__ ((packed))
+	ILDAheader_s
+	{
+	  tag_t ilda;
+	  uint8_t reserved1[3];
+	  uint8_t format;
+	  char name[8];
+	  char company[8];
+	  uint16_t records;
+	  uint16_t number;
+	  uint16_t total;
+	  uint8_t projector;
+	  uint8_t reserved2;
+	};
+	
+	struct __attribute__ ((packed))
+	ILDAformat0
+	{
+	  int16_t X,Y,Z;
+	  uint8_t status;
+	  uint8_t index;
+	};
 
+
+	struct __attribute__ ((packed))
+	ILDAformat1
+	{
+	  int16_t X,Y;
+	  uint8_t status;
+	  uint8_t index;
+	};
+
+
+	struct __attribute__ ((packed))
+	ILDAformat2
+	{
+	  uint8_t R,G,B;
+	};
+
+
+	struct __attribute__ ((packed))
+	ILDAformat4
+	{
+	  int16_t X,Y,Z;
+	  uint8_t status;
+	  uint8_t B,G,R;
+	};
+
+
+	struct __attribute__ ((packed))
+	ILDAformat5
+	{
+	  int16_t X,Y;
+	  uint8_t status;
+	  uint8_t B,G,R;
+	};
+	
+	struct ILDAformatAny
+	{
+		union 
+		{
+			ILDAformat0 f0;
+			ILDAformat1 f1;
+			ILDAformat2 f2;
+			ILDAformat4 f4;
+			ILDAformat5 f5;
+		};
+	};
+		
+	struct ILDAformatUnpacked
+	{
+		int16_t X,Y,Z,R,G,B,status;
+	};		
+
+	//==========================================
 	struct RIFFhdr_t
 	{
 	  tag_t riff;
@@ -255,17 +340,30 @@ class AudioWAVdata
 		chunk_t data; // *** .clen value only known after recording
 	};
 
-	uint16_t format;  		// file format
-	uint16_t bitsPerSample; // bits per sample
+	enum {UNKNOWN, WAV, ILDA} fileFormat;
+	union
+	{
+		struct // if fileFormat == WAV
+		{
+			uint16_t format;  		// file format
+			uint16_t bitsPerSample; // bits per sample
+			uint16_t dataChunks;	// number of data chunks
+			uint32_t samples; 		// number of samples
+			uint32_t firstAudio;	// offset of first audio data
+			uint32_t audioSize;		// number of bytes of audio
+			uint32_t bytes2millis;	// (scaled) conversion from file bytes to milliseconds
+		};
+		
+		struct // if fileFormat == ILDA
+		{
+		};
+	};
+	
+	// common to WAV and ILDA files
 	uint16_t chanCnt; 		// number of channels
-	uint16_t dataChunks;	// number of data chunks
-	uint32_t samples; 		// number of samples
-	uint32_t firstAudio;	// offset of first audio data
-	uint32_t audioSize;		// number of bytes of audio
-	uint32_t bytes2millis;	// (scaled) conversion from file bytes to milliseconds
 
-	AudioWAVdata(uint16_t cct) : format(0), bitsPerSample(0), chanCnt(cct), 
-					 dataChunks(0), samples(0), firstAudio(0)
+	AudioWAVdata(uint16_t cct) : format(0), bitsPerSample(0), 
+					 dataChunks(0), samples(0), firstAudio(0), chanCnt(cct)
 					 {}
 	AudioWAVdata() : AudioWAVdata(2) {}				 
 	uint32_t getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bitsPerSample);

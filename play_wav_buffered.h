@@ -111,4 +111,23 @@ class AudioPlayWAVquad	 : public AudioPlayWAVbuffered {};
 class AudioPlayWAVhex	 : public AudioPlayWAVbuffered {};
 class AudioPlayWAVoct	 : public AudioPlayWAVbuffered {};
 
+class AudioPlayILDA	 : public AudioPlayWAVbuffered 
+{
+public:	
+	AudioPlayILDA() : AudioPlayWAVbuffered() { setPointsToSamples(2); }
+	const static int sizes[6];
+	int recFormat;  // format of records in this section (0,1,4,5; 2 changes palette, 3 doesn't exist)
+	int records; 	// remaining in this section
+	int samples;
+	ILDAformatUnpacked unpacked; // this will hold all other record types
+	int samplesPerPoint;
+	
+	int paletteMax;  // maximum index into palette
+	ILDAformat2* palette; // colour palette data	
+	
+	uint32_t adjustHeaderInfo(void) { return 0; }  // do nothing, doesn't apply for ILDA files
+	void setPointsToSamples(int rate); 	// each ILDA point results in 'rate' samples
+
+};
+
 #endif // !defined(play_wav_buffered_h_)

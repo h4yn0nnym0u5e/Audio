@@ -160,22 +160,27 @@ AudioBuffer::result AudioBuffer::read(uint8_t* dest, //!< pointer to memory to c
 {
 	AudioBuffer::result rv = ok;
 	size_t halfSize = bufSize / 2;
+	size_t halfCount;
+	int whichHalf = queueOut >= halfSize ? 1 : 0;
 
 	if (bytes != 0)
 	{
 		if (bytes <= getAvailable())
 		{
 			isFull = false;
-			if (queueOut + bytes >= bufSize)
+			halfCount = validCount[whichHalf];  // bytes left in half-buffer we're reading from
+			if (queueOut + bytes >= halfCount)
 			{
 				if (nullptr != dest) 
 				{
-					memcpy(dest,buffer+queueOut,bufSize-queueOut);
-					dest += bufSize-queueOut;
+					memcpy(dest,buffer+queueOut,halfCount);
+					dest += halfCount;
 				}
 //for (size_t i=0;i<bufSize-queueOut;i++) buffer[queueOut+i] |= 0x20;
-				bytes -= bufSize-queueOut; // this could be zero
-				queueOut = 0;
+				bytes -= halfCount; 				// this could be zero
+				validCount[whichHalf] = 0;			// this half must be empty now
+				queueOut = whichHalf?0:halfSize;	// switch queueOut to start of other half
+				whichHalf = 1 - whichHalf;			// switch to other half
 			}
 		
 			if (bytes > 0)
@@ -185,6 +190,7 @@ AudioBuffer::result AudioBuffer::read(uint8_t* dest, //!< pointer to memory to c
 //for (size_t i=0;i<bytes;i++) buffer[queueOut+i] |= 0x20;
 				
 				queueOut += bytes;
+				validCount[whichHalf] -= bytes;
 			}
 			
 			if (queueIn == queueOut)
@@ -268,14 +274,15 @@ AudioBuffer::result AudioBuffer::write(uint8_t* src, //!< pointer to memory to c
  */
 size_t AudioBuffer::getAvailable()
 {
+	/*
 	size_t rv = queueIn - queueOut;
 	if (queueOut > queueIn)
 		rv += bufSize;
 	
 	if (0 == rv && isFull)
 		rv = bufSize;
-	
-	return rv;
+	*/
+	return validCount[0] + validCount[1];
 }
 
 
@@ -316,12 +323,34 @@ bool AudioBuffer::getNextRead(uint8_t** pbuf, 	//!< pointer to pointer returning
 
 /**
  * Signal that a required read into the buffer has been done.
+ *
+ * A read into the first half could extend into the second half, but not vice versa.
+ *
+ * A "dummy" read signals that we want the next read to go into the other half-buffer,
+ * but we're not adding valid data. This is used to help keep looped reads
+ * on a filesystem boundary, typically 512 bytes.
  */
-void AudioBuffer::readExecuted(size_t sz)
+void AudioBuffer::_readExecuted(size_t sz, bool dummy /* false */)
 {
+	if (!dummy)
+	{
+		if (queueIn >= bufSize/2) // read put data into second half only
+			validCount[1] += sz;
+		else // queueIn started in first half
+		{
+			size_t sz2 = sz;
+			if (queueIn + sz > bufSize/2) // some data went into each half
+			{
+				validCount[1] += queueIn + sz - bufSize/2; // this much to the second half
+				sz2 = bufSize/2 - queueIn;
+			}
+			validCount[0] += sz2; // this much to the first half
+		}
+	}
+		
 	queueIn += sz;
-	if (queueIn >= bufSize)
-		queueIn -= bufSize;
+	if (queueIn >= bufSize) // = should be the worst case, but defensive!
+		queueIn -= bufSize; // doesn't work if sz > 2* bufSize, but That Never Happens
 	
 	if (queueIn == queueOut)
 		isFull = true;
@@ -441,6 +470,7 @@ AudioBuffer::result AudioPreload::preLoad(const char* fp, uint8_t* buf, size_t s
 
 /*
  * Use existing buffer and pre-load file data
+ * All overloads of preload() end up here
  */
 AudioBuffer::result AudioPreload::preLoad(const char* fp, float startFrom /* = 0.0f */, FS& fs /* = SD */)
 {
@@ -508,12 +538,13 @@ AudioBuffer::result AudioPreload::preLoad(const char* fp, float startFrom /* = 0
 //#define CHARS_TO_ID(a,b,c,d) ((a<<24) | (b<<16) | (c<<8) | (d))
 #define CHARS_TO_ID(a,b,c,d) ((d<<24) | (c<<16) | (b<<8) | (a))
 static constexpr struct {
-	  uint32_t RIFF,WAVE,fmt,data,fact;
+	  uint32_t RIFF,WAVE,fmt,data,fact,ILDA;
 } IDs = {CHARS_TO_ID('R','I','F','F'),
 		 CHARS_TO_ID('W','A','V','E'),
 		 CHARS_TO_ID('f','m','t',' '),
 		 CHARS_TO_ID('d','a','t','a'),
-		 CHARS_TO_ID('f','a','c','t')
+		 CHARS_TO_ID('f','a','c','t'),
+		 CHARS_TO_ID('I','L','D','A'),		 
 		 };
 
 uint32_t AudioWAVdata::getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bitsPerSample)
@@ -560,6 +591,7 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 	f.read(&rhdr,sizeof rhdr);
 	if (rhdr.riff.u == IDs.RIFF && rhdr.wav.u == IDs.WAVE)
 	{
+		fileFormat = WAV;
 		do
 		{
 			uint32_t tmp;
@@ -603,6 +635,14 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 		
 		if (0 == samples)	// no data?
 			tmpChanCnt = 0;	// say there are no channels!
+	}
+	else
+	{
+		if (rhdr.riff.u == IDs. ILDA)
+		{			
+			fileFormat = ILDA;	// it's an ILDA file
+			tmpChanCnt = 7;		// XYZ coordinates; RGB colour; blanking
+		}
 	}
 
 	f.seek(0);

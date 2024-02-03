@@ -495,6 +495,7 @@ span.mainfunction {color: #993300; font-weight: bolder}
 
 		{"type":"AudioAmplifier","data":{"defaults":{"name":{"value":"new"}},"shortName":"amp","inputs":1,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioMixer4","data":{"defaults":{"name":{"value":"new"}},"shortName":"mixer","inputs":4,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioMixerSummer","data":{"defaults":{"name":{"value":"new"}},"shortName":"summer","inputs":4,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayMemory","data":{"defaults":{"name":{"value":"new"}},"shortName":"playMem","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlaySdWav","data":{"defaults":{"name":{"value":"new"}},"shortName":"playSdWav","inputs":0,"outputs":2,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		
@@ -502,6 +503,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioPlayWAVquad",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVquad",  "inputs":0,"outputs":4,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayWAVhex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVhex",   "inputs":0,"outputs":6,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayWAVoct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVoct",   "inputs":0,"outputs":8,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+
+		{"type":"AudioPlayILDA",     "data":{"defaults":{"name":{"value":"new"}},"shortName":"playILDA",   "inputs":0,"outputs":7,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		
 		{"type":"AudioRecordWAVmono",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVmono",  "inputs":1,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioRecordWAVstereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVstereo","inputs":2,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -543,6 +546,9 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioEffectGranular","data":{"shortName":"granular","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectDigitalCombine","data":{"shortName":"combine","inputs":2,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectWaveFolder","data":{"defaults":{"name":{"value":"new"}},"shortName":"wavefolder","inputs":2,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+
+		{"type":"AudioEffectRotator","data":{"defaults":{"name":{"value":"new"}},"shortName":"rotator","inputs":3,"outputs":2,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+
 		{"type":"AudioFilterBiquad","data":{"defaults":{"name":{"value":"new"}},"shortName":"biquad","inputs":1,"outputs":1,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioFilterFIR","data":{"defaults":{"name":{"value":"new"}},"shortName":"fir","inputs":1,"outputs":1,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioFilterStateVariable","data":{"defaults":{"name":{"value":"new"}},"shortName":"filter","inputs":2,"outputs":3,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -559,7 +565,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioControlCS4272","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs4272","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioControlWM8731","data":{"defaults":{"name":{"value":"new"}},"shortName":"wm8731","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioControlWM8731master","data":{"defaults":{"name":{"value":"new"}},"shortName":"wm8731m","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioControlCS42448","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs42448","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}}
+		{"type":"AudioControlCS42448","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs42448","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioControlPCM3168","data":{"defaults":{"name":{"value":"new"}},"shortName":"pcm3168","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}}
 	]}
 </script>
 
@@ -2636,6 +2643,33 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</div>
 </script>
 
+
+<!-- ---------------------------------------------------------------------------------->
+<script type="text/x-red" data-help-name="AudioMixerSummer">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Simply sums up to 4 signals together, over/underflowing rather than saturating.
+		Channels DO NOT support signal attenuation or amplification.</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>Input signal #1</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Input signal #2</td></tr>
+		<tr class=odd><td align=center>In 2</td><td>Input signal #3</td></tr>
+		<tr class=odd><td align=center>In 3</td><td>Input signal #4</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Sum of all inputs</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioMixerSummer">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ---------------------------------------------------------------------------------->
+
+
 <script type="text/x-red" data-help-name="AudioPlayMemory">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
@@ -2866,6 +2900,46 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</div>
 </script>
 <script type="text/x-red" data-template-name="AudioPlayWAVoct">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ----------------------------------------------------------->
+
+<!-- ----------------------------------------------------------->
+
+<script type="text/x-red" data-help-name="AudioPlayILDA">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Play an ILDA-format laser show file.
+	</p>
+	<p>Functionality is similar to that of the playWAVstereo object.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>Out 0</td><td>X position output</td></tr>
+		<tr class=odd><td align=center>Out 1</td><td>Y position output</td></tr>
+		<tr class=odd><td align=center>Out 2</td><td>Z position output</td></tr>
+		<tr class=odd><td align=center>Out 3</td><td>Red colour output</td></tr>
+		<tr class=odd><td align=center>Out 4</td><td>Green colour output</td></tr>
+		<tr class=odd><td align=center>Out 5</td><td>Blue colour output</td></tr>
+		<tr class=odd><td align=center>Out 6</td><td>Blanking output</td></tr>
+	</table>
+	<h3>Functions</h3>
+	<div class=tooltipinfo>
+	<p>The following functions are specific to ILDA file playback,
+	in addition to the normal file playback functions provided by the AudioPlayWAVstereo object.
+	</p>
+	</div>
+	
+	<p class=func><span class=keyword>setPointsToSamples</span>(<span class=parameter>ratio</span>);</p>
+	<p class=desc>Set the number of samples that will be emitted for each point in the file. 
+	The default ratio is 2, resulting in a point output rate of 22.05kpts/s with stock Audio library settings.
+	</p></script>
+<script type="text/x-red" data-template-name="AudioPlayILDA">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -4979,6 +5053,46 @@ double s_freq = .0625;</p>
     </div>
 </script>
 
+<!-- ------------------------------------------------------------------------------------>
+<script type="text/x-red" data-help-name="AudioEffectRotator">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>2D rotation of X/Y inputs</p>
+	<p>Used to apply real-time rotation to an X/Y position stream for a laser synth.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Signal</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>X co-ordinate</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Y co-ordinate</td></tr>
+		<tr class=odd><td align=center>In 2</td><td>Rotation</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Rotated X</td></tr>
+		<tr class=odd><td align=center>Out 1</td><td>Rotated Y</td></tr>
+	</table>
+	<p>Values of -1.0 to +1.0 on the rotation input
+	will cause rotation by -180° to +180° (unless reverse() has been used). 
+	Use a maximum amplitude sawtooth
+	input to create the appearance of continuous rotation.
+	</p>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>reverse</span>(flag);</p>
+	<p class=desc>Reverse the sense of the rotation input. 
+	If an AudioSynthWaveform object is used to create the rotation, it is impossible 
+	to "flip" its amplitude to reverse rotation without causing a jump:
+		use this function to change the rotation direction without such a discontinuity.
+		</p>
+</script>
+
+<script type="text/x-red" data-template-name="AudioEffectRotator">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- ------------------------------------------------------------------------------------>
+
 <script type="text/x-red" data-help-name="AudioEffectGranular">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
@@ -6329,6 +6443,64 @@ value  frequency
 </script>
 
 
+<!-- ------------------------------------------------------------------------------------------------------>
+<script type="text/x-red" data-help-name="AudioControlPCM3168">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Control the PCM3168 chip in TDM mode, for 6 inputs and 8 outputs.
+	</p>
+	<p align=center><img src="img/PCM3168.jpg"></p>
+	</div>
+	</div>
+	<h3>Audio Connections</h3>
+	<p>This object has no audio inputs or outputs.  Separate TDM objects
+		are used to send and receive audio data.
+	</p>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Address value of 0 to 3 should match the 2 LSBits of your hardware I²C address.
+	(The PCM3168 uses addresses 0x44 to 0x47 - default is 0x44)
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire);</p>
+	<p class=desc>Wire object reference should match the I²C bus to which your PCM3168 is connected.
+	Defaults to Wire.
+	</p>
+	<p class=func><span class=keyword>enable</span>();</p>
+	<p class=desc>Enables the PCM3168 to work in TDM mode.
+	</p>
+	<p class=func><span class=keyword>volume</span>(level);</p>
+	<p class=desc>Set the volume level for all output channels. Range is 0 to 1.0.
+	</p>
+	<p class=func><span class=keyword>volume</span>(channel, level);</p>
+	<p class=desc>Set the volume level for a single output. Channel is 1 to 8.  Range is 0 to 1.0.
+	</p>
+	<p class=func><span class=keyword>inputLevel</span>(level);</p>
+	<p class=desc>Set the input gain level for all input channels. Range is 0 to 15.85.
+	</p>
+	<p class=func><span class=keyword>inputLevel</span>(channel, level);</p>
+	<p class=desc>Set the input gain level for a single input. Channel is 1 to 6. Range is 0 to 15.85.
+	</p>
+	<p class=func><span class=keyword>invertADC</span>(bitmask);</p>
+	<p class=desc>Inverts the phase of input channels whose bits are set in the mask.
+	</p>
+	<p class=func><span class=keyword>invertDAC</span>(bitmask);</p>
+	<p class=desc>Inverts the phase of output channels whose bits are set in the mask.
+	</p>
+	<h3>Notes</h3>
+	<div class=tooltipinfo>
+	<p>The PCM3168 chip requires a clock before it responds to I²C communications,
+	so its TDM object must be active before enable() is called. Additionally, it appears
+	highly advisable to cycle the /RST pin to reset the chip before using it.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioControlPCM3168">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------------------>
 
 </body>
 </html>
