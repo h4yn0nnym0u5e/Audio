@@ -126,7 +126,7 @@ public:
 	ILDAformat2* palette; // colour palette data	
 	
 	uint32_t adjustHeaderInfo(void) { return 0; }  // do nothing, doesn't apply for ILDA files
-	void setPointsToSamples(int rate); 	// each ILDA point results in 'rate' samples
+	void setPointsToSamples(int rate) { samplesPerPoint = rate; } 	// each ILDA point results in 'rate' samples
 
 };
 

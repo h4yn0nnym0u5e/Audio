@@ -34,6 +34,7 @@ AudioControlWM8731master	KEYWORD2
 AudioControlAK4558	KEYWORD2
 AudioControlCS4272	KEYWORD2
 AudioControlCS42448	KEYWORD2
+AudioControlPCM3168	KEYWORD2
 AudioControlTLV320AIC3206	KEYWORD2
 AudioMemory	KEYWORD2
 
@@ -59,6 +60,7 @@ AudioEffectMidSide	KEYWORD2
 AudioEffectWaveshaper	KEYWORD2
 AudioEffectGranular	KEYWORD2
 AudioEffectDigitalCombine	KEYWORD2
+AudioEffectRotator	KEYWORD2
 AudioEffectRectifier	KEYWORD2
 AudioFilterBiquad	KEYWORD2
 AudioFilterFIR	KEYWORD2
@@ -68,6 +70,7 @@ AudioEffectWaveFolder		KEYWORD2
 AudioInputAnalog	KEYWORD2
 AudioInputAnalogStereo	KEYWORD2
 AudioMixer4	KEYWORD2
+AudioMixerSummer	KEYWORD2
 AudioAmplifier	KEYWORD2
 AudioOutputAnalog	KEYWORD2
 AudioOutputAnalogStereo	KEYWORD2
@@ -79,6 +82,7 @@ AudioPlayWAVstereo	KEYWORD2
 AudioPlayWAVquad	KEYWORD2
 AudioPlayWAVhex	KEYWORD2
 AudioPlayWAVoct	KEYWORD2
+AudioPlayILDA	KEYWORD2
 
 AudioRecordWAVmono	KEYWORD2
 AudioRecordWAVstereo	KEYWORD2

@@ -169,7 +169,7 @@ AudioBuffer::result AudioBuffer::read(uint8_t* dest, //!< pointer to memory to c
 		{
 			isFull = false;
 			halfCount = validCount[whichHalf];  // bytes left in half-buffer we're reading from
-			if (queueOut + bytes >= halfCount)
+			if (bytes >= halfCount) // not enough bytes in this half to satisfy the read
 			{
 				if (nullptr != dest) 
 				{

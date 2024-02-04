@@ -618,12 +618,25 @@ void AudioPlayWAVbuffered::update(void)
 						{
 							// unbuffer
 							rdr = read((uint8_t*) &rec, AudioPlayILDA::sizes[thisILDA->recFormat]);
+							thisILDA->records--;
 							if (ok != rdr)
 								readNeeded = true;
 							
 							// convert to unpacked audio data
 							switch (thisILDA->recFormat)
 							{
+#define RGB_LEVELS S16								
+#define CONVERT_RGB_U16(n) ((int) n * 257) / 2
+#define CONVERT_RGB_S16(n) ((int) n * 257) - 32768
+#define BLACK_U16 0
+#define BLACK_S16 (-32768)
+#define CONVERT_RGB_(l,n) CONVERT_RGB_##l(n)
+#define xCONVERT_RGB_(l,n) CONVERT_RGB_(l,n)
+#define CONVERT(n) xCONVERT_RGB_(RGB_LEVELS,n)
+#define BLACK_(l) BLACK_##l
+#define xBLACK_(l) BLACK_(l)
+#define BLACK_LEVEL xBLACK_(RGB_LEVELS)
+								
 								case 0: // XYZp
 									break;
 									
@@ -631,23 +644,39 @@ void AudioPlayWAVbuffered::update(void)
 									thisILDA->unpacked.X = htons(rec.f4.X);
 									thisILDA->unpacked.Y = htons(rec.f4.Y);
 									thisILDA->unpacked.Z = htons(rec.f4.Z);
-									thisILDA->unpacked.R = ((int) rec.f4.R * 257)/2;
-									thisILDA->unpacked.G = ((int) rec.f4.G * 257)/2;
-									thisILDA->unpacked.B = ((int) rec.f4.B * 257)/2;
+									thisILDA->unpacked.R = CONVERT(rec.f4.R);
+									thisILDA->unpacked.G = CONVERT(rec.f4.G);
+									thisILDA->unpacked.B = CONVERT(rec.f4.B);
 									thisILDA->unpacked.status = rec.f4.status;
 									break;
 									
 								case 5:
-									thisILDA->unpacked.X = htons(rec.f4.X);
-									thisILDA->unpacked.Y = htons(rec.f4.Y);
+									thisILDA->unpacked.X = htons(rec.f5.X);
+									thisILDA->unpacked.Y = htons(rec.f5.Y);
 									thisILDA->unpacked.Z = 0;
-									thisILDA->unpacked.R = ((int) rec.f4.R * 257)/2;
-									thisILDA->unpacked.G = ((int) rec.f4.G * 257)/2;
-									thisILDA->unpacked.B = ((int) rec.f4.B * 257)/2;
-									thisILDA->unpacked.status = rec.f4.status;
+									thisILDA->unpacked.R = CONVERT(rec.f5.R);
+									thisILDA->unpacked.G = CONVERT(rec.f5.G);
+									thisILDA->unpacked.B = CONVERT(rec.f5.B);
+									thisILDA->unpacked.status = rec.f5.status;
 									break;
 							}
 							
+						}
+						else // out of records, get a header
+						{
+							ILDAheader_s hdr;
+							
+							// unbuffer
+							rdr = read((uint8_t*) &hdr, sizeof hdr);
+							if (ok != rdr)
+								readNeeded = true;
+							
+							if (underflow != rdr && hdr.ilda.u == 0x41444C49) // TODO: fix magic number
+							{
+								thisILDA->recFormat = hdr.format;
+								thisILDA->records   = htons(hdr.records);							
+							}
+							continue; // restart while() loop, we now have a new record count and format
 						}
 						thisILDA->samples = thisILDA->samplesPerPoint;
 					}
@@ -658,9 +687,9 @@ void AudioPlayWAVbuffered::update(void)
 					
 					if (thisILDA->unpacked.status & 0x40) // blanked
 					{
-						*data[3]++ = 0;
-						*data[4]++ = 0;
-						*data[5]++ = 0;
+						*data[3]++ = BLACK_LEVEL;
+						*data[4]++ = BLACK_LEVEL;
+						*data[5]++ = BLACK_LEVEL;
 						*data[6]++ = 32767;
 					}
 					else
@@ -668,7 +697,7 @@ void AudioPlayWAVbuffered::update(void)
 						*data[3]++ = thisILDA->unpacked.R;
 						*data[4]++ = thisILDA->unpacked.G;
 						*data[5]++ = thisILDA->unpacked.B;
-						*data[6]++ = 0;
+						*data[6]++ = BLACK_LEVEL;
 					}
 
 					toRead--;
