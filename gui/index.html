@@ -504,7 +504,7 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioPlayWAVhex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVhex",   "inputs":0,"outputs":6,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayWAVoct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVoct",   "inputs":0,"outputs":8,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 
-		{"type":"AudioPlayILDA",     "data":{"defaults":{"name":{"value":"new"}},"shortName":"playILDA",   "inputs":0,"outputs":7,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioPlayILDA",     "data":{"defaults":{"name":{"value":"new"}},"shortName":"playILDA",   "inputs":0,"outputs":7,"category":"play-function","color":"#F8E6E0","icon":"arrow-in.png"}},
 		
 		{"type":"AudioRecordWAVmono",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVmono",  "inputs":1,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioRecordWAVstereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVstereo","inputs":2,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -547,7 +547,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioEffectDigitalCombine","data":{"shortName":"combine","inputs":2,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectWaveFolder","data":{"defaults":{"name":{"value":"new"}},"shortName":"wavefolder","inputs":2,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 
-		{"type":"AudioEffectRotator","data":{"defaults":{"name":{"value":"new"}},"shortName":"rotator","inputs":3,"outputs":2,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioEffectRotator","data":{"defaults":{"name":{"value":"new"}},"shortName":"rotator","inputs":3,"outputs":2,"category":"effect-function","color":"#F8E6E0","icon":"arrow-in.png"}},
+		{"type":"AudioEffectProtectStall","data":{"defaults":{"name":{"value":"new"}},"shortName":"protectStall","inputs":7,"outputs":7,"category":"effect-function","color":"#F8E6E0","icon":"arrow-in.png"}},
 
 		{"type":"AudioFilterBiquad","data":{"defaults":{"name":{"value":"new"}},"shortName":"biquad","inputs":1,"outputs":1,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioFilterFIR","data":{"defaults":{"name":{"value":"new"}},"shortName":"fir","inputs":1,"outputs":1,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -2940,6 +2941,54 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	The default ratio is 2, resulting in a point output rate of 22.05kpts/s with stock Audio library settings.
 	</p></script>
 <script type="text/x-red" data-template-name="AudioPlayILDA">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+
+<!-- ----------------------------------------------------------->
+<script type="text/x-red" data-help-name="AudioEffectProtectStall">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Provide a degree of protection from a stalled laser synth application
+	</p>
+	<p>Intended to be placed immediately before the output object, with XY[Z]RGB[s]
+	signals fed through it. If the XY signals appear to stall in a fixed position, then
+	the RGB signal outputs will be set to black.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>X position input</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Y position input</td></tr>
+		<tr class=odd><td align=center>In 2</td><td>Z position input</td></tr>
+		<tr class=odd><td align=center>In 3</td><td>Red colour input</td></tr>
+		<tr class=odd><td align=center>In 4</td><td>Green colour input</td></tr>
+		<tr class=odd><td align=center>In 5</td><td>Blue colour input</td></tr>
+		<tr class=odd><td align=center>In 6</td><td>Blanking input</td></tr>
+		
+		<tr class=odd><td align=center>Out 0</td><td>X position output</td></tr>
+		<tr class=odd><td align=center>Out 1</td><td>Y position output</td></tr>
+		<tr class=odd><td align=center>Out 2</td><td>Z position output</td></tr>
+		<tr class=odd><td align=center>Out 3</td><td>Red colour output</td></tr>
+		<tr class=odd><td align=center>Out 4</td><td>Green colour output</td></tr>
+		<tr class=odd><td align=center>Out 5</td><td>Blue colour output</td></tr>
+		<tr class=odd><td align=center>Out 6</td><td>Blanking output</td></tr>
+	</table>
+	<h3>Functions</h3>
+	<div class=tooltipinfo>
+	<p>The following functions are specific to ILDA file playback,
+	in addition to the normal file playback functions provided by the AudioPlayWAVstereo object.
+	</p>
+	</div>
+	
+	<p class=func><span class=keyword>setPointsToSamples</span>(<span class=parameter>ratio</span>);</p>
+	<p class=desc>Set the number of samples that will be emitted for each point in the file. 
+	The default ratio is 2, resulting in a point output rate of 22.05kpts/s with stock Audio library settings.
+	</p></script>
+<script type="text/x-red" data-template-name="AudioEffectProtectStall">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">

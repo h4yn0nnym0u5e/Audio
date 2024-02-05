@@ -89,6 +89,7 @@
 #include "effect_combine.h"
 #include "effect_rectifier.h"
 #include "effect_rotator.h"
+#include "effect_protect_stall.h"
 #include "effect_wavefolder.h"
 #include "filter_biquad.h"
 #include "filter_fir.h"

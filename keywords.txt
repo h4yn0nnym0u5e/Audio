@@ -61,6 +61,7 @@ AudioEffectWaveshaper	KEYWORD2
 AudioEffectGranular	KEYWORD2
 AudioEffectDigitalCombine	KEYWORD2
 AudioEffectRotator	KEYWORD2
+AudioEffectProtectStall	KEYWORD2
 AudioEffectRectifier	KEYWORD2
 AudioFilterBiquad	KEYWORD2
 AudioFilterFIR	KEYWORD2
