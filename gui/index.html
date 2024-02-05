@@ -2953,9 +2953,9 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<div class=tooltipinfo>
 	<p>Provide a degree of protection from a stalled laser synth application
 	</p>
-	<p>Intended to be placed immediately before the output object, with XY[Z]RGB[s]
+	<p>Intended to be placed immediately before the output object, with XY[Z]RGB[b]
 	signals fed through it. If the XY signals appear to stall in a fixed position, then
-	the RGB signal outputs will be set to black.
+	the RGB signal outputs will be set to a safe value.
 	</p>
 	</div>
 	<h3>Audio Connections</h3>
@@ -2978,16 +2978,37 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		<tr class=odd><td align=center>Out 6</td><td>Blanking output</td></tr>
 	</table>
 	<h3>Functions</h3>
-	<div class=tooltipinfo>
-	<p>The following functions are specific to ILDA file playback,
-	in addition to the normal file playback functions provided by the AudioPlayWAVstereo object.
+
+	<p class=func><span class=keyword>setRGBsafeValue</span>(<span class=parameter>value</span>);</p>
+	<p class=desc>Set the value to which the RGB channel outputs will be coerced if the position channels
+	appear to have stalled. Range -1.0 to +1.0, normally use -1.0 for signed RGB values, 
+	and 0.0 for unsigned.
 	</p>
-	</div>
+	<p class=func><span class=keyword>setBlankSafeValue</span>(<span class=parameter>value</span>);</p>
+	<p class=desc>Set the value to which the blanking channel output will be coerced if the position channels
+	appear to have stalled. Range -1.0 to +1.0, normally use -1.0 for signed RGB values, 
+	and 0.0 for unsigned.
+	</p>
+	<p class=func><span class=keyword>setStallThreshold</span>(<span class=parameter>range</span>);</p>
+	<p class=desc>Set the range to outside which a position channel must vary during one audio block to
+	keep the laser channels active. This is expressed as an integer, because it will typically
+	be a small number.
+	</p>
+	<p class=func><span class=keyword>setStallTimeout</span>(<span class=parameter>millis</span>);</p>
+	<p class=desc>Set the timeout after which an apparently static set of position channels will
+	result in the laser channels being forced inactive. This allows for a certain amount of slow movement,
+	bearing in mind that the block size is only 128 samples.
+	</p>
+	<p class=func><span class=keyword>isUpdating</span>();</p>
+	<p class=desc>Returns true if the stall protection is executing update() calls at a
+	reasonable interval. If this is false, protection may be non-functional.
+	</p>
+	<p class=func><span class=keyword>getUpdateCount</span>();</p>
+	<p class=desc>Returns a count of the number of times the stall protection has updated. Can
+	be used as another cross-check that the protection system is functional.
+	</p>
+	</script>
 	
-	<p class=func><span class=keyword>setPointsToSamples</span>(<span class=parameter>ratio</span>);</p>
-	<p class=desc>Set the number of samples that will be emitted for each point in the file. 
-	The default ratio is 2, resulting in a point output rate of 22.05kpts/s with stock Audio library settings.
-	</p></script>
 <script type="text/x-red" data-template-name="AudioEffectProtectStall">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

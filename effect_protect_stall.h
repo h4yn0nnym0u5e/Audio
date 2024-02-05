@@ -35,6 +35,15 @@
 class AudioEffectProtectStall : public AudioStream
 {
 	static const int CHANNELS = 7;
+	int16_t _floatToSample(float f) 
+	{ 
+		int i = (int16_t) (f*32768.0f); 
+		if (i >  32767) i = 32767;
+		if (i < -32768) i = -32768;
+		
+		return (int16_t) i;
+	}
+	
 public:
 	AudioEffectProtectStall(void) : 
 		AudioStream(CHANNELS, inputQueueArray),
@@ -47,8 +56,8 @@ public:
 	void update(void);
 	unsigned int getUpdateCount(void) { return updateCount; }
 	bool isUpdating(void) { bool result = updatesOK; updatesOK = true; return result;}
-	void setRGBsafevalue(int v)   	 { RGBsafeValue   = v; fillPermanentBlocks(); }
-	void setBlankSafeValue(int v) 	 { blankSafeValue = v; fillPermanentBlocks(); }
+	void setRGBsafevalue(float v)    { RGBsafeValue   = _floatToSample(v); fillPermanentBlocks(); }
+	void setBlankSafeValue(float v)  { blankSafeValue = _floatToSample(v); fillPermanentBlocks(); }
 	void setStallThreshold(int v) 	 { stallThreshold = v; }
 	void setStallTimeout(uint32_t v) { stallTimeout   = v; }
 //private:
