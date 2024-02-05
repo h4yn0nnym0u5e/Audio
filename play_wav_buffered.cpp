@@ -26,10 +26,7 @@
 
 #include <Arduino.h>
 #include "play_wav_buffered.h"
-
-#if !defined(htons)
-#define htons(x) (((((x) >> 8) & 0xFF) | ((x) << 8)) & 0xFFFF)
-#endif // !defined(htons)
+#include <laser_synth.h>
 
 
 const int AudioPlayILDA::sizes[6] = {sizeof(ILDAformat0), sizeof(ILDAformat1), sizeof(ILDAformat2), 
@@ -485,8 +482,9 @@ void AudioPlayWAVbuffered::update(void)
 	int16_t* data[chanCnt];
 	int alloCnt = 0; // count of blocks successfully allocated
 	
-	// only update if we're playing and not paused
-	if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED) 
+	// only update if we're playing and not paused, and it's a WAV file
+	if ((state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED)
+		&& fileFormat == WAV) 
 		return;
 	
 	// just possible the channel count will be zero, if a file suddenly goes AWOL:
@@ -605,112 +603,127 @@ void AudioPlayWAVbuffered::update(void)
 				
 			case ILDA:
 			{
-				result rdr = ok;
-				bool readNeeded = false;
-				int toRead = AUDIO_BLOCK_SAMPLES; 	// we need to create this many samples
-				AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
-				ILDAformatAny rec;
-				
-				while (toRead > 0)
+				if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED)
 				{
-					if (0 == thisILDA->samples)
+					AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
+					// stopped: still need to putput something sane
+					for (int i=0;i<AUDIO_BLOCK_SAMPLES;i++)
 					{
-						if (thisILDA->records > 0) // we're still reading the current set of records
-						{
-							// unbuffer
-							rdr = read((uint8_t*) &rec, AudioPlayILDA::sizes[thisILDA->recFormat]);
-							thisILDA->records--;
-							if (ok != rdr)
-								readNeeded = true;
-							
-							// convert to unpacked audio data
-							switch (thisILDA->recFormat)
-							{
-#define RGB_LEVELS S16								
-#define CONVERT_RGB_U16(n) ((int) n * 257) / 2
-#define CONVERT_RGB_S16(n) ((int) n * 257) - 32768
-#define BLACK_U16 0
-#define BLACK_S16 (-32768)
-#define CONVERT_RGB_(l,n) CONVERT_RGB_##l(n)
-#define xCONVERT_RGB_(l,n) CONVERT_RGB_(l,n)
-#define CONVERT(n) xCONVERT_RGB_(RGB_LEVELS,n)
-#define BLACK_(l) BLACK_##l
-#define xBLACK_(l) BLACK_(l)
-#define BLACK_LEVEL xBLACK_(RGB_LEVELS)
-								
-								case 0: // XYZp
-									break;
-									
-								case 4:
-									thisILDA->unpacked.X = htons(rec.f4.X);
-									thisILDA->unpacked.Y = htons(rec.f4.Y);
-									thisILDA->unpacked.Z = htons(rec.f4.Z);
-									thisILDA->unpacked.R = CONVERT(rec.f4.R);
-									thisILDA->unpacked.G = CONVERT(rec.f4.G);
-									thisILDA->unpacked.B = CONVERT(rec.f4.B);
-									thisILDA->unpacked.status = rec.f4.status;
-									break;
-									
-								case 5:
-									thisILDA->unpacked.X = htons(rec.f5.X);
-									thisILDA->unpacked.Y = htons(rec.f5.Y);
-									thisILDA->unpacked.Z = 0;
-									thisILDA->unpacked.R = CONVERT(rec.f5.R);
-									thisILDA->unpacked.G = CONVERT(rec.f5.G);
-									thisILDA->unpacked.B = CONVERT(rec.f5.B);
-									thisILDA->unpacked.status = rec.f5.status;
-									break;
-							}
-							
-						}
-						else // out of records, get a header
-						{
-							ILDAheader_s hdr;
-							
-							// unbuffer
-							rdr = read((uint8_t*) &hdr, sizeof hdr);
-							if (ok != rdr)
-								readNeeded = true;
-							
-							if (underflow != rdr && hdr.ilda.u == 0x41444C49) // TODO: fix magic number
-							{
-								thisILDA->recFormat = hdr.format;
-								thisILDA->records   = htons(hdr.records);							
-							}
-							continue; // restart while() loop, we now have a new record count and format
-						}
-						thisILDA->samples = thisILDA->samplesPerPoint;
-					}
-					
-					*data[0]++ = thisILDA->unpacked.X;
-					*data[1]++ = thisILDA->unpacked.Y;
-					*data[2]++ = thisILDA->unpacked.Z;
-					
-					if (thisILDA->unpacked.status & 0x40) // blanked
-					{
+						// use last galvo position: this would be dangerous, but...
+						*data[0]++ = thisILDA->lastX;
+						*data[1]++ = thisILDA->lastY;
+						*data[2]++ = thisILDA->lastZ;
+						
+						// ...we turn the lasers off...
 						*data[3]++ = BLACK_LEVEL;
 						*data[4]++ = BLACK_LEVEL;
 						*data[5]++ = BLACK_LEVEL;
-						*data[6]++ = 32767;
+						
+						// ...and enable blanking
+						*data[6]++ = BLANKING(1);
+						
 					}
-					else
-					{
-						*data[3]++ = thisILDA->unpacked.R;
-						*data[4]++ = thisILDA->unpacked.G;
-						*data[5]++ = thisILDA->unpacked.B;
-						*data[6]++ = BLACK_LEVEL;
-					}
-
-					toRead--;
-					thisILDA->samples--;
 				}
-				
-				if (readNeeded 			// there's now room for a buffer read,
-					&& !eof 			// and more file data available
-					&& !readPending)  	// and we haven't already asked
+				else // playing a file: get more data
 				{
-					triggerEvent(STATE_PLAYING); // trigger a file read
-					readPending = true;
+					result rdr = ok;
+					bool readNeeded = false;
+					int toRead = AUDIO_BLOCK_SAMPLES; 	// we need to create this many samples
+					AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
+					ILDAformatAny rec;
+					
+					while (toRead > 0)
+					{
+						if (0 == thisILDA->samples)
+						{
+							if (thisILDA->records > 0) // we're still reading the current set of records
+							{
+								// unbuffer
+								rdr = read((uint8_t*) &rec, AudioPlayILDA::sizes[thisILDA->recFormat]);
+								thisILDA->records--;
+								if (ok != rdr)
+									readNeeded = true;
+								
+								// convert to unpacked audio data
+								switch (thisILDA->recFormat)
+								{
+									case 0: // XYZp
+										break;
+										
+									case 4:
+										thisILDA->unpacked.X = htons(rec.f4.X);
+										thisILDA->unpacked.Y = htons(rec.f4.Y);
+										thisILDA->unpacked.Z = htons(rec.f4.Z);
+										thisILDA->unpacked.R = CONVERT(rec.f4.R);
+										thisILDA->unpacked.G = CONVERT(rec.f4.G);
+										thisILDA->unpacked.B = CONVERT(rec.f4.B);
+										thisILDA->unpacked.status = rec.f4.status;
+										break;
+										
+									case 5:
+										thisILDA->unpacked.X = htons(rec.f5.X);
+										thisILDA->unpacked.Y = htons(rec.f5.Y);
+										thisILDA->unpacked.Z = 0;
+										thisILDA->unpacked.R = CONVERT(rec.f5.R);
+										thisILDA->unpacked.G = CONVERT(rec.f5.G);
+										thisILDA->unpacked.B = CONVERT(rec.f5.B);
+										thisILDA->unpacked.status = rec.f5.status;
+										break;
+								}
+								
+							}
+							else // out of records, get a header
+							{
+								ILDAheader_s hdr;
+								
+								// unbuffer
+								rdr = read((uint8_t*) &hdr, sizeof hdr);
+								if (ok != rdr)
+									readNeeded = true;
+								
+								if (underflow != rdr && hdr.ilda.u == 0x41444C49) // TODO: fix magic number
+								{
+									thisILDA->recFormat = hdr.format;
+									thisILDA->records   = htons(hdr.records);							
+								}
+								continue; // restart while() loop, we now have a new record count and format
+							}
+							thisILDA->samples = thisILDA->samplesPerPoint;
+						}
+						
+						*data[0]++ = thisILDA->unpacked.X;
+						*data[1]++ = thisILDA->unpacked.Y;
+						*data[2]++ = thisILDA->unpacked.Z;
+						
+						if (thisILDA->unpacked.status & 0x40) // blanked
+						{
+							*data[3]++ = BLACK_LEVEL;
+							*data[4]++ = BLACK_LEVEL;
+							*data[5]++ = BLACK_LEVEL;
+							*data[6]++ = BLANKING(1);
+						}
+						else
+						{
+							*data[3]++ = thisILDA->unpacked.R;
+							*data[4]++ = thisILDA->unpacked.G;
+							*data[5]++ = thisILDA->unpacked.B;
+							*data[6]++ = BLANKING(0);
+						}
+
+						toRead--;
+						thisILDA->samples--;
+					}
+					thisILDA->lastX = *(data[0] -1);
+					thisILDA->lastY = *(data[1] -1);
+					thisILDA->lastZ = *(data[2] -1);
+					
+					if (readNeeded 			// there's now room for a buffer read,
+						&& !eof 			// and more file data available
+						&& !readPending)  	// and we haven't already asked
+					{
+						triggerEvent(STATE_PLAYING); // trigger a file read
+						readPending = true;
+					}
 				}
 				
 			}

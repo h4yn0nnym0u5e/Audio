@@ -113,8 +113,14 @@ class AudioPlayWAVoct	 : public AudioPlayWAVbuffered {};
 
 class AudioPlayILDA	 : public AudioPlayWAVbuffered 
 {
+	friend class AudioPlayWAVbuffered;
+protected:	
+	int16_t lastX, lastY, lastZ; // last known galvo positions, for when we stop
 public:	
-	AudioPlayILDA() : AudioPlayWAVbuffered() { setPointsToSamples(2); }
+	AudioPlayILDA() 
+		: AudioPlayWAVbuffered(),
+		lastX(0), lastY(0), lastZ(0)
+		{ setPointsToSamples(2); chanCnt = 7; fileFormat = ILDA; }
 	const static int sizes[6];
 	int recFormat;  // format of records in this section (0,1,4,5; 2 changes palette, 3 doesn't exist)
 	int records; 	// remaining in this section
@@ -126,8 +132,9 @@ public:
 	ILDAformat2* palette; // colour palette data	
 	
 	uint32_t adjustHeaderInfo(void) { return 0; }  // do nothing, doesn't apply for ILDA files
+	void pause(void) {} 		  // do nothing, shouldn't pause the galvos!
+	void togglePlayPause(void) {} // do nothing, shouldn't pause the galvos!
 	void setPointsToSamples(int rate) { samplesPerPoint = rate; } 	// each ILDA point results in 'rate' samples
-
 };
 
 #endif // !defined(play_wav_buffered_h_)

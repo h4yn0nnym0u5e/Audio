@@ -30,6 +30,7 @@
 
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
+#include <laser_synth.h>
 
 class AudioEffectProtectStall : public AudioStream
 {
@@ -39,29 +40,30 @@ public:
 		AudioStream(CHANNELS, inputQueueArray),
 		permanent_blocks{0},
 		stallThreshold(2), stallTimeout(50),
-		RGBsafeValue(-16384),
-		blankSafeValue(32767),
+		RGBsafeValue(BLACK_LEVEL),
+		blankSafeValue(CONVERT(255)),
 		updateCount(0), updatesOK(true)
 		{ }
 	void update(void);
 	unsigned int getUpdateCount(void) { return updateCount; }
 	bool isUpdating(void) { bool result = updatesOK; updatesOK = true; return result;}
-	void setRGBsafevalue(int v)   { RGBsafeValue = v; }
-	void setBlankSafeValue(int v) { blankSafeValue = v; }
-	void setStallThreshold(int v) { stallThreshold = v; }
-	void setStallTimeout(unsigned int v) { stallTimeout = v; }
-protected:
+	void setRGBsafevalue(int v)   	 { RGBsafeValue   = v; fillPermanentBlocks(); }
+	void setBlankSafeValue(int v) 	 { blankSafeValue = v; fillPermanentBlocks(); }
+	void setStallThreshold(int v) 	 { stallThreshold = v; }
+	void setStallTimeout(uint32_t v) { stallTimeout   = v; }
+//private:
 	audio_block_t* permanent_blocks[CHANNELS];
-private:
-			 int stallThreshold;	// stall threshold to use
-	unsigned int stallTimeout;		// milliseconds before protection starts
-	int RGBsafeValue;				// set safe value for RGB channels
-	int blankSafeValue;				// set safe value for blanking channel
 	
-	unsigned int updateCount;		// count of updates
-	bool updatesOK;					// have updates ever failed
-	uint32_t lastMoved;				// last time we saw the galvos move
-	uint32_t lastUpdate;			// last time update() was called
+	int 	 stallThreshold;	// stall threshold to use
+	uint32_t stallTimeout;		// milliseconds before protection starts
+
+	int 	 RGBsafeValue;		// set safe value for RGB channels
+	int 	 blankSafeValue;	// set safe value for blanking channel
+	
+	unsigned int updateCount;	// count of updates
+	bool 		 updatesOK;		// have updates ever failed
+	uint32_t 	 lastMoved;		// last time we saw the galvos move
+	uint32_t 	 lastUpdate;	// last time update() was called
 	
 	void grabPermanentBlocks(void); // allocate ourselves some permanent blocks
 	void fillPermanentBlocks(void); // fill permanent blocks with safe values

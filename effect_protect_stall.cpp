@@ -58,17 +58,17 @@ void AudioEffectProtectStall::fillPermanentBlocks(void)
 						permanent_blocks[j]->data[i] = -16384; // (i + (i>=AUDIO_BLOCK_SAMPLES/4 && i<AUDIO_BLOCK_SAMPLES*3/4)?(AUDIO_BLOCK_SAMPLES/2-2*i)
 						break;
 
-					case 3: // Z
+					case 2: // Z
 						permanent_blocks[j]->data[i] = 0;
 						break;
 
-					case 4: // R
-					case 5: // G
-					case 6: // B
+					case 3: // R
+					case 4: // G
+					case 5: // B
 						permanent_blocks[j]->data[i] = RGBsafeValue;
 						break;
 
-					case 7: // blanking
+					case 6: // blanking
 						permanent_blocks[j]->data[i] = blankSafeValue;
 						break;
 				}
@@ -77,10 +77,37 @@ void AudioEffectProtectStall::fillPermanentBlocks(void)
 }
 
 
+/*
+ * Look at the incoming drive values to determine whether galvos are moving.
+ * This is a weakly efined function, so you can write your own version within
+ * your code and that will be used instead.
+ */
 bool galvosAreRunning(audio_block_t** blocks, int threshold) __attribute__((weak));
 bool galvosAreRunning(audio_block_t** blocks, int threshold)
 {
-	return true;
+  bool result = false;
+  
+  int xmin=99999,xmax=-99999,ymin=99999,ymax=-99999;
+  
+  for (int i=0;i<AUDIO_BLOCK_SAMPLES && !result;i++)
+  {
+    if (nullptr != blocks[0])
+    {
+      if (blocks[0]->data[i] > xmax) xmax = blocks[0]->data[i];
+      if (blocks[0]->data[i] < xmin) xmin = blocks[0]->data[i];
+    }
+    if (nullptr != blocks[1])
+    {
+      if (blocks[1]->data[i] > ymax) ymax = blocks[1]->data[i];
+      if (blocks[1]->data[i] < ymin) ymin = blocks[1]->data[i];
+    }
+
+    if (xmax - xmin > threshold
+     || ymax - ymin > threshold)
+     result = true;
+  }
+  
+  return result;
 }
 
 
@@ -93,11 +120,9 @@ bool AudioEffectProtectStall::stallCheck(audio_block_t** blocks)
 	
 	if (running)  // OK for now
 		lastMoved = millis();
-		
-	if (millis() - lastMoved >= stallTimeout)
-		running = false;
-	
-	digitalWriteFast(LED_BUILTIN,!running);
+
+	if (millis() - lastMoved < stallTimeout)
+		running = true; // not true, but we want to delay the truth a bit
 	
 	return running;
 }
