@@ -144,6 +144,8 @@ void AudioEffectProtectStall::update(void)
 	// do protection here:
 	if (!stallCheck(blocks)) // stalled...
 	{
+		protecting = true;
+		
 		for (int i=3;i<CHANNELS;i++) // ...leave XYZ as they are...
 		{
 			if (nullptr != blocks[i])
@@ -151,6 +153,8 @@ void AudioEffectProtectStall::update(void)
 			blocks[i] = permanent_blocks[i]; // ...emit safe RGB blocks
 		}
 	}
+	else
+		protecting = false;
 	
 	// send the output data
 	for (int i = 0; i < CHANNELS; i++)

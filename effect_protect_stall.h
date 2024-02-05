@@ -51,12 +51,13 @@ public:
 		stallThreshold(2), stallTimeout(50),
 		RGBsafeValue(BLACK_LEVEL),
 		blankSafeValue(CONVERT(255)),
-		updateCount(0), updatesOK(true)
+		updateCount(0), updatesOK(true), protecting(false)
 		{ }
 	void update(void);
 	unsigned int getUpdateCount(void) { return updateCount; }
-	bool isUpdating(void) { bool result = updatesOK; updatesOK = true; return result;}
-	void setRGBsafevalue(float v)    { RGBsafeValue   = _floatToSample(v); fillPermanentBlocks(); }
+	bool isUpdating(void) 	{ bool result = updatesOK; updatesOK = true; return result;}
+	bool isProtecting(void) { return protecting;}
+	void setRGBsafeValue(float v)    { RGBsafeValue   = _floatToSample(v); fillPermanentBlocks(); }
 	void setBlankSafeValue(float v)  { blankSafeValue = _floatToSample(v); fillPermanentBlocks(); }
 	void setStallThreshold(int v) 	 { stallThreshold = v; }
 	void setStallTimeout(uint32_t v) { stallTimeout   = v; }
@@ -71,6 +72,7 @@ public:
 	
 	unsigned int updateCount;	// count of updates
 	bool 		 updatesOK;		// have updates ever failed
+	bool 		 protecting;	// is protaction system active
 	uint32_t 	 lastMoved;		// last time we saw the galvos move
 	uint32_t 	 lastUpdate;	// last time update() was called
 	

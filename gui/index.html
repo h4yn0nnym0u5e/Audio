@@ -3003,6 +3003,10 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p class=desc>Returns true if the stall protection is executing update() calls at a
 	reasonable interval. If this is false, protection may be non-functional.
 	</p>
+	<p class=func><span class=keyword>isProtecting</span>();</p>
+	<p class=desc>Returns true if the stall protection is currently active, 
+	i.e. forcing the colour channels to a safe state.
+	</p>
 	<p class=func><span class=keyword>getUpdateCount</span>();</p>
 	<p class=desc>Returns a count of the number of times the stall protection has updated. Can
 	be used as another cross-check that the protection system is functional.
