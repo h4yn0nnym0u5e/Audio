@@ -85,6 +85,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 				break;
 				
 			case ILDA:
+				eof = false;
 				((AudioPlayILDA*) this)->records = 0;
 				((AudioPlayILDA*) this)->samples = 0;
 				skip = 0;

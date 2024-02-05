@@ -125,15 +125,13 @@ class AudioBuffer : public MemBuffer
   public:
 	AudioBuffer() 
 		: queueOut(0), queueIn(0), isFull(false), 
-		  bufState(empty), validCount{0}
+		  validCount{0}
 		{}
-	enum bufState_e {empty,firstValid,secondValid,bothValid}; // state of buffer
 	
   //private:
 	size_t queueOut;	// next read() will start from here: index into buffer[]
 	size_t queueIn;		// next write() will start from here: index into buffer[]
 	bool isFull;		// if true, queueIn == queueOut means buffer is completely full
-	bufState_e bufState;
 	size_t validCount[2]; // count of valid data in each half-buffer
 	
   public:
@@ -163,7 +161,12 @@ class AudioBuffer : public MemBuffer
 	void writeExecuted(size_t bytes); 		// signal that buffer data has been written out (to media)
 	
 	size_t getAvailable(); // find out how much valid data is available
-	void emptyBuffer(size_t offset=0) {queueOut = queueIn = offset; isFull = false; bufState = empty;} // initialise the buffer to its empty state
+	void emptyBuffer(size_t offset=0) // initialise the buffer to its empty state
+	{
+		queueOut = queueIn = offset; 
+		isFull = false; 
+		validCount[0] = validCount[1] = 0;
+	} 
 };
 
 
