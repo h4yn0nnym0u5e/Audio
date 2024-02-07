@@ -29,9 +29,6 @@
 #include <laser_synth.h>
 
 
-const int AudioPlayILDA::sizes[6] = {sizeof(ILDAformat0), sizeof(ILDAformat1), sizeof(ILDAformat2), 
-                                             -1, sizeof(ILDAformat4), sizeof(ILDAformat5)};
-
 /*
  * Prepare to play back from a file
  */
@@ -648,6 +645,62 @@ void AudioPlayWAVbuffered::update(void)
 								switch (thisILDA->recFormat)
 								{
 									case 0: // XYZp
+										thisILDA->unpacked.X = htons(rec.f0.X);
+										thisILDA->unpacked.Y = htons(rec.f0.Y);
+										thisILDA->unpacked.Z = htons(rec.f0.Z);
+										{
+											int idx = rec.f0.index;
+											if (idx > thisILDA->paletteValid)
+												idx = thisILDA->paletteValid - 1;
+											thisILDA->unpacked.R = CONVERT(thisILDA->palette[idx].R);
+											thisILDA->unpacked.G = CONVERT(thisILDA->palette[idx].G);
+											thisILDA->unpacked.B = CONVERT(thisILDA->palette[idx].B);
+										}
+										thisILDA->unpacked.status = rec.f0.status;
+										break;
+										
+									case 1: // XYp
+										thisILDA->unpacked.X = htons(rec.f1.X);
+										thisILDA->unpacked.Y = htons(rec.f1.Y);
+										thisILDA->unpacked.Z = 0;
+										{
+											int idx = rec.f1.index;
+											if (idx > thisILDA->paletteValid)
+												idx = thisILDA->paletteValid - 1;
+											thisILDA->unpacked.R = CONVERT(thisILDA->palette[idx].R);
+											thisILDA->unpacked.G = CONVERT(thisILDA->palette[idx].G);
+											thisILDA->unpacked.B = CONVERT(thisILDA->palette[idx].B);
+										}
+										thisILDA->unpacked.status = rec.f1.status;
+										break;
+										
+									case 2: // palette
+									{
+										int n = thisILDA->records; // remaining entries
+										
+										if (thisILDA->palette != thisILDA->defaultPalette // we have some valid palette memory
+										 && thisILDA->palette != nullptr)
+										{
+											
+											*thisILDA->palette = rec.f2; // safe: palette must have at least 2 entries
+											
+											if (n > thisILDA->paletteSize-1) // only read...
+												n = thisILDA->paletteSize-1; // ...as many as will fit
+											
+											rdr= read((uint8_t*) thisILDA->palette+1, n * AudioPlayILDA::sizes[thisILDA->recFormat]);
+											if (ok != rdr)
+												readNeeded = true;
+											
+											n = thisILDA->records - n; // how many didn't fit?
+										}
+										
+										if (n > 0) // need to discard unusable entries
+										{
+											rdr= read(nullptr, n * AudioPlayILDA::sizes[thisILDA->recFormat]); // discard
+											if (ok != rdr)
+												readNeeded = true;
+										}
+									}
 										break;
 										
 									case 4:
@@ -691,27 +744,35 @@ void AudioPlayWAVbuffered::update(void)
 							thisILDA->samples = thisILDA->samplesPerPoint;
 						}
 						
-						*data[0]++ = thisILDA->unpacked.X;
-						*data[1]++ = thisILDA->unpacked.Y;
-						*data[2]++ = thisILDA->unpacked.Z;
-						
-						if (thisILDA->unpacked.status & 0x40) // blanked
+						if (2 == thisILDA->recFormat) // palette, nothing unpacked
 						{
-							*data[3]++ = BLACK_LEVEL;
-							*data[4]++ = BLACK_LEVEL;
-							*data[5]++ = BLACK_LEVEL;
-							*data[6]++ = BLANKING(1);
+							thisILDA->samples = 0;
+							thisILDA->records = 0;
 						}
 						else
 						{
-							*data[3]++ = thisILDA->unpacked.R;
-							*data[4]++ = thisILDA->unpacked.G;
-							*data[5]++ = thisILDA->unpacked.B;
-							*data[6]++ = BLANKING(0);
-						}
+							*data[0]++ = thisILDA->unpacked.X;
+							*data[1]++ = thisILDA->unpacked.Y;
+							*data[2]++ = thisILDA->unpacked.Z;
+							
+							if (thisILDA->unpacked.status & 0x40) // blanked
+							{
+								*data[3]++ = BLACK_LEVEL;
+								*data[4]++ = BLACK_LEVEL;
+								*data[5]++ = BLACK_LEVEL;
+								*data[6]++ = BLANKING(1);
+							}
+							else
+							{
+								*data[3]++ = thisILDA->unpacked.R;
+								*data[4]++ = thisILDA->unpacked.G;
+								*data[5]++ = thisILDA->unpacked.B;
+								*data[6]++ = BLANKING(0);
+							}
 
-						toRead--;
-						thisILDA->samples--;
+							toRead--;
+							thisILDA->samples--;
+						}
 					}
 					thisILDA->lastX = *(data[0] -1);
 					thisILDA->lastY = *(data[1] -1);
@@ -819,7 +880,295 @@ uint32_t AudioPlayWAVbuffered::lengthMillis(void)
 	return ((uint64_t)tlength * b2m) >> 32;
 }
 
+//===================================================================================================
+// AudioPlayILDA stuff
+const int AudioPlayILDA::sizes[6] = {sizeof(ILDAformat0), sizeof(ILDAformat1), sizeof(ILDAformat2), 
+                                             -1, sizeof(ILDAformat4), sizeof(ILDAformat5)};
 
+/*
+ * Start using a different block of memory as the palette.
+ */
+void AudioPlayILDA::setPaletteMemory(ILDAformat2* addr, int entries, int valid /* = -1 */)
+{
+	if (-1 == valid)
+		valid = entries;
+	
+	if (valid >= 2) // palettes must have at least 2 entries
+	{
+		palette 	 = addr;
+		paletteSize  = entries;
+		paletteValid = valid;
+	}
+}
+
+void AudioPlayILDA::copyPalette(ILDAformat2* dst, const ILDAformat2* src, int entries)
+{
+	if (nullptr == src)
+		src = defaultPalette;
+	memcpy(dst,src,entries * sizeof *dst);
+}
+
+
+
+// ILDA standard color palette 
+const AudioWAVdata::ILDAformat2 AudioPlayILDA::defaultPalette[256] = {
+    {   0,   0,   0 },  // Black/blanked (fixed)
+    { 255, 255, 255 },  // White (fixed)
+    { 255,   0,   0 },  // Red (fixed)
+    { 255, 255,   0 },  // Yellow (fixed)
+    {   0, 255,   0 },  // Green (fixed)
+    {   0, 255, 255 },  // Cyan (fixed)
+    {   0,   0, 255 },  // Blue (fixed)
+    { 255,   0, 255 },  // Magenta (fixed)
+    { 255, 128, 128 },  // Light red
+    { 255, 140, 128 },
+    { 255, 151, 128 }, // 10
+    { 255, 163, 128 },
+    { 255, 174, 128 },
+    { 255, 186, 128 },
+    { 255, 197, 128 },
+    { 255, 209, 128 },
+    { 255, 220, 128 },
+    { 255, 232, 128 },
+    { 255, 243, 128 },
+    { 255, 255, 128 },  // Light yellow
+    { 243, 255, 128 }, //20
+    { 232, 255, 128 },
+    { 220, 255, 128 },
+    { 209, 255, 128 },
+    { 197, 255, 128 },
+    { 186, 255, 128 },
+    { 174, 255, 128 },
+    { 163, 255, 128 },
+    { 151, 255, 128 },
+    { 140, 255, 128 },
+    { 128, 255, 128 },  // Light green 30
+    { 128, 255, 140 },
+    { 128, 255, 151 },
+    { 128, 255, 163 },
+    { 128, 255, 174 },
+    { 128, 255, 186 },
+    { 128, 255, 197 },
+    { 128, 255, 209 },
+    { 128, 255, 220 },
+    { 128, 255, 232 },
+    { 128, 255, 243 }, // 40
+    { 128, 255, 255 },  // Light cyan
+    { 128, 243, 255 },
+    { 128, 232, 255 },
+    { 128, 220, 255 },
+    { 128, 209, 255 },
+    { 128, 197, 255 },
+    { 128, 186, 255 },
+    { 128, 174, 255 },
+    { 128, 163, 255 },
+    { 128, 151, 255 }, // 50
+    { 128, 140, 255 },
+    { 128, 128, 255 },  // Light blue
+    { 140, 128, 255 },
+    { 151, 128, 255 },
+    { 163, 128, 255 },
+    { 174, 128, 255 },
+    { 186, 128, 255 },
+    { 197, 128, 255 },
+    { 209, 128, 255 },
+    { 220, 128, 255 }, // 60
+    { 232, 128, 255 },
+    { 243, 128, 255 },
+    { 255, 128, 255 }, // Light magenta
+    { 255, 128, 243 },
+    { 255, 128, 232 },
+    { 255, 128, 220 },
+    { 255, 128, 209 },
+    { 255, 128, 197 },
+    { 255, 128, 186 },
+    { 255, 128, 174 }, // 70
+    { 255, 128, 163 },
+    { 255, 128, 151 },
+    { 255, 128, 140 },
+    { 255,   0,   0 },  // Red (cycleable)
+    { 255,  23,   0 },
+    { 255,  46,   0 },
+    { 255,  70,   0 },
+    { 255,  93,   0 },
+    { 255, 116,   0 },
+    { 255, 139,   0 }, // 80
+    { 255, 162,   0 },
+    { 255, 185,   0 },
+    { 255, 209,   0 },
+    { 255, 232,   0 },
+    { 255, 255,   0 },  //Yellow (cycleable)
+    { 232, 255,   0 },
+    { 209, 255,   0 },
+    { 185, 255,   0 },
+    { 162, 255,   0 },
+    { 139, 255,   0 }, // 90
+    { 116, 255,   0 },
+    {  93, 255,   0 },
+    {  70, 255,   0 },
+    {  46, 255,   0 },
+    {  23, 255,   0 },
+    {   0, 255,   0 },  // Green (cycleable)
+    {   0, 255,  23 },
+    {   0, 255,  46 },
+    {   0, 255,  70 },
+    {   0, 255,  93 }, // 100
+    {   0, 255, 116 },
+    {   0, 255, 139 },
+    {   0, 255, 162 },
+    {   0, 255, 185 },
+    {   0, 255, 209 },
+    {   0, 255, 232 },
+    {   0, 255, 255 },  // Cyan (cycleable)
+    {   0, 232, 255 },
+    {   0, 209, 255 },
+    {   0, 185, 255 }, // 110
+    {   0, 162, 255 },
+    {   0, 139, 255 },
+    {   0, 116, 255 },
+    {   0,  93, 255 },
+    {   0,  70, 255 },
+    {   0,  46, 255 },
+    {   0,  23, 255 },
+    {   0,   0, 255 },  // Blue (cycleable)
+    {  23,   0, 255 },
+    {  46,   0, 255 }, // 120
+    {  70,   0, 255 },
+    {  93,   0, 255 },
+    { 116,   0, 255 },
+    { 139,   0, 255 },
+    { 162,   0, 255 },
+    { 185,   0, 255 },
+    { 209,   0, 255 },
+    { 232,   0, 255 },
+    { 255,   0, 255 },  // Magenta (cycleable)
+    { 255,   0, 232 }, // 130
+    { 255,   0, 209 },
+    { 255,   0, 185 },
+    { 255,   0, 162 },
+    { 255,   0, 139 },
+    { 255,   0, 116 },
+    { 255,   0,  93 },
+    { 255,   0,  70 },
+    { 255,   0,  46 },
+    { 255,   0,  23 },
+    { 128,   0,   0 },  // Dark red  140
+    { 128,  12,   0 },
+    { 128,  23,   0 },
+    { 128,  35,   0 },
+    { 128,  47,   0 },
+    { 128,  58,   0 },
+    { 128,  70,   0 },
+    { 128,  81,   0 },
+    { 128,  93,   0 },
+    { 128, 105,   0 },
+    { 128, 116,   0 }, // 150
+    { 128, 128,   0 },  // Dark yellow
+    { 116, 128,   0 },
+    { 105, 128,   0 },
+    {  93, 128,   0 },
+    {  81, 128,   0 },
+    {  70, 128,   0 },
+    {  58, 128,   0 },
+    {  47, 128,   0 },
+    {  35, 128,   0 },
+    {  23, 128,   0 }, // 160
+    {  12, 128,   0 },
+    {   0, 128,   0 },  // Dark green
+    {   0, 128,  12 },
+    {   0, 128,  23 },
+    {   0, 128,  35 },
+    {   0, 128,  47 },
+    {   0, 128,  58 },
+    {   0, 128,  70 },
+    {   0, 128,  81 },
+    {   0, 128,  93 }, // 170
+    {   0, 128, 105 },
+    {   0, 128, 116 },
+    {   0, 128, 128 },  // Dark cyan
+    {   0, 116, 128 },
+    {   0, 105, 128 },
+    {   0,  93, 128 },
+    {   0,  81, 128 },
+    {   0,  70, 128 },
+    {   0,  58, 128 },
+    {   0,  47, 128 }, // 180
+    {   0,  35, 128 },
+    {   0,  23, 128 },
+    {   0,  12, 128 },
+    {   0,   0, 128 },  // Dark blue
+    {  12,   0, 128 },
+    {  23,   0, 128 },
+    {  35,   0, 128 },
+    {  47,   0, 128 },
+    {  58,   0, 128 },
+    {  70,   0, 128 }, // 190
+    {  81,   0, 128 },
+    {  93,   0, 128 },
+    { 105,   0, 128 },
+    { 116,   0, 128 },
+    { 128,   0, 128 },  // Dark magenta
+    { 128,   0, 116 },
+    { 128,   0, 105 },
+    { 128,   0,  93 },
+    { 128,   0,  81 },
+    { 128,   0,  70 }, // 200
+    { 128,   0,  58 },
+    { 128,   0,  47 },
+    { 128,   0,  35 },
+    { 128,   0,  23 },
+    { 128,   0,  12 },
+    { 255, 192, 192 },  // Very light red
+    { 255,  64,  64 },  // Light-medium red
+    { 192,   0,   0 },  // Medium-dark red
+    {  64,   0,   0 },  // Very dark red
+    { 255, 255, 192 },  // Very light yellow     210
+    { 255, 255,  64 },  // Light-medium yellow
+    { 192, 192,   0 },  // Medium-dark yellow
+    {  64,  64,   0 },  // Very dark yellow
+    { 192, 255, 192 },  // Very light green
+    {  64, 255,  64 },  // Light-medium green
+    {   0, 192,   0 },  // Medium-dark green
+    {   0,  64,   0 },  // Very dark green
+    { 192, 255, 255 },  // Very light cyan
+    {  64, 255, 255 },  // Light-medium cyan
+    {   0, 192, 192 },  // Medium-dark cyan       220
+    {   0,  64,  64 },  // Very dark cyan
+    { 192, 192, 255 },  // Very light blue
+    {  64,  64, 255 },  // Light-medium blue
+    {   0,   0, 192 },  // Medium-dark blue
+    {   0,   0,  64 },  // Very dark blue
+    { 255, 192, 255 },  // Very light magenta
+    { 255,  64, 255 },  // Light-medium magenta
+    { 192,   0, 192 },  // Medium-dark magenta
+    {  64,   0,  64 },  // Very dark magenta
+    { 255,  96,  96 },  // Medium skin tone      230
+    { 255, 255, 255 },  // White (cycleable)
+    { 245, 245, 245 },
+    { 235, 235, 235 }, 
+    { 224, 224, 224 },  // Very light gray (7/8 intensity)
+    { 213, 213, 213 },
+    { 203, 203, 203 },
+    { 192, 192, 192 },  // Light gray (3/4 intensity)
+    { 181, 181, 181 },
+    { 171, 171, 171 },
+    { 160, 160, 160 },  // Medium-light gray (5/8 int.)   240
+    { 149, 149, 149 },
+    { 139, 139, 139 },
+    { 128, 128, 128 },  // Medium gray (1/2 intensity)
+    { 117, 117, 117 },
+    { 107, 107, 107 },
+    {  96,  96,  96 },  // Medium-dark gray (3/8 int.)
+    {  85,  85,  85 },
+    {  75,  75,  75 },
+    {  64,  64,  64 },  // Dark gray (1/4 intensity)
+    {  53,  53,  53 }, // 250
+    {  43,  43,  43 },
+    {  32,  32,  32 },  // Very dark gray (1/8 intensity)
+    {  21,  21,  21 },
+    {  11,  11,  11 },
+    {   0,   0,   0 } // Black
+};
 
 
 

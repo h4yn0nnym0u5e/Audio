@@ -114,8 +114,8 @@ void AudioEffectRotator::update(void)
           val4 = signed_multiply_32x16b(sinI,XYval); // Y*sin(R)
 
           // 16-bit final rotation result
-          blockX->data[i] = (val1 - val4) >> 7;
-          blockY->data[i] = (val2 + val3) >> 7;
+          blockX->data[i] = signed_saturate_rshift(val1 - val4, 16, 7);
+          blockY->data[i] = signed_saturate_rshift(val2 + val3 ,16, 7);
         }
       }
       transmit(blockX,0);
