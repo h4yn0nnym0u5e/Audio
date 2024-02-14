@@ -191,31 +191,39 @@ SCOPESER_TX(av & 0xFF);
 				
 				break;
 				
-			case ILDA: // we need to loop, but try to keep reads on SD card boundary
-				while (sz >= 512 && gotNothingCount < 2)
+			case ILDA: 
+				if (memory == playState) // playback from in-memory buffer
 				{
-					size_t toGet = sz & (-(512LL));
-					got = wavfile.read(pb,toGet);	// try for that, rounded to sector size
-					
-					if (got < toGet) // there wasn't enough data
-					{
-						if (got < 0) // error
-						{
-							got = 0;
-							gotNothingCount = 99; // bail immediately
-						}
-						else if (0 == got) // only allow one EOF in a row
-							gotNothingCount++;
-						else
-							gotNothingCount = 0;
-						wavfile.seek(0); // assume failure was no more data: loop
-					}
-					pb += got;
-					sz -= got;
-					readExecuted(got);
+					readExecuted(sz);	// data already there!
 				}
-				if (sz > 0)
-					dummyReadExecuted(sz); // tell buffer to flip to other half
+				else // streaming from filesystem
+				{
+					// we need to loop, but try to keep reads on SD card boundary
+					while (sz >= 512 && gotNothingCount < 2)
+					{
+						size_t toGet = sz & (-(512LL));
+						got = wavfile.read(pb,toGet);	// try for that, rounded to sector size
+						
+						if (got < toGet) // there wasn't enough data
+						{
+							if (got < 0) // error
+							{
+								got = 0;
+								gotNothingCount = 99; // bail immediately
+							}
+							else if (0 == got) // only allow one EOF in a row
+								gotNothingCount++;
+							else
+								gotNothingCount = 0;
+							wavfile.seek(0); // assume failure was no more data: loop
+						}
+						pb += got;
+						sz -= got;
+						readExecuted(got);
+					}
+					if (sz > 0)
+						dummyReadExecuted(sz); // tell buffer to flip to other half
+				}
 				
 				break;
 		}
@@ -270,11 +278,14 @@ uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
 AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
 		AudioStream(0, NULL),
 		lowWater(0xFFFFFFFF),
-		wavfile(0), ppl(0), preloadRemaining(0),
-		eof(false), readPending(false), objnum(objcnt++),
-		data_length(0), total_length(0),
+		
+		eof(false), 
 		state(STATE_STOP), state_play(STATE_STOP),
 		playState(silent), fileState(silent),
+		
+		wavfile(0), ppl(0), preloadRemaining(0),
+		readPending(false), objnum(objcnt++),
+		data_length(0), total_length(0),
 		leftover_bytes(0)
 {
 SCOPE_ENABLE();
@@ -908,6 +919,43 @@ void AudioPlayILDA::copyPalette(ILDAformat2* dst, const ILDAformat2* src, int en
 	memcpy(dst,src,entries * sizeof *dst);
 }
 
+
+bool AudioPlayILDA::playMem(uint8_t* ilda, size_t len)
+{
+	bool rv = false;
+	uint8_t* buf;
+	size_t sz;
+	
+	playCalled = ARM_DWT_CYCCNT;
+	firstUpdate = fileLoaded = 0;
+	
+	stop();
+	
+	createBuffer(ilda,len);	// pretend the in-memory data is a user-controlled buffer
+	emptyBuffer();			// say it's empty to reset queue indexes and valid data counts
+	getNextRead(&buf, &sz);	// should be ilda and len! Could be side-effects so do it properly...
+	readExecuted(sz);		// say buffer data are valid
+	fileState = memReady;
+	playState = memory;
+	
+	// we know this, because
+	fileFormat = ILDA;
+	chanCnt = 7;
+	
+	eof = false;
+	records = 0;
+	samples = 0;
+		
+	fileLoaded = ARM_DWT_CYCCNT;
+	
+	state_play = STATE_PLAYING;
+	state = STATE_PLAYING;
+	setInUse(true); // prevent changes to buffer memory
+
+	rv = true; // nothing can go wrong (!)
+	return rv;	
+	
+}
 
 
 // ILDA standard color palette 

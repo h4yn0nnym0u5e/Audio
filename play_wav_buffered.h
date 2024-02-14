@@ -73,26 +73,15 @@ public:
 	size_t lowWater;
 	uint32_t playCalled,firstUpdate,fileLoaded;
 	LogLastMinMax<uint32_t> readMicros, bufferAvail;
-
-private:
+	
+protected:
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};
-	File wavfile;
-	AudioPreload* ppl;
-	size_t preloadRemaining;
-	void loadBuffer(uint8_t* pb, size_t sz, bool firstLoad = false);
-	bool prepareFile(bool paused, float startFrom, size_t startFromI);
-	
 	bool eof;
-	bool readPending;
-	uint8_t objnum;
-	uint32_t data_length;		// number of bytes remaining in current section
-	uint32_t total_length;		// number of audio data bytes in file
-	
 	volatile uint8_t state;
 	volatile uint8_t state_play;
-	
 	// States of playback machine: we need two to track everything.
-	volatile enum {
+	volatile enum 
+	{
 		silent,		// nothing being played
 		sample,		// sample is being played
 		fileLoad,	// file needs initial buffering (filestate only)
@@ -101,8 +90,25 @@ private:
 		filePrepared,
 		fileReady,	// file is buffered and ready (filestate only)
 		file,		// file is being played
-		ending
-		} playState, fileState;
+		ending,
+		
+		memReady,	// memory is reay to play
+		memory		// playing from in-memory buffer
+	} playState, fileState;
+
+private:
+	File wavfile;
+	AudioPreload* ppl;
+	size_t preloadRemaining;
+	void loadBuffer(uint8_t* pb, size_t sz, bool firstLoad = false);
+	bool prepareFile(bool paused, float startFrom, size_t startFromI);
+	
+	bool readPending;
+	uint8_t objnum;
+	uint32_t data_length;		// number of bytes remaining in current section
+	uint32_t total_length;		// number of audio data bytes in file
+	
+	
 	uint8_t leftover_bytes;
 };
 
@@ -134,9 +140,13 @@ public:
 	int paletteSize;  // number of entries possible in palette memory
 	ILDAformat2* palette; // colour palette data	
 	
+	// mask the things we don't want to permit with ILDA playback
 	uint32_t adjustHeaderInfo(void) { return 0; }  // do nothing, doesn't apply for ILDA files
 	void pause(void) {} 		  // do nothing, shouldn't pause the galvos!
 	void togglePlayPause(void) {} // do nothing, shouldn't pause the galvos!
+	
+	// functionality relevant only to ILDA playback
+	bool playMem(uint8_t* ilda, size_t len);
 	void setPointsToSamples(int rate) { samplesPerPoint = rate; } 	// each ILDA point results in 'rate' samples
 	void setPaletteMemory(ILDAformat2* addr, int entries, int valid = -1); // point to new palette
 	void copyPalette(ILDAformat2* dst, const ILDAformat2* src, int entries); // copy data to palette: NULL src uses default palette
