@@ -49,8 +49,8 @@ void AudioOutputTDM2::begin(void)
 	for (int i=0; i < 16; i++) {
 		block_input[i] = nullptr;
 	}
-	memset(zeros, 0, sizeof(zeros));
-	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
+	memset(zeros, 0, sizeof zeros);
+	memset(tdm_tx_buffer, 0, sizeof tdm_tx_buffer);
 
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
