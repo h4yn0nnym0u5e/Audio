@@ -920,7 +920,7 @@ void AudioPlayILDA::copyPalette(ILDAformat2* dst, const ILDAformat2* src, int en
 }
 
 
-bool AudioPlayILDA::playMem(uint8_t* ilda, size_t len)
+bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
 {
 	bool rv = false;
 	uint8_t* buf;

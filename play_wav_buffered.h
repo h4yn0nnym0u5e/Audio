@@ -146,7 +146,8 @@ public:
 	void togglePlayPause(void) {} // do nothing, shouldn't pause the galvos!
 	
 	// functionality relevant only to ILDA playback
-	bool playMem(uint8_t* ilda, size_t len);
+	using AudioPlayWAVbuffered::play; 		// allow visibility of play() provided by base class
+	bool play(uint8_t* ilda, size_t len);	// add our own from-memory version, for ILDA only
 	void setPointsToSamples(int rate) { samplesPerPoint = rate; } 	// each ILDA point results in 'rate' samples
 	void setPaletteMemory(ILDAformat2* addr, int entries, int valid = -1); // point to new palette
 	void copyPalette(ILDAformat2* dst, const ILDAformat2* src, int entries); // copy data to palette: NULL src uses default palette
