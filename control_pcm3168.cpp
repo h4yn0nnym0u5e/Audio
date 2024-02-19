@@ -58,8 +58,9 @@ bool AudioControlPCM3168::volumeInteger(int channel, uint32_t n)
 {
 	bool rv = false;
 	
-	if (rv < DAC_CHANNELS)
-		rv = write(DAC_ATTENUATION_BASE + channel - 1, n);
+	channel--; // API is 1-8, we want 0-7
+	if (channel >= 0 && channel < DAC_CHANNELS)
+		rv = write(DAC_ATTENUATION_BASE + channel, n);
 
 	return rv;
 }
@@ -80,8 +81,9 @@ bool AudioControlPCM3168::inputLevelInteger(int channel, int32_t n)
 {
 	bool rv = false;
 	
-	if (rv < ADC_CHANNELS)
-		rv = write(ADC_ATTENUATION_BASE + channel - 1, n);
+	channel--; // API is 1-6, we want 0-5
+	if (channel >= 0 && channel < ADC_CHANNELS)
+		rv = write(ADC_ATTENUATION_BASE + channel, n);
 
 	return rv;
 }
