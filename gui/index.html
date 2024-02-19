@@ -45,6 +45,7 @@ span.indent {padding-left:2em}
 span.literal {color: #006699}
 span.comment {color: #777755}
 span.keyword {color: #cc6600}
+span.parameter {color: #cc0000}
 span.function {color: #996600}
 span.mainfunction {color: #993300; font-weight: bolder}
 </style>
@@ -546,7 +547,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioControlCS4272","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs4272","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioControlWM8731","data":{"defaults":{"name":{"value":"new"}},"shortName":"wm8731","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioControlWM8731master","data":{"defaults":{"name":{"value":"new"}},"shortName":"wm8731m","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioControlCS42448","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs42448","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}}
+		{"type":"AudioControlCS42448","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs42448","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioControlPCM3168","data":{"defaults":{"name":{"value":"new"}},"shortName":"pcm3168","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}}
 	]}
 </script>
 
@@ -5778,6 +5780,73 @@ value  frequency
 </script>
 
 
+<!-- ------------------------------------------------------------------------------------------------------>
+<script type="text/x-red" data-help-name="AudioControlPCM3168">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Control the PCM3168 chip in TDM mode, for 6 inputs and 8 outputs.
+	</p>
+	<p align=center><img src="img/PCM3168.jpg"></p>
+	</div>
+	</div>
+	<h3>Audio Connections</h3>
+	<p>This object has no audio inputs or outputs.  Separate TDM objects
+		are used to send and receive audio data.
+	</p>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>reset</span>(pin);</p>
+	<p class=desc>Use to reset the PCM3168, whose RST pin must be connected to
+	the Teensy pin given as the parameter. This must be called before enable(),
+	unless you have implemented your own reset scheme.
+	</p><p class = desc>
+	The function returns the microsecond timestamp of when RST was negated, and enable()
+	enforces a 200us delay between this timestamp and enabling the chip. If the 200us have
+	already elapsed then no additional delay is applied.
+	</p>
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Address value of 0 to 3 should match the 2 LSBits of your hardware I²C address.
+	(The PCM3168 uses addresses 0x44 to 0x47 - default is 0x44)
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire);</p>
+	<p class=desc>Wire object reference should match the I²C bus to which your PCM3168 is connected.
+	Defaults to Wire.
+	</p>
+	<p class=func><span class=keyword>enable</span>();</p>
+	<p class=desc>Enables the PCM3168 to work in TDM mode.
+	</p>
+	<p class=func><span class=keyword>volume</span>(level);</p>
+	<p class=desc>Set the volume level for all output channels. Range is 0 to 1.0.
+	</p>
+	<p class=func><span class=keyword>volume</span>(channel, level);</p>
+	<p class=desc>Set the volume level for a single output. Channel is 1 to 8.  Range is 0 to 1.0.
+	</p>
+	<p class=func><span class=keyword>inputLevel</span>(level);</p>
+	<p class=desc>Set the input gain level for all input channels. Range is 0 to 15.85.
+	</p>
+	<p class=func><span class=keyword>inputLevel</span>(channel, level);</p>
+	<p class=desc>Set the input gain level for a single input. Channel is 1 to 6. Range is 0 to 15.85.
+	</p>
+	<p class=func><span class=keyword>invertADC</span>(bitmask);</p>
+	<p class=desc>Inverts the phase of input channels whose bits are set in the mask.
+	</p>
+	<p class=func><span class=keyword>invertDAC</span>(bitmask);</p>
+	<p class=desc>Inverts the phase of output channels whose bits are set in the mask.
+	</p>
+	<h3>Notes</h3>
+	<div class=tooltipinfo>
+	<p>The PCM3168 chip requires a clock before it responds to I²C communications,
+	so its TDM object must be active before enable() is called. Additionally, it appears
+	highly advisable to cycle the /RST pin to reset the chip before using it.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioControlPCM3168">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------------------>
 
 </body>
 </html>
