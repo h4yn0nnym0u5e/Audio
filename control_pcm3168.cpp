@@ -27,17 +27,43 @@
 #include <Arduino.h>
 #include "control_pcm3168.h"
 
+uint32_t AudioControlPCM3168::reset(int pin)
+{
+	if (pin > 0) // assume >0 is valid!
+	{
+		pinMode(pin,OUTPUT);
+		digitalWriteFast(pin, 0); // start the reset pulse
+		delayMicroseconds(1); 	  // datasheet says 100ns is enough
+		digitalWriteFast(pin, 1); // end the reset pulse
+		resetTime = micros(); 	  // store when we did it
+		
+		if (0 == resetTime) // unlikely. but
+			resetTime = 1;
+	}
+	else
+		resetTime = 0; // say we didn't do a reset
+	
+	return resetTime; // non-zero if we did a reset
+}
 
 bool AudioControlPCM3168::enable(void)
 {
 	wire->begin();
-	// TODO: wait for reset signal high??
+	
+	// If class function was used to reset, we can check it was done
+	// long enough ago. If not, we just have to assume all is OK.
+	if (0 != resetTime &&					// we have done a reset, but...
+		micros() - resetTime < RESET_WAIT) 	// ...is it too soon to enable?
+		delayMicroseconds(RESET_WAIT - (micros() - resetTime)); // yes, wait
+		
 	return write(DAC_CONTROL_1, DC1_24_BIT_I2S_TDM)
 		&& write(ADC_CONTROL_1, AC1_24_BIT_I2S_TDM)
 		&& write(DAC_SOFT_MUTE_CONTROL, 0x00)
 		&& write(ADC_SOFT_MUTE_CONTROL, 0x00)
 		;
 }
+
+
 
 
 bool AudioControlPCM3168::disable(void)
