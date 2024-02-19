@@ -6531,6 +6531,15 @@ value  frequency
 		are used to send and receive audio data.
 	</p>
 	<h3>Functions</h3>
+	<p class=func><span class=keyword>reset</span>(pin);</p>
+	<p class=desc>Use to reset the PCM3168, whose RST pin must be connected to
+	the Teensy pin given as the parameter. This must be called before enable(),
+	unless you have implemented your own reset scheme.
+	</p><p class = desc>
+	The function returns the microsecond timestamp of when RST was negated, and enable()
+	enforces a 200us delay between this timestamp and enabling the chip. If the 200us have
+	already elapsed then no additional delay is applied.
+	</p>
 	<p class=func><span class=keyword>setAddress</span>(address);</p>
 	<p class=desc>Address value of 0 to 3 should match the 2 LSBits of your hardware I²C address.
 	(The PCM3168 uses addresses 0x44 to 0x47 - default is 0x44)
