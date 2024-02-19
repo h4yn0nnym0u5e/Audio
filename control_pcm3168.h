@@ -111,6 +111,7 @@ class AudioControlPCM3168 : public AudioControl
 	const uint8_t I2C_BASE = 0x44;
 	const int ADC_CHANNELS = 6;
 	const int DAC_CHANNELS = 8;
+	const uint32_t RESET_WAIT = 200UL;
 	
 	enum PCM3168reg {RESET_CONTROL = 0x40, DAC_CONTROL_1, DAC_CONTROL_2, 
 					 DAC_OUTPUT_PHASE, DAC_SOFT_MUTE_CONTROL, DAC_ZERO_FLAG, 
@@ -124,7 +125,10 @@ class AudioControlPCM3168 : public AudioControl
 	const int AC1_24_BIT_I2S_TDM = 0x06; // ADC_CONTROL_1: set 24-bit I²S mode, TDM format
 					 
 public:
-	AudioControlPCM3168(void) : wire(&Wire), i2c_addr(I2C_BASE), muted(true) { }
+	AudioControlPCM3168(void) 
+		: wire(&Wire), i2c_addr(I2C_BASE), muted(true), 
+		  resetTime(0)
+		{ }
 	void setAddress(uint8_t addr) { i2c_addr = I2C_BASE | (addr & 3); }
 	void setWire(TwoWire& w) { wire = &w; }
 	bool enable(void);
@@ -133,22 +137,28 @@ public:
 	{
 		return volumeInteger(volumebyte(level));
 	}
+	
 	bool inputLevel(float level) {
 		return inputLevelInteger(inputlevelbyte(level));
 	}
+	
 	bool inputSelect(int n) {
 		return (n == 0) ? true : false;
 	}
+	
 	bool volume(int channel, float level) {
 		if (channel < 1 || channel > DAC_CHANNELS) return false;
 		return volumeInteger(channel, volumebyte(level)); 
 	}
+	
 	bool inputLevel(int channel, float level) {
 		if (channel < 1 || channel > DAC_CHANNELS) return false;
 		return inputLevelInteger(channel, inputlevelbyte(level));
 	}
+	
 	bool invertDAC(uint32_t data);
 	bool invertADC(uint32_t data);
+	uint32_t reset(int pin);
 
 private:
 	bool volumeInteger(uint32_t n);
@@ -174,6 +184,7 @@ private:
 	TwoWire* wire;
 	uint8_t i2c_addr;
 	bool muted;
+	uint32_t resetTime; // when we were reset
 };
 
 #endif // control_pcm3168_h_
