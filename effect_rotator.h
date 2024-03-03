@@ -32,10 +32,12 @@
 #include <arm_math.h>         // github.com/PaulStoffregen/cores/blob/master/teensy4/arm_math.h
 #include <utility/dspinst.h>
 
+#if !defined(SAFE_RELEASE_INPUTS) // then we're not using the Dynamic Audio Objects
+#define SAFE_RELEASE_INPUTS(...)
+#endif // !defined(SAFE_RELEASE_INPUTS) 
+
 // waveforms.c
-//extern "C" {
 extern "C" const int16_t AudioWaveformSine[257];
-//}
 
 class AudioEffectRotator : public AudioStream
 {
@@ -50,6 +52,8 @@ class AudioEffectRotator : public AudioStream
       : AudioStream(3, inputQueueArray), 
         revOffset(0), isReversed(false), revCalled(false)
       {}
+	~AudioEffectRotator(void) { SAFE_RELEASE_INPUTS(); }
+	
     void reverse(bool flag) {if (flag != isReversed) revCalled = true; }
 };
 

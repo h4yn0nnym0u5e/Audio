@@ -79,7 +79,7 @@ void AudioEffectProtectStall::fillPermanentBlocks(void)
 
 /*
  * Look at the incoming drive values to determine whether galvos are moving.
- * This is a weakly efined function, so you can write your own version within
+ * This is a weakly defined function, so you can write your own version within
  * your code and that will be used instead.
  */
 bool galvosAreRunning(audio_block_t** blocks, int threshold) __attribute__((weak));

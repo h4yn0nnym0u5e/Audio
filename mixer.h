@@ -30,6 +30,10 @@
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 
+#if !defined(SAFE_RELEASE_INPUTS) // then we're not using the Dynamic Audio Objects
+#define SAFE_RELEASE_INPUTS(...)
+#endif // !defined(SAFE_RELEASE_INPUTS) 
+
 class AudioMixer4 : public AudioStream
 {
 #if defined(__ARM_ARCH_7EM__)
@@ -37,6 +41,8 @@ public:
 	AudioMixer4(void) : AudioStream(4, inputQueueArray) {
 		for (int i=0; i<4; i++) multiplier[i] = 65536;
 	}
+	~AudioMixer4(void) { SAFE_RELEASE_INPUTS(); }
+	
 	virtual void update(void);
 	void gain(unsigned int channel, float gain) {
 		if (channel >= 4) return;
@@ -72,6 +78,7 @@ class AudioAmplifier : public AudioStream
 public:
 	AudioAmplifier(void) : AudioStream(1, inputQueueArray), multiplier(65536) {
 	}
+	~AudioAmplifier(void) { SAFE_RELEASE_INPUTS(); }
 	virtual void update(void);
 	void gain(float n) {
 		if (n > 32767.0f) n = 32767.0f;
@@ -93,6 +100,7 @@ class AudioMixerSummer : public AudioStream
     AudioMixerSummer() 
       : AudioStream(4, inputQueueArray)
       {}
+	~AudioMixerSummer(void) { SAFE_RELEASE_INPUTS(); }
 };
 
 #endif

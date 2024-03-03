@@ -32,6 +32,11 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <laser_synth.h>
 
+#if !defined(SAFE_RELEASE) // then we're not using the Dynamic Audio Objects
+#define SAFE_RELEASE(...)
+#define SAFE_RELEASE_INPUTS(...)
+#endif // !defined(SAFE_RELEASE) 
+
 class AudioEffectProtectStall : public AudioStream
 {
 	static const int CHANNELS = 7;
@@ -53,6 +58,11 @@ public:
 		blankSafeValue(CONVERT(255)),
 		updateCount(0), updatesOK(true), protecting(false)
 		{ }
+	~AudioEffectProtectStall( void)
+	{
+		SAFE_RELEASE_INPUTS();
+		SAFE_RELEASE(permanent_blocks, CHANNELS);
+	}
 	void update(void);
 	unsigned int getUpdateCount(void) { return updateCount; }
 	bool isUpdating(void) 	{ bool result = updatesOK; updatesOK = true; return result;}
@@ -61,7 +71,7 @@ public:
 	void setBlankSafeValue(float v)  { blankSafeValue = _floatToSample(v); fillPermanentBlocks(); }
 	void setStallThreshold(int v) 	 { stallThreshold = v; }
 	void setStallTimeout(uint32_t v) { stallTimeout   = v; }
-//private:
+private:
 	audio_block_t* permanent_blocks[CHANNELS];
 	
 	int 	 stallThreshold;	// stall threshold to use
