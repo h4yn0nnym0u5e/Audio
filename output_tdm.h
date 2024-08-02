@@ -31,33 +31,95 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
+#define I2S_TCR3_CFR (1UL<<24) // not defined in imxrt.h
+#define I2S_RCR3_CFR (1UL<<24) // not defined in imxrt.h
+
 class AudioOutputTDMbase : public AudioStream
 {
 public:
-	AudioOutputTDMbase(int nch, audio_block_t** queues) 
-		: AudioStream(nch, queues), channels(nch) 
-		{ begin(); }
+	AudioOutputTDMbase(int nch, audio_block_t** queues, int p) 
+		: AudioStream(nch, queues), channels(nch), pin(p) 
+		{ begin(pin); }
 	//virtual void update(void);
-	void begin(void);
+	void begin(int pin);
 	friend class AudioInputTDM;
 protected:
 	int channels;
-	static void config_tdm(void);
+	int pin;
+	static int pin_mask;
+	static void config_tdm(int pin = 1);
 	static const int MAX_TDM_INPUTS = 16;
 	static audio_block_t *block_input[MAX_TDM_INPUTS];
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
+private:
+	static volatile enum TDMstate_e {INACTIVE, ACTIVE, STOPPING, STOPPED} state;  // state of TDM hardware
+#if defined(KINETISK)
+	static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
+#elif defined(__IMXRT1062__)	
+	static uint32_t* tdm_tx_malloc; // actual allocation
+	static uint32_t* tdm_tx_buffer;	// allocation rounded to 32-byte boundary
+	static uint32_t  tdm_txbuf_len; // space available in TX buffer
+#endif // hardware-dependent
 };
 
+/*
+ * This is the original TDM object, which packs 16x 16-bit
+ * channels into each frame, as used by e.g. ADAU1966A.
+ * The Design Tool object correspondingly has 16 inputs.
+ */
 class AudioOutputTDM : public AudioOutputTDMbase
 {
 public:
-	AudioOutputTDM(void) : AudioOutputTDMbase(16, inputQueueArray) {}
+	AudioOutputTDM(int pin=1) : AudioOutputTDMbase(16, inputQueueArray, pin) {}
 	virtual void update(void);
 private:
 	audio_block_t *inputQueueArray[16];
 };
+
+/*
+ * For the generalised TDM object, we may use up to 4 OUT1x pins, each of which
+ * could have 16x 16-bit packed channels, or for most parts 8x 32-bit channels.
+ * BCLK is 256fs in this case. We could thus have up to 64x output channels.
+ *
+ * There is also the case for e.g. the PCM3168 where a 96kHz sample rate
+ * requires two OUT pins running at BCLK = 128fs to output 8x 32-bit channels.
+ *
+ * These two cases are both worth supporting, but are mutually exclusive.
+ *
+ * It appears we can do this with 6 classes of TDM output object:
+ * * 4 classes using 1 pin, packing 16x 16-bit, or 8x 32-bit if odd ports are unused
+ * * 2 classes using 2 pins, providing 8 ports sent as 4 channels to each pin
+ *
+ * The first of these is equivalent to the "legacy" TDM object using OUT1A
+ *
+ * In this table, a channel is a 16-bit slot in the TDM data stream. It shows
+ * the location in the transmit buffer where the port data is placed. 0-F are
+ * the data for the TDMA object's ports 0-15; b is the placement of the TDMB 
+ * data, so for example 5b6 shows TDMA channel 5 data, the TDMB ch5, then 
+ * TDMA ch6.
+ * Channel: 0...4...8...12..16..20..24..28..32..36..40..44..48..52..56..60..
+ * TDMA     0123456789ABCDEF................................................
+ * TDMA&B   0b1b2b3b4b5b6b7b8b9bAbBbCbDbEbFb................................
+ * TDMA&B&C 0bc1bc2bc3bc4bc5bc6bc7bc8bc9bcAbcBbcCbcDbcEbcFbc................
+ * TDMA&&&D 0bcd1bcd2bcd3bcd4bcd5bcd6bcd7bcd8bcd9bcdAbcdBbcdCbcdDbcdEbcdFbcd
+ *
+ * PCM3168 dual rate mode using 2 pins for 8 channels @ 96kHz, BCLK = 128fs
+ * Channel: 0...4...8...12..16..20..24..28..
+ * TDMAB    0.4.1.5.2.6.3.7.................
+ * TDMCD    ................0.4.1.5.2.6.3.7.
+ * 
+ * The existing TDM transmit buffer is big enough for two blocks of audio data
+ * for each of the 16 input ports, thus 2 * 128 * 16 * 2 = 8192 bytes. For the
+ * full 64 channels that would grow to 32kB, which is a bit profligate for an
+ * unusual use-case. We will try to allocate / reallocate the transmit buffer
+ * at instantiation time, bearing in mind the need to be on a 32-byte boundary
+ * for DMA to work, and that the buffer may already be in use.
+ *
+ * As Teensy 3.x are no longer manufactured, we don't support multi-TDM for
+ * those boards at the moment.
+ */
 
 
 #endif
