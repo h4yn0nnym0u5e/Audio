@@ -32,19 +32,16 @@
 #include "memcpy_audio.h"
 #include "utility/imxrt_hw.h"
 
-audio_block_t * AudioOutputTDM::block_input[16] = {
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
-};
-bool AudioOutputTDM::update_responsibility = false;
-DMAChannel AudioOutputTDM::dma(false);
+audio_block_t* AudioOutputTDMbase::block_input[MAX_TDM_INPUTS] = {nullptr};
+bool AudioOutputTDMbase::update_responsibility = false;
+DMAChannel AudioOutputTDMbase::dma(false);
 DMAMEM __attribute__((aligned(32)))
 static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 DMAMEM __attribute__((aligned(32)))
 static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
 
 
-void AudioOutputTDM::begin(void)
+void AudioOutputTDMbase::begin(void)
 {
 	dma.begin(true); // Allocate the DMA channel first
 
@@ -128,7 +125,7 @@ static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *
 	}
 }
 
-void AudioOutputTDM::isr(void)
+void AudioOutputTDMbase::isr(void)
 {
 	uint32_t *dest;
 	const uint32_t *src1, *src2;
@@ -240,7 +237,7 @@ void AudioOutputTDM::update(void)
 #endif
 #endif
 
-void AudioOutputTDM::config_tdm(void)
+void AudioOutputTDMbase::config_tdm(void)
 {
 #if defined(KINETISK)
 	SIM_SCGC6 |= SIM_SCGC6_I2S;

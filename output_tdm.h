@@ -31,19 +31,30 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
-class AudioOutputTDM : public AudioStream
+class AudioOutputTDMbase : public AudioStream
 {
 public:
-	AudioOutputTDM(void) : AudioStream(16, inputQueueArray) { begin(); }
-	virtual void update(void);
+	AudioOutputTDMbase(int nch, audio_block_t** queues) 
+		: AudioStream(nch, queues), channels(nch) 
+		{ begin(); }
+	//virtual void update(void);
 	void begin(void);
 	friend class AudioInputTDM;
 protected:
+	int channels;
 	static void config_tdm(void);
-	static audio_block_t *block_input[16];
+	static const int MAX_TDM_INPUTS = 16;
+	static audio_block_t *block_input[MAX_TDM_INPUTS];
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
+};
+
+class AudioOutputTDM : public AudioOutputTDMbase
+{
+public:
+	AudioOutputTDM(void) : AudioOutputTDMbase(16, inputQueueArray) {}
+	virtual void update(void);
 private:
 	audio_block_t *inputQueueArray[16];
 };
