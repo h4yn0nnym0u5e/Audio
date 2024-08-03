@@ -31,9 +31,19 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
-#define I2S_TCR3_CFR (1UL<<24) // not defined in imxrt.h
-#define I2S_RCR3_CFR (1UL<<24) // not defined in imxrt.h
-
+// not defined in imxrt.h
+#define I2S_TCR3_CFR (1UL<<24) 
+#define I2S_RCR3_CFR (1UL<<24) 
+#define I2S_RCR4_FCOMB(n)               ((uint32_t)(n & 0x3)<<26)	// FIFO Combine Mode
+#define I2S_RCR4_FCOMB_DISABLED          I2S_RCR4_FCOMB(0) // No FIFO combining
+#define I2S_RCR4_FCOMB_ENABLED_ON_WRITES I2S_RCR4_FCOMB(1) // <-- this is the one you want.
+#define I2S_RCR4_FCOMB_ENABLED_ON_READS  I2S_RCR4_FCOMB(2) 
+#define I2S_RCR4_FCOMB_ENABLED_ON_RW     I2S_RCR4_FCOMB(3)
+#define I2S_TCR4_FCOMB(n)               ((uint32_t)(n & 0x3)<<26)	// FIFO Combine Mode
+#define I2S_TCR4_FCOMB_DISABLED          I2S_TCR4_FCOMB(0)
+#define I2S_TCR4_FCOMB_ENABLED_ON_READS  I2S_TCR4_FCOMB(1) // <--- this is the one you want
+#define I2S_TCR4_FCOMB_ENABLED_ON_WRITES I2S_TCR4_FCOMB(2)
+#define I2S_TCR4_FCOMB_ENABLED_ON_RW     I2S_TCR4_FCOMB(3)
 class AudioOutputTDMbase : public AudioStream
 {
 public:
@@ -43,14 +53,14 @@ public:
 	//virtual void update(void);
 	void begin(int pin);
 	friend class AudioInputTDM;
+	static bool update_responsibility;
 protected:
 	int channels;
 	int pin;
 	static int pin_mask;
 	static void config_tdm(int pin = 1);
-	static const int MAX_TDM_INPUTS = 16;
+	static const int MAX_TDM_INPUTS = 64;
 	static audio_block_t *block_input[MAX_TDM_INPUTS];
-	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
 private:

@@ -50,8 +50,14 @@ static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 
 void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 {
+Serial.printf("begin(%d): ", pin); Serial.flush();	
 	if (INACTIVE == state) // never been called before
+	{
 		dma.begin(true); // Allocate the DMA channel first
+		for (int i=0; i < MAX_TDM_INPUTS; i++) 
+			block_input[i] = nullptr;
+		memset(zeros, 0, sizeof(zeros));
+	}
 	else
 	{
 		state = STOPPING;
@@ -61,10 +67,7 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 		// reallocate the TX buffer
 	}
 
-	for (int i=0; i < 16; i++) {
-		block_input[i] = nullptr;
-	}
-	memset(zeros, 0, sizeof(zeros));
+Serial.printf("stopped: "); Serial.flush();	
 	
 #if defined(KINETISK)
 	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
@@ -74,19 +77,23 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 	if (tx_buf_needed > tdm_txbuf_len) // buffer isn't big enough
 	{
 		void* buf = realloc(tdm_tx_malloc, tx_buf_needed + 32); // need to 32-byte align
+Serial.print('.'); Serial.flush();	
 		if (nullptr != buf) // got a new buffer
 		{
 			tdm_tx_malloc = (uint32_t*) buf;  // actual memory allocated, in case we need to realloc()
-			tdm_tx_buffer = (uint32_t*)(((uint32_t) buf) & -32U);
+			tdm_tx_buffer = (uint32_t*)(((uint32_t) buf+32) & -32U);
 			tdm_txbuf_len = tx_buf_needed;
 			pin_mask |= (1<<(pin))-1; // enable all pins up to and including this one
+Serial.printf("Tx buffer is %d bytes; pin_mask = %d",tdm_txbuf_len, pin_mask); Serial.flush();
 		}		
 	}
 	memset(tdm_tx_buffer, 0, tdm_txbuf_len);
+Serial.print('.'); Serial.flush();	
 #endif // hardware-dependent
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
 	config_tdm(pin);
+Serial.print('.'); Serial.flush();	
 #if defined(KINETISK)
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
@@ -135,17 +142,21 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 
-	update_responsibility = update_setup();
+	if (!update_responsibility)
+		update_responsibility = update_setup();
 	dma.enable();
 
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
 #endif
-	state = ACTIVE;
+Serial.print('.'); Serial.flush();	
 	dma.attachInterrupt(isr);
+Serial.println("done"); Serial.flush();	
+	state = ACTIVE;
 }
 
+/*
 // TODO: needs optimization...
 static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *src2)
 {
@@ -170,12 +181,22 @@ static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *
 		dest += 32;
 	}
 }
+*/
 
 void AudioOutputTDMbase::isr(void)
 {
 	uint32_t *dest;
-	const uint32_t *src1, *src2;
-	uint32_t i, saddr;
+	//const uint32_t *src1, *src2;
+	uint32_t i, saddr, nch;
+	
+	switch (pin_mask) // figure out how many pins we're using
+	{
+		default:
+		case 0x01: nch = 1; break;
+		case 0x03: nch = 2; break;
+		case 0x07: nch = 3; break;
+		case 0x0F: nch = 4; break;
+	}
 #if defined(KINETISK)
 	uint32_t tdm_txbuf_len = sizeof(tdm_tx_buffer);
 #endif	
@@ -187,6 +208,7 @@ void AudioOutputTDMbase::isr(void)
 	if (STOPPING == state) // begin() called, pause audio
 	{
 		dma.disable();
+		dma.detachInterrupt();
 		state = STOPPED;
 	}
 	else
@@ -194,7 +216,7 @@ void AudioOutputTDMbase::isr(void)
 		if (saddr < (uint32_t)tdm_tx_buffer + tdm_txbuf_len / 2) {
 			// DMA is transmitting the first half of the buffer
 			// so we must fill the second half
-			dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8;
+			dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8*nch;
 		} else {
 			// DMA is transmitting the second half of the buffer
 			// so we must fill the first half
@@ -206,19 +228,32 @@ void AudioOutputTDMbase::isr(void)
 		uint32_t *dc = dest;
 		#endif
 		
+		/*
 		for (i=0; i < 16; i += 2) {
 			src1 = block_input[i] ? (uint32_t *)(block_input[i]->data) : zeros;
 			src2 = block_input[i+1] ? (uint32_t *)(block_input[i+1]->data) : zeros;
 			memcpy_tdm_tx(dest, src1, src2);
 			dest++;
 		}
-
+		*/
+		for (uint32_t ch=0;ch<nch;ch++)
+		{
+			uint32_t choff = ch*16;
+			for (i=0; i < 16; i++) 
+			{
+				int16_t* dest16 = ((int16_t*) dest)+(i^1)+ch; // need to swap MSW and LSW
+				if (nullptr == block_input[i+choff])
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = 0;
+				else
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = block_input[i+choff]->data[j];
+			}
+		}			
 		#if IMXRT_CACHE_ENABLED >= 2
 		arm_dcache_flush_delete(dc, tdm_txbuf_len / 2 );
 		#endif
 	}
 	
-	for (i=0; i < 16; i++) {
+	for (i=0; i < 16*nch; i++) {
 		if (block_input[i]) {
 			release(block_input[i]);
 			block_input[i] = nullptr;
@@ -229,16 +264,17 @@ void AudioOutputTDMbase::isr(void)
 
 void AudioOutputTDM::update(void)
 {
-	audio_block_t *prev[16];
-	unsigned int i;
+	audio_block_t *prev[channels];
+	int i;
+	unsigned int choff = (pin-1)*channels; // offset into block_channels
 
 	__disable_irq();
-	for (i=0; i < 16; i++) {
-		prev[i] = block_input[i];
-		block_input[i] = receiveReadOnly(i);
+	for (i=0; i < channels; i++) {
+		prev[i] = block_input[i+choff];
+		block_input[i+choff] = receiveReadOnly(i);
 	}
 	__enable_irq();
-	for (i=0; i < 16; i++) {
+	for (i=0; i < channels; i++) {
 		if (prev[i]) release(prev[i]);
 	}
 }
@@ -342,7 +378,10 @@ void AudioOutputTDMbase::config_tdm(int pin /* =1 */)
 	if ((I2S1_TCSR & I2S_TCSR_TE) 
 	 || (I2S1_RCSR & I2S_RCSR_RE))
 	 { 
-		I2S1_TCR3 = (I2S_TCR3_CFR | I2S_TCR3_TCE) * pin_mask; // ..except set channel flags
+		I2S1_TCSR = 0;
+		I2S1_RCSR = 0;
+		I2S1_TCR3  = (I2S_TCR3_CFR | I2S_TCR3_TCE) * pin_mask; // ...except set channel flags
+		I2S1_TCR4 |= pin_mask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0;
 		return;
 	 }
 //PLL:
@@ -377,9 +416,10 @@ void AudioOutputTDMbase::config_tdm(int pin /* =1 */)
 	I2S1_TCR1 = I2S_TCR1_RFW(4);
 	I2S1_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1)
 		| I2S_TCR2_BCD | I2S_TCR2_DIV(0);
-	I2S1_TCR3 = I2S_TCR3_TCE;
+	I2S1_TCR3 = (I2S_TCR3_TCE) * pin_mask;
 	I2S1_TCR4 = I2S_TCR4_FRSZ(7) | I2S_TCR4_SYWD(0) | I2S_TCR4_MF
-		| I2S_TCR4_FSE | I2S_TCR4_FSD;
+		| I2S_TCR4_FSE | I2S_TCR4_FSD |
+		(pin_mask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0);
 	I2S1_TCR5 = I2S_TCR5_WNW(31) | I2S_TCR5_W0W(31) | I2S_TCR5_FBT(31);
 
 	I2S1_RMR = 0;
