@@ -48,8 +48,35 @@ static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 	uint32_t  AudioOutputTDMbase::tdm_txbuf_len = 0;
 #endif // hardware-dependent
 
+/*
+// copied from DMAChannel.cpp
+static void zapDMA(DMAChannel& dma)
+{
+	uint32_t ch = dma.channel;
+	
+	DMA_CERQ = ch;
+	DMA_CERR = ch;
+	DMA_CEEI = ch;
+	DMA_CINT = ch;
+	uint32_t *p = (uint32_t *) (dma.TCD);
+	*p++ = 0;
+	*p++ = 0;
+	*p++ = 0;
+	*p++ = 0;
+	*p++ = 0;
+	*p++ = 0;
+	*p++ = 0;
+	*p++ = 0;
+}
+*/
+
 void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 {
+	if (ACTIVE == state)
+	{
+Serial.printf("begin abandoned\n"); Serial.flush();	
+		return;
+	}
 Serial.printf("begin(%d): ", pin); Serial.flush();	
 	if (INACTIVE == state) // never been called before
 	{
@@ -65,9 +92,11 @@ Serial.printf("begin(%d): ", pin); Serial.flush();
 			; // dangerous? Should put timeout here, probably
 		// ISR has disabled the DMA now, so we should be safe to
 		// reallocate the TX buffer
+Serial.printf("stopped: "); Serial.flush();	
+		//zapDMA(dma);
 	}
 
-Serial.printf("stopped: "); Serial.flush();	
+Serial.printf("DMA channel %d: ", dma.channel); Serial.flush();	
 	
 #if defined(KINETISK)
 	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
@@ -129,6 +158,8 @@ Serial.print('.'); Serial.flush();
 		break;
 	}
 
+if (STOPPED != state)
+{
 	dma.TCD->SADDR = tdm_tx_buffer;
 	dma.TCD->SOFF = 4;
 	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
@@ -144,6 +175,7 @@ Serial.print('.'); Serial.flush();
 
 	if (!update_responsibility)
 		update_responsibility = update_setup();
+
 	dma.enable();
 
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
@@ -153,6 +185,7 @@ Serial.print('.'); Serial.flush();
 Serial.print('.'); Serial.flush();	
 	dma.attachInterrupt(isr);
 Serial.println("done"); Serial.flush();	
+}
 	state = ACTIVE;
 }
 
@@ -207,8 +240,8 @@ void AudioOutputTDMbase::isr(void)
 	dma.clearInterrupt();
 	if (STOPPING == state) // begin() called, pause audio
 	{
-		dma.disable();
-		dma.detachInterrupt();
+		//dma.disable();
+		//dma.detachInterrupt();
 		state = STOPPED;
 	}
 	else
@@ -236,12 +269,17 @@ void AudioOutputTDMbase::isr(void)
 			dest++;
 		}
 		*/
+		/*
+		 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
+		 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
+		 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
+		 */
 		for (uint32_t ch=0;ch<nch;ch++)
 		{
 			uint32_t choff = ch*16;
 			for (i=0; i < 16; i++) 
 			{
-				int16_t* dest16 = ((int16_t*) dest)+(i^1)+ch; // need to swap MSW and LSW
+				int16_t* dest16 = ((int16_t*) dest)+((i^1)&1)+ch*2+((i&-2)*nch); // need to swap MSW and LSW
 				if (nullptr == block_input[i+choff])
 					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = 0;
 				else
@@ -378,8 +416,6 @@ void AudioOutputTDMbase::config_tdm(int pin /* =1 */)
 	if ((I2S1_TCSR & I2S_TCSR_TE) 
 	 || (I2S1_RCSR & I2S_RCSR_RE))
 	 { 
-		I2S1_TCSR = 0;
-		I2S1_RCSR = 0;
 		I2S1_TCR3  = (I2S_TCR3_CFR | I2S_TCR3_TCE) * pin_mask; // ...except set channel flags
 		I2S1_TCR4 |= pin_mask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0;
 		return;
