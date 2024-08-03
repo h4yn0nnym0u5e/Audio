@@ -72,12 +72,8 @@ static void zapDMA(DMAChannel& dma)
 
 void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 {
-	if (ACTIVE == state)
-	{
-Serial.printf("begin abandoned\n"); Serial.flush();	
-		return;
-	}
-Serial.printf("begin(%d): ", pin); Serial.flush();	
+//	if (ACTIVE == state) { Serial.printf("begin() abandoned\n"); Serial.flush(); return; }
+	
 	if (INACTIVE == state) // never been called before
 	{
 		dma.begin(true); // Allocate the DMA channel first
@@ -92,11 +88,7 @@ Serial.printf("begin(%d): ", pin); Serial.flush();
 			; // dangerous? Should put timeout here, probably
 		// ISR has disabled the DMA now, so we should be safe to
 		// reallocate the TX buffer
-Serial.printf("stopped: "); Serial.flush();	
-		//zapDMA(dma);
 	}
-
-Serial.printf("DMA channel %d: ", dma.channel); Serial.flush();	
 	
 #if defined(KINETISK)
 	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
@@ -106,23 +98,19 @@ Serial.printf("DMA channel %d: ", dma.channel); Serial.flush();
 	if (tx_buf_needed > tdm_txbuf_len) // buffer isn't big enough
 	{
 		void* buf = realloc(tdm_tx_malloc, tx_buf_needed + 32); // need to 32-byte align
-Serial.print('.'); Serial.flush();	
 		if (nullptr != buf) // got a new buffer
 		{
 			tdm_tx_malloc = (uint32_t*) buf;  // actual memory allocated, in case we need to realloc()
 			tdm_tx_buffer = (uint32_t*)(((uint32_t) buf+32) & -32U);
 			tdm_txbuf_len = tx_buf_needed;
 			pin_mask |= (1<<(pin))-1; // enable all pins up to and including this one
-Serial.printf("Tx buffer is %d bytes; pin_mask = %d",tdm_txbuf_len, pin_mask); Serial.flush();
 		}		
 	}
 	memset(tdm_tx_buffer, 0, tdm_txbuf_len);
-Serial.print('.'); Serial.flush();	
 #endif // hardware-dependent
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
 	config_tdm(pin);
-Serial.print('.'); Serial.flush();	
 #if defined(KINETISK)
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
@@ -158,63 +146,46 @@ Serial.print('.'); Serial.flush();
 		break;
 	}
 
-if (STOPPED != state)
-{
-	dma.TCD->SADDR = tdm_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = -tdm_txbuf_len;
-	dma.TCD->DADDR = &I2S1_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = tdm_txbuf_len / 4;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = tdm_txbuf_len / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
+	if (STOPPED != state) // first call to begin(): set everything up
+	{
+		dma.TCD->SADDR = tdm_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = 4;
+		dma.TCD->SLAST = -tdm_txbuf_len;
+		dma.TCD->DADDR = &I2S1_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = tdm_txbuf_len / 4;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = tdm_txbuf_len / 4;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 
-	if (!update_responsibility)
-		update_responsibility = update_setup();
+		if (!update_responsibility)
+			update_responsibility = update_setup();
 
-	dma.enable();
-
+		dma.enable();
+		dma.attachInterrupt(isr);
+	}
+	else // second or later call: minor changes only
+	{
+		dma.disable();
+		
+		I2S1_TCSR |= I2S_TCSR_SR; // must reset SAI1, or we lose sync
+		
+		dma.TCD->SADDR = tdm_tx_buffer;
+		dma.TCD->SLAST = -tdm_txbuf_len;
+		dma.TCD->CITER_ELINKNO = tdm_txbuf_len / 4;
+		dma.TCD->BITER_ELINKNO = tdm_txbuf_len / 4;
+		dma.enable();
+	}
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-
 #endif
-Serial.print('.'); Serial.flush();	
-	dma.attachInterrupt(isr);
-Serial.println("done"); Serial.flush();	
-}
+
 	state = ACTIVE;
 }
 
-/*
-// TODO: needs optimization...
-static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *src2)
-{
-	uint32_t i, in1, in2, out1, out2;
-
-	for (i=0; i < AUDIO_BLOCK_SAMPLES/4; i++) {
-
-		in1 = *src1++;
-		in2 = *src2++;
-		out1 = (in1 << 16) | (in2 & 0xFFFF);
-		out2 = (in1 & 0xFFFF0000) | (in2 >> 16);
-		*dest = out1;
-		*(dest + 8) = out2;
-
-		in1 = *src1++;
-		in2 = *src2++;
-		out1 = (in1 << 16) | (in2 & 0xFFFF);
-		out2 = (in1 & 0xFFFF0000) | (in2 >> 16);
-		*(dest + 16)= out1;
-		*(dest + 24) = out2;
-
-		dest += 32;
-	}
-}
-*/
 
 void AudioOutputTDMbase::isr(void)
 {
@@ -238,58 +209,44 @@ void AudioOutputTDMbase::isr(void)
 	saddr = (uint32_t)(dma.TCD->SADDR);
 #endif
 	dma.clearInterrupt();
-	if (STOPPING == state) // begin() called, pause audio
-	{
-		//dma.disable();
-		//dma.detachInterrupt();
+	if (STOPPING == state) // begin() called, signal it's OK to make changes
 		state = STOPPED;
-	}
-	else
-	{
-		if (saddr < (uint32_t)tdm_tx_buffer + tdm_txbuf_len / 2) {
-			// DMA is transmitting the first half of the buffer
-			// so we must fill the second half
-			dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8*nch;
-		} else {
-			// DMA is transmitting the second half of the buffer
-			// so we must fill the first half
-			dest = tdm_tx_buffer;
-		}
-		if (update_responsibility) AudioStream::update_all();
-
-		#if IMXRT_CACHE_ENABLED >= 2
-		uint32_t *dc = dest;
-		#endif
 		
-		/*
-		for (i=0; i < 16; i += 2) {
-			src1 = block_input[i] ? (uint32_t *)(block_input[i]->data) : zeros;
-			src2 = block_input[i+1] ? (uint32_t *)(block_input[i+1]->data) : zeros;
-			memcpy_tdm_tx(dest, src1, src2);
-			dest++;
-		}
-		*/
-		/*
-		 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
-		 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
-		 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
-		 */
-		for (uint32_t ch=0;ch<nch;ch++)
-		{
-			uint32_t choff = ch*16;
-			for (i=0; i < 16; i++) 
-			{
-				int16_t* dest16 = ((int16_t*) dest)+((i^1)&1)+ch*2+((i&-2)*nch); // need to swap MSW and LSW
-				if (nullptr == block_input[i+choff])
-					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = 0;
-				else
-					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = block_input[i+choff]->data[j];
-			}
-		}			
-		#if IMXRT_CACHE_ENABLED >= 2
-		arm_dcache_flush_delete(dc, tdm_txbuf_len / 2 );
-		#endif
+	if (saddr < (uint32_t)tdm_tx_buffer + tdm_txbuf_len / 2) {
+		// DMA is transmitting the first half of the buffer
+		// so we must fill the second half
+		dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8*nch;
+	} else {
+		// DMA is transmitting the second half of the buffer
+		// so we must fill the first half
+		dest = tdm_tx_buffer;
 	}
+	if (update_responsibility) AudioStream::update_all();
+
+	#if IMXRT_CACHE_ENABLED >= 2
+	uint32_t *dc = dest;
+	#endif
+	
+	/*
+	 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
+	 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
+	 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
+	 */
+	for (uint32_t ch=0;ch<nch;ch++)
+	{
+		uint32_t choff = ch*16;
+		for (i=0; i < 16; i++) 
+		{
+			int16_t* dest16 = ((int16_t*) dest)+((i^1)&1)+ch*2+((i&-2)*nch); // need to swap MSW and LSW
+			if (nullptr == block_input[i+choff])
+				for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = 0;
+			else
+				for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = block_input[i+choff]->data[j];
+		}
+	}			
+	#if IMXRT_CACHE_ENABLED >= 2
+	arm_dcache_flush_delete(dc, tdm_txbuf_len / 2 );
+	#endif
 	
 	for (i=0; i < 16*nch; i++) {
 		if (block_input[i]) {

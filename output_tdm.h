@@ -32,6 +32,9 @@
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
 // not defined in imxrt.h
+
+#define I2S_TCSR_SR (1UL<<24) 
+
 #define I2S_TCR3_CFR (1UL<<24) 
 #define I2S_RCR3_CFR (1UL<<24) 
 #define I2S_RCR4_FCOMB(n)               ((uint32_t)(n & 0x3)<<26)	// FIFO Combine Mode
