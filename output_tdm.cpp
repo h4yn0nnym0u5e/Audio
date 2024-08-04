@@ -72,8 +72,6 @@ static void zapDMA(DMAChannel& dma)
 
 void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 {
-//	if (ACTIVE == state) { Serial.printf("begin() abandoned\n"); Serial.flush(); return; }
-	
 	if (INACTIVE == state) // never been called before
 	{
 		dma.begin(true); // Allocate the DMA channel first
@@ -257,7 +255,7 @@ void AudioOutputTDMbase::isr(void)
 }
 
 
-void AudioOutputTDM::update(void)
+void AudioOutputTDM16::update(void)
 {
 	audio_block_t *prev[channels];
 	int i;

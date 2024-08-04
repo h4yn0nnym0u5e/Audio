@@ -82,14 +82,30 @@ private:
  * channels into each frame, as used by e.g. ADAU1966A.
  * The Design Tool object correspondingly has 16 inputs.
  */
-class AudioOutputTDM : public AudioOutputTDMbase
+class AudioOutputTDM16 : public AudioOutputTDMbase
 {
 public:
-	AudioOutputTDM(int pin=1) : AudioOutputTDMbase(16, inputQueueArray, pin) {}
+	AudioOutputTDM16(int pin=1) : AudioOutputTDMbase(16, inputQueueArray, pin) {}
 	virtual void update(void);
 private:
 	audio_block_t *inputQueueArray[16];
 };
+
+class AudioOutputTDM : public AudioOutputTDM16
+{ public: AudioOutputTDM()  : AudioOutputTDM16(1) {} };
+
+#if defined(__IMXRT1062__)
+class AudioOutputTDMB : public AudioOutputTDM16
+{ public: AudioOutputTDMB() : AudioOutputTDM16(2) {} };
+
+class AudioOutputTDMC : public AudioOutputTDM16
+{ public: AudioOutputTDMC() : AudioOutputTDM16(3) {} };
+
+class AudioOutputTDMD : public AudioOutputTDM16
+{ public: AudioOutputTDMD() : AudioOutputTDM16(4) {} };
+#endif // defined(__IMXRT1062__)
+
+
 
 /*
  * For the generalised TDM object, we may use up to 4 OUT1x pins, each of which
