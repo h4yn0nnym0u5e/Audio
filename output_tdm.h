@@ -34,6 +34,7 @@
 // not defined in imxrt.h
 
 #define I2S_TCSR_SR (1UL<<24) 
+#define I2S_RCSR_SR (1UL<<24) 
 
 #define I2S_TCR3_CFR (1UL<<24) 
 #define I2S_RCR3_CFR (1UL<<24) 
@@ -47,23 +48,24 @@
 #define I2S_TCR4_FCOMB_ENABLED_ON_READS  I2S_TCR4_FCOMB(1) // <--- this is the one you want
 #define I2S_TCR4_FCOMB_ENABLED_ON_WRITES I2S_TCR4_FCOMB(2)
 #define I2S_TCR4_FCOMB_ENABLED_ON_RW     I2S_TCR4_FCOMB(3)
+
+
 class AudioOutputTDMbase : public AudioStream
 {
 public:
 	AudioOutputTDMbase(int nch, audio_block_t** queues, int p) 
-		: AudioStream(nch, queues), channels(nch), pin(p) 
+		: AudioStream(nch, queues), channels(nch), pin(p)		
 		{ begin(pin); }
-	//virtual void update(void);
 	void begin(int pin);
-	friend class AudioInputTDM;
+	friend class AudioInputTDMbase;
 	static bool update_responsibility;
 protected:
 	int channels;
 	int pin;
 	static int pin_mask;
-	static void config_tdm(int pin = 1);
-	static const int MAX_TDM_INPUTS = 64;
-	static audio_block_t *block_input[MAX_TDM_INPUTS];
+	static void config_tdm(int pinTx = -1, int pinRx = -1, int clks_per_frame = 256);
+	static const int MAX_TDM_OUTPUTS = 64;
+	static audio_block_t *block_input[MAX_TDM_OUTPUTS];
 	static DMAChannel dma;
 	static void isr(void);
 private:

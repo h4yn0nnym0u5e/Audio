@@ -31,18 +31,48 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
-class AudioInputTDM : public AudioStream
+class AudioInputTDMbase : public AudioStream
 {
 public:
-	AudioInputTDM(void) : AudioStream(0, NULL) { begin(); }
-	virtual void update(void);
-	void begin(void);
-protected:	
+	AudioInputTDMbase(int p) : AudioStream(0, NULL), pin(p)  { begin(); }
+	//virtual void update(void);
+	void begin(int pin = 1);
+protected:
+	int pin;
+	static int pin_mask;
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
+	static const int MAX_TDM_INPUTS = 64;
+	static audio_block_t *block_incoming[MAX_TDM_INPUTS];
 private:
-	static audio_block_t *block_incoming[16];
+	static volatile enum TDMstate_e {INACTIVE, ACTIVE, STOPPING, STOPPED} state;  // state of TDM hardware
+#if defined(KINETISK)
+	static uint32_t tdm_rx_buffer[AUDIO_BLOCK_SAMPLES*16];
+#elif defined(__IMXRT1062__)	
+	static uint32_t* tdm_rx_malloc; // actual allocation
+	static uint32_t* tdm_rx_buffer;	// allocation rounded to 32-byte boundary
+	static uint32_t  tdm_rxbuf_len; // space available in TX buffer
+#endif // hardware-dependent
 };
+
+class AudioInputTDM16 : public AudioInputTDMbase
+{
+public:	
+	AudioInputTDM16(int pin) : AudioInputTDMbase(pin) {}
+	virtual void update(void);
+};
+
+class AudioInputTDM : public AudioInputTDM16
+{ public: AudioInputTDM()  : AudioInputTDM16(1) {} };
+
+class AudioInputTDMB : public AudioInputTDM16
+{ public: AudioInputTDMB()  : AudioInputTDM16(2) {} };
+
+class AudioInputTDMC : public AudioInputTDM16
+{ public: AudioInputTDMC()  : AudioInputTDM16(3) {} };
+
+class AudioInputTDMD : public AudioInputTDM16
+{ public: AudioInputTDMD()  : AudioInputTDM16(4) {} };
 
 #endif

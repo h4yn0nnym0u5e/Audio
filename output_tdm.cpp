@@ -32,13 +32,11 @@
 #include "memcpy_audio.h"
 #include "utility/imxrt_hw.h"
 
-audio_block_t* AudioOutputTDMbase::block_input[MAX_TDM_INPUTS] = {nullptr};
+audio_block_t* AudioOutputTDMbase::block_input[MAX_TDM_OUTPUTS] = {nullptr};
 int AudioOutputTDMbase::pin_mask = 0;
 bool AudioOutputTDMbase::update_responsibility = false;
 volatile AudioOutputTDMbase::TDMstate_e AudioOutputTDMbase::state = INACTIVE;
 DMAChannel AudioOutputTDMbase::dma(false);
-DMAMEM __attribute__((aligned(32)))
-static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 #if defined(KINETISK)
 	DMAMEM __attribute__((aligned(32)))
 	static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
@@ -48,36 +46,14 @@ static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 	uint32_t  AudioOutputTDMbase::tdm_txbuf_len = 0;
 #endif // hardware-dependent
 
-/*
-// copied from DMAChannel.cpp
-static void zapDMA(DMAChannel& dma)
-{
-	uint32_t ch = dma.channel;
-	
-	DMA_CERQ = ch;
-	DMA_CERR = ch;
-	DMA_CEEI = ch;
-	DMA_CINT = ch;
-	uint32_t *p = (uint32_t *) (dma.TCD);
-	*p++ = 0;
-	*p++ = 0;
-	*p++ = 0;
-	*p++ = 0;
-	*p++ = 0;
-	*p++ = 0;
-	*p++ = 0;
-	*p++ = 0;
-}
-*/
 
 void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 {
 	if (INACTIVE == state) // never been called before
 	{
 		dma.begin(true); // Allocate the DMA channel first
-		for (int i=0; i < MAX_TDM_INPUTS; i++) 
+		for (int i=0; i < MAX_TDM_OUTPUTS; i++) 
 			block_input[i] = nullptr;
-		memset(zeros, 0, sizeof(zeros));
 	}
 	else
 	{
@@ -108,7 +84,7 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 #endif // hardware-dependent
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_tdm(pin);
+	config_tdm(pin, -1);  // leave Rx pins, configure Tx pins
 #if defined(KINETISK)
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
@@ -323,7 +299,9 @@ void AudioOutputTDM16::update(void)
 #endif
 #endif
 
-void AudioOutputTDMbase::config_tdm(int pin /* =1 */)
+void AudioOutputTDMbase::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for unchanged
+									int pinRx, /* = -1, */	// receive pin number, or -1 for unchanged
+									int clks_per_frame /* = 256 */) // bit clocks per sample frame
 {
 #if defined(KINETISK)
 	SIM_SCGC6 |= SIM_SCGC6_I2S;
@@ -365,14 +343,28 @@ void AudioOutputTDMbase::config_tdm(int pin /* =1 */)
 	CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK - 22.5 MHz
 
 #elif defined(__IMXRT1062__)
+	// retrieve existing pin mask values
+	uint32_t txPinMask = (I2S1_TCR3 / I2S_TCR3_TCE) & 0x0F;
+	uint32_t rxPinMask = (I2S1_RCR3 / I2S_RCR3_RCE) & 0x0F;
+	
+	// create updated masks, if needed
+	if (pinTx > 0) txPinMask = (1<<pinTx)-1;
+	if (pinRx > 0) rxPinMask = (1<<pinRx)-1;
+	
 	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 
 	// if either transmitter or receiver is enabled, do nothing...
 	if ((I2S1_TCSR & I2S_TCSR_TE) 
 	 || (I2S1_RCSR & I2S_RCSR_RE))
 	 { 
-		I2S1_TCR3  = (I2S_TCR3_CFR | I2S_TCR3_TCE) * pin_mask; // ...except set channel flags
-		I2S1_TCR4 |= pin_mask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0;
+		// Documentation (e.g. 38.5.1.7.4) says we should only reset FIFOs when
+		// a channel is disabled, but this seems to work OK as-is. Consider
+		// changing to a temporary disable if there are issues. Note that
+		// the calling code should do a soft reset anyway, which may be enough.
+		I2S1_TCR3  = (I2S_TCR3_CFR | I2S_TCR3_TCE) * txPinMask; // ...except set channel flags
+		I2S1_TCR4 |= txPinMask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0;
+		I2S1_RCR3  = (I2S_RCR3_CFR | I2S_RCR3_RCE) * rxPinMask; 
+		I2S1_RCR4 |= rxPinMask > 0x01?I2S_RCR4_FCOMB_ENABLED_ON_READS:0;
 		return;
 	 }
 //PLL:
@@ -402,24 +394,26 @@ void AudioOutputTDMbase::config_tdm(int pin /* =1 */)
 	// configure transmitter
 	int rsync = 0;
 	int tsync = 1;
+	int frame_size = clks_per_frame/32;  // => 4 or 8 32-bit words per frame
 
 	I2S1_TMR = 0;
 	I2S1_TCR1 = I2S_TCR1_RFW(4);
 	I2S1_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1)
 		| I2S_TCR2_BCD | I2S_TCR2_DIV(0);
-	I2S1_TCR3 = (I2S_TCR3_TCE) * pin_mask;
-	I2S1_TCR4 = I2S_TCR4_FRSZ(7) | I2S_TCR4_SYWD(0) | I2S_TCR4_MF
+	I2S1_TCR3 = I2S_TCR3_TCE * txPinMask;
+	I2S1_TCR4 = I2S_TCR4_FRSZ(frame_size-1) | I2S_TCR4_SYWD(0) | I2S_TCR4_MF
 		| I2S_TCR4_FSE | I2S_TCR4_FSD |
-		(pin_mask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0);
+		(txPinMask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0);
 	I2S1_TCR5 = I2S_TCR5_WNW(31) | I2S_TCR5_W0W(31) | I2S_TCR5_FBT(31);
 
 	I2S1_RMR = 0;
 	I2S1_RCR1 = I2S_RCR1_RFW(4);
 	I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
 		| I2S_RCR2_BCD | I2S_RCR2_DIV(0);
-	I2S1_RCR3 = I2S_RCR3_RCE;
-	I2S1_RCR4 = I2S_RCR4_FRSZ(7) | I2S_RCR4_SYWD(0) | I2S_RCR4_MF
-		| I2S_RCR4_FSE | I2S_RCR4_FSD;
+	I2S1_RCR3 = I2S_RCR3_RCE * rxPinMask;
+	I2S1_RCR4 = I2S_RCR4_FRSZ(frame_size-1) | I2S_RCR4_SYWD(0) | I2S_RCR4_MF
+		| I2S_RCR4_FSE | I2S_RCR4_FSD |
+		(rxPinMask > 0x01?I2S_RCR4_FCOMB_ENABLED_ON_READS:0);
 	I2S1_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
 
 	CORE_PIN23_CONFIG = 3;  //1:MCLK
