@@ -26,7 +26,6 @@
 
 #include <Arduino.h>
 #include "input_tdm.h"
-#include "output_tdm.h"
 #if defined(KINETISK) || defined(__IMXRT1062__)
 #include "utility/imxrt_hw.h"
 
@@ -76,10 +75,11 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 			pin_mask |= (1<<(pin))-1; // enable all pins up to and including this one
 		}		
 	}
+	setDMA(dma, tdm_rx_buffer, tdm_rxbuf_len, false);
 #endif // defined(__IMXRT1062__)
 
 	// TODO: should we set & clear the I2S_RCSR_SR bit here?
-	AudioOutputTDM::config_tdm(-1,pin);  // leave Tx pins, configure Rx pins
+	config_tdm(-1,pin);  // leave Tx pins, configure Rx pins
 #if defined(KINETISK)
 	CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
 	dma.TCD->SADDR = &I2S0_RDR0;
@@ -136,6 +136,9 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 	}
 	else // second or later call: minor changes only
 	{
+		/*
+		zapDMA();
+		/*/
 		dma.disable();
 		
 		I2S1_RCSR |= I2S_RCSR_SR; // must reset SAI1, or we lose sync
@@ -145,6 +148,7 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 		dma.TCD->CITER_ELINKNO = tdm_rxbuf_len / 4;
 		dma.TCD->BITER_ELINKNO = tdm_rxbuf_len / 4;
 		dma.enable();
+		//*/
 	}
 
 	I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
@@ -152,19 +156,6 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 	state = ACTIVE;
 }
 
-// TODO: needs optimization...
-static void memcpy_tdm_rx(uint32_t *dest1, uint32_t *dest2, const uint32_t *src)
-{
-	uint32_t i, in1, in2;
-
-	for (i=0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
-		in1 = *src;
-		in2 = *(src+8);
-		src += 16;
-		*dest1++ = (in1 >> 16) | (in2 & 0xFFFF0000);
-		*dest2++ = (in1 << 16) | (in2 & 0x0000FFFF);
-	}
-}
 
 void AudioInputTDMbase::isr(void)
 {

@@ -49,21 +49,31 @@
 #define I2S_TCR4_FCOMB_ENABLED_ON_WRITES I2S_TCR4_FCOMB(2)
 #define I2S_TCR4_FCOMB_ENABLED_ON_RW     I2S_TCR4_FCOMB(3)
 
+class AudioHardwareTDM
+{
+protected:	
+	static void config_tdm(int pinTx = -1, int pinRx = -1, int clks_per_frame = 256);
+	static void setDMA(DMAChannel& dma, uint32_t* buf, uint32_t buflen, bool which);
+	static void zapDMA(void);
+private:
+	struct DMAsettings {DMAChannel* dma; uint32_t* buf; uint32_t buflen;}; 	
+	static DMAsettings TxDMA, RxDMA; 
+};
 
-class AudioOutputTDMbase : public AudioStream
+class AudioOutputTDMbase : public AudioStream, AudioHardwareTDM
 {
 public:
 	AudioOutputTDMbase(int nch, audio_block_t** queues, int p) 
 		: AudioStream(nch, queues), channels(nch), pin(p)		
 		{ begin(pin); }
 	void begin(int pin);
-	friend class AudioInputTDMbase;
+	//friend class AudioInputTDMbase;
 	static bool update_responsibility;
 protected:
 	int channels;
 	int pin;
 	static int pin_mask;
-	static void config_tdm(int pinTx = -1, int pinRx = -1, int clks_per_frame = 256);
+	//static void config_tdm(int pinTx = -1, int pinRx = -1, int clks_per_frame = 256);
 	static const int MAX_TDM_OUTPUTS = 64;
 	static audio_block_t *block_input[MAX_TDM_OUTPUTS];
 	static DMAChannel dma;

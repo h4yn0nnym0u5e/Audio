@@ -80,6 +80,7 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 			pin_mask |= (1<<(pin))-1; // enable all pins up to and including this one
 		}		
 	}
+	setDMA(dma, tdm_tx_buffer, tdm_txbuf_len, true);
 	memset(tdm_tx_buffer, 0, tdm_txbuf_len);
 #endif // hardware-dependent
 
@@ -143,6 +144,9 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 	}
 	else // second or later call: minor changes only
 	{
+		/*
+		zapDMA();
+		/*/
 		dma.disable();
 		
 		I2S1_TCSR |= I2S_TCSR_SR; // must reset SAI1, or we lose sync
@@ -152,6 +156,7 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 		dma.TCD->CITER_ELINKNO = tdm_txbuf_len / 4;
 		dma.TCD->BITER_ELINKNO = tdm_txbuf_len / 4;
 		dma.enable();
+		//*/
 	}
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
@@ -299,7 +304,7 @@ void AudioOutputTDM16::update(void)
 #endif
 #endif
 
-void AudioOutputTDMbase::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for unchanged
+void static_config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for unchanged
 									int pinRx, /* = -1, */	// receive pin number, or -1 for unchanged
 									int clks_per_frame /* = 256 */) // bit clocks per sample frame
 {
@@ -348,8 +353,8 @@ void AudioOutputTDMbase::config_tdm(int pinTx, /* = -1, */ 	// transmit pin numb
 	uint32_t rxPinMask = (I2S1_RCR3 / I2S_RCR3_RCE) & 0x0F;
 	
 	// create updated masks, if needed
-	if (pinTx > 0) txPinMask = (1<<pinTx)-1;
-	if (pinRx > 0) rxPinMask = (1<<pinRx)-1;
+	if (pinTx > 0) txPinMask |= (1<<pinTx)-1;
+	if (pinRx > 0) rxPinMask |= (1<<pinRx)-1;
 	
 	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 
@@ -420,6 +425,53 @@ void AudioOutputTDMbase::config_tdm(int pinTx, /* = -1, */ 	// transmit pin numb
 	CORE_PIN21_CONFIG = 3;  //1:RX_BCLK
 	CORE_PIN20_CONFIG = 3;  //1:RX_SYNC
 #endif
+}
+
+AudioHardwareTDM::DMAsettings AudioHardwareTDM::TxDMA = {0}, AudioHardwareTDM::RxDMA = {0};
+
+void AudioHardwareTDM::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for unchanged
+									int pinRx, /* = -1, */	// receive pin number, or -1 for unchanged
+									int clks_per_frame /* = 256 */) // bit clocks per sample frame
+{
+	static_config_tdm(pinTx,pinRx,clks_per_frame);
+}
+
+void AudioHardwareTDM::setDMA(DMAChannel& dma, uint32_t* buf, uint32_t buflen, bool which)
+{
+	DMAsettings* settings = which?&TxDMA:&RxDMA;
+	
+	settings->dma = &dma;
+	settings->buf = buf;
+	settings->buflen = buflen;
+}
+
+void AudioHardwareTDM::zapDMA(void)
+{
+	if (nullptr != TxDMA.dma)
+	{
+		TxDMA.dma->disable();
+		
+		I2S1_TCSR |= I2S_TCSR_SR; // must reset SAI1, or we lose sync
+		
+		TxDMA.dma->TCD->SADDR = TxDMA.buf;
+		TxDMA.dma->TCD->SLAST = -TxDMA.buflen;
+		TxDMA.dma->TCD->CITER_ELINKNO = TxDMA.buflen / 4;
+		TxDMA.dma->TCD->BITER_ELINKNO = TxDMA.buflen / 4;
+		TxDMA.dma->enable();		
+	}
+	
+	if (nullptr != RxDMA.dma)
+	{
+		RxDMA.dma->disable();
+		
+		I2S1_RCSR |= I2S_RCSR_SR; // must reset SAI1, or we lose sync
+		
+		RxDMA.dma->TCD->DADDR = RxDMA.buf;
+		RxDMA.dma->TCD->DLASTSGA = -RxDMA.buflen;
+		RxDMA.dma->TCD->CITER_ELINKNO = RxDMA.buflen / 4;
+		RxDMA.dma->TCD->BITER_ELINKNO = RxDMA.buflen / 4;
+		RxDMA.dma->enable();		
+	}	
 }
 
 #endif

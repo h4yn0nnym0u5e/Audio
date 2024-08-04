@@ -31,7 +31,9 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
-class AudioInputTDMbase : public AudioStream
+#include <output_tdm.h>
+
+class AudioInputTDMbase : public AudioStream, AudioHardwareTDM
 {
 public:
 	AudioInputTDMbase(int p) : AudioStream(0, NULL), pin(p)  { begin(); }
