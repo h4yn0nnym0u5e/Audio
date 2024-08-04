@@ -235,7 +235,7 @@ void AudioInputTDM16::update(void)
 	unsigned int i, j;
 	audio_block_t* new_block[16];
 	audio_block_t* out_block[16];
-	audio_block_t** incoming = block_incoming + pin*16;
+	audio_block_t** incoming = block_incoming + (pin-1)*16;
 
 	// allocate 16 new blocks.  If any fails, allocate none
 	for (i=0; i < 16; i++) 
