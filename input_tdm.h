@@ -33,7 +33,7 @@
 
 #include <output_tdm.h>  // need knowledge of the AudioHardwareTDM class
 
-class AudioInputTDMbase : public AudioStream, AudioHardwareTDM
+class AudioInputTDMbase : public AudioStream, public AudioHardwareTDM
 {
 public:
 	AudioInputTDMbase(int p) : AudioStream(0, NULL), pin(p)  { begin(); }

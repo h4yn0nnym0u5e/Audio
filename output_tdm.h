@@ -78,7 +78,7 @@ public:
 	static void printSettings(void);
 };
 
-class AudioOutputTDMbase : public AudioStream, AudioHardwareTDM
+class AudioOutputTDMbase : public AudioStream, public AudioHardwareTDM
 {
 public:
 	AudioOutputTDMbase(int nch, audio_block_t** queues, int p) 
