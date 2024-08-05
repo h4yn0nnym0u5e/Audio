@@ -57,9 +57,12 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 	}
 	else
 	{
+		elapsedMillis timeout = 0;
+		
 		state = STOPPING;
-		while (STOPPING == state)
-			; // dangerous? Should put timeout here, probably
+		while (STOPPING == state && timeout<20)
+			;
+if (timeout >= 20) Serial.println("Timed out stopping input");		
 		// ISR has disabled the DMA now, so we should be safe to
 		// reallocate the TX buffer
 	}
@@ -144,7 +147,7 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 	}
 	else // second or later call: minor changes only
 	{
-		/*
+		//*
 		zapDMA();
 		/*/
 		dma.disable();
@@ -449,6 +452,7 @@ void AudioHardwareTDM::zapDMA(void)
 {
 	if (nullptr != TxDMA.dma)
 	{
+Serial.printf("Zapping TxDMA at %dms\n", millis());	
 		TxDMA.dma->disable();
 		
 		I2S1_TCSR |= I2S_TCSR_SR; // must reset SAI1, or we lose sync
@@ -457,11 +461,16 @@ void AudioHardwareTDM::zapDMA(void)
 		TxDMA.dma->TCD->SLAST = -TxDMA.buflen;
 		TxDMA.dma->TCD->CITER_ELINKNO = TxDMA.buflen / 4;
 		TxDMA.dma->TCD->BITER_ELINKNO = TxDMA.buflen / 4;
-		TxDMA.dma->enable();		
+		TxDMA.dma->enable();
+
+		I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 	}
+else Serial.println("Not zapping TxDMA - null pointer");		
+delay(10);
 	
 	if (nullptr != RxDMA.dma)
 	{
+Serial.printf("Zapping RxDMA at %dms\n", millis());	
 		RxDMA.dma->disable();
 		
 		I2S1_RCSR |= I2S_RCSR_SR; // must reset SAI1, or we lose sync
@@ -470,8 +479,29 @@ void AudioHardwareTDM::zapDMA(void)
 		RxDMA.dma->TCD->DLASTSGA = -RxDMA.buflen;
 		RxDMA.dma->TCD->CITER_ELINKNO = RxDMA.buflen / 4;
 		RxDMA.dma->TCD->BITER_ELINKNO = RxDMA.buflen / 4;
-		RxDMA.dma->enable();		
-	}	
+		RxDMA.dma->enable();
+		
+		I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;		
+	}
+else Serial.println("Not zapping RxDMA - null pointer");		
+delay(10);
+	
 }
+
+void AudioHardwareTDM::printSettings()
+{
+	for (int which=0;which<2;which++)
+	{
+		DMAsettings* settings = which?&TxDMA:&RxDMA;
+		
+		Serial.printf("%s: ", which?"TxDMA":"RxDMA");
+		Serial.printf("%08X; %08X, %d\n",
+			(uint32_t) settings->dma,
+			(uint32_t) settings->buf,
+					   settings->buflen);
+	}
+	Serial.printf("BCLK is%s inverted\n",getBCLKinverted()?"":" not");
+}
+
 
 #endif

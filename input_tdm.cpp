@@ -54,9 +54,12 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 	}
 	else
 	{
+		elapsedMillis timeout = 0;
+		
 		state = STOPPING;
-		while (STOPPING == state)
-			; // dangerous? Should put timeout here, probably
+		while (STOPPING == state && timeout<20)
+			;
+if (timeout >= 20) Serial.println("Timed out stopping input");		
 		// ISR has disabled the DMA now, so we should be safe to
 		// reallocate the TX buffer
 	}
@@ -136,7 +139,7 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 	}
 	else // second or later call: minor changes only
 	{
-		/*
+		//*
 		zapDMA();
 		/*/
 		dma.disable();

@@ -58,6 +58,24 @@ protected:
 private:
 	struct DMAsettings {DMAChannel* dma; uint32_t* buf; uint32_t buflen;}; 	
 	static DMAsettings TxDMA, RxDMA; 
+public:
+	static void setBCLKinverted(bool invert)
+	{
+		// default is BCP set (active low, outputs change on falling edge,
+		// inputs sampled on rising edge) ... so invert:=true clears BCP
+		if (invert)
+		{
+			I2S1_TCR2 &= ~I2S_TCR2_BCP;
+			I2S1_RCR2 &= ~I2S_RCR2_BCP;
+		}
+		else
+		{
+			I2S1_TCR2 |= I2S_TCR2_BCP;
+			I2S1_RCR2 |= I2S_RCR2_BCP;
+		}
+	}
+	static bool getBCLKinverted(void) { return (I2S1_TCR2 & I2S_TCR2_BCP) == 0; }
+	static void printSettings(void);
 };
 
 class AudioOutputTDMbase : public AudioStream, AudioHardwareTDM
