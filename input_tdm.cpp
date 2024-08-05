@@ -59,7 +59,6 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 		state = STOPPING;
 		while (STOPPING == state && timeout<20)
 			;
-if (timeout >= 20) Serial.println("Timed out stopping input");		
 		// ISR has disabled the DMA now, so we should be safe to
 		// reallocate the TX buffer
 	}
@@ -139,19 +138,7 @@ if (timeout >= 20) Serial.println("Timed out stopping input");
 	}
 	else // second or later call: minor changes only
 	{
-		//*
-		zapDMA();
-		/*/
-		dma.disable();
-		
-		I2S1_RCSR |= I2S_RCSR_SR; // must reset SAI1, or we lose sync
-		
-		dma.TCD->DADDR = tdm_rx_buffer;
-		dma.TCD->DLASTSGA = -tdm_rxbuf_len;
-		dma.TCD->CITER_ELINKNO = tdm_rxbuf_len / 4;
-		dma.TCD->BITER_ELINKNO = tdm_rxbuf_len / 4;
-		dma.enable();
-		//*/
+		zapDMA();  // restart hardware and DMA for this and any output objects
 	}
 
 	I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
@@ -197,14 +184,6 @@ void AudioInputTDMbase::isr(void)
 		#if IMXRT_CACHE_ENABLED >=1
 		arm_dcache_delete((void*)src, tdm_rxbuf_len / 2);
 		#endif
-		/*
-		for (i=0; i < 16; i += 2) {
-			uint32_t *dest1 = (uint32_t *)(block_incoming[i]->data);
-			uint32_t *dest2 = (uint32_t *)(block_incoming[i+1]->data);
-			memcpy_tdm_rx(dest1, dest2, src);
-			src++;
-		}
-		*/
 		/*
 		 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
 		 * For 2 pins: C01 C00 C17 C16 C03 C02 ...

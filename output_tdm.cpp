@@ -62,7 +62,6 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 		state = STOPPING;
 		while (STOPPING == state && timeout<20)
 			;
-if (timeout >= 20) Serial.println("Timed out stopping input");		
 		// ISR has disabled the DMA now, so we should be safe to
 		// reallocate the TX buffer
 	}
@@ -147,19 +146,7 @@ if (timeout >= 20) Serial.println("Timed out stopping input");
 	}
 	else // second or later call: minor changes only
 	{
-		//*
-		zapDMA();
-		/*/
-		dma.disable();
-		
-		I2S1_TCSR |= I2S_TCSR_SR; // must reset SAI1, or we lose sync
-		
-		dma.TCD->SADDR = tdm_tx_buffer;
-		dma.TCD->SLAST = -tdm_txbuf_len;
-		dma.TCD->CITER_ELINKNO = tdm_txbuf_len / 4;
-		dma.TCD->BITER_ELINKNO = tdm_txbuf_len / 4;
-		dma.enable();
-		//*/
+		zapDMA();  // restart hardware and DMA for this and any input objects
 	}
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
@@ -307,9 +294,9 @@ void AudioOutputTDM16::update(void)
 #endif
 #endif
 
-void static_config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for unchanged
-									int pinRx, /* = -1, */	// receive pin number, or -1 for unchanged
-									int clks_per_frame /* = 256 */) // bit clocks per sample frame
+void AudioHardwareTDM::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for unchanged
+								  int pinRx, /* = -1, */	// receive pin number, or -1 for unchanged
+								  int clks_per_frame /* = 256 */) // bit clocks per sample frame
 {
 #if defined(KINETISK)
 	SIM_SCGC6 |= SIM_SCGC6_I2S;
@@ -430,15 +417,13 @@ void static_config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for
 #endif
 }
 
+
+/*
+ * The following variables and functions allow input and output objects to re-start
+ * the SAI1 hardware and DMA for themselves and the complementary object(s). This 
+ * is needed, otherwise the streams get out of sync and audio ends up on the wrong channel.
+ */
 AudioHardwareTDM::DMAsettings AudioHardwareTDM::TxDMA = {0}, AudioHardwareTDM::RxDMA = {0};
-
-void AudioHardwareTDM::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for unchanged
-									int pinRx, /* = -1, */	// receive pin number, or -1 for unchanged
-									int clks_per_frame /* = 256 */) // bit clocks per sample frame
-{
-	static_config_tdm(pinTx,pinRx,clks_per_frame);
-}
-
 void AudioHardwareTDM::setDMA(DMAChannel& dma, uint32_t* buf, uint32_t buflen, bool which)
 {
 	DMAsettings* settings = which?&TxDMA:&RxDMA;
@@ -452,7 +437,6 @@ void AudioHardwareTDM::zapDMA(void)
 {
 	if (nullptr != TxDMA.dma)
 	{
-Serial.printf("Zapping TxDMA at %dms\n", millis());	
 		TxDMA.dma->disable();
 		
 		I2S1_TCSR |= I2S_TCSR_SR; // must reset SAI1, or we lose sync
@@ -465,12 +449,9 @@ Serial.printf("Zapping TxDMA at %dms\n", millis());
 
 		I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 	}
-else Serial.println("Not zapping TxDMA - null pointer");		
-delay(10);
 	
 	if (nullptr != RxDMA.dma)
 	{
-Serial.printf("Zapping RxDMA at %dms\n", millis());	
 		RxDMA.dma->disable();
 		
 		I2S1_RCSR |= I2S_RCSR_SR; // must reset SAI1, or we lose sync
@@ -483,11 +464,10 @@ Serial.printf("Zapping RxDMA at %dms\n", millis());
 		
 		I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;		
 	}
-else Serial.println("Not zapping RxDMA - null pointer");		
-delay(10);
 	
 }
 
+// Utility for debug only
 void AudioHardwareTDM::printSettings()
 {
 	for (int which=0;which<2;which++)

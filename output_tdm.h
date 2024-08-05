@@ -85,13 +85,11 @@ public:
 		: AudioStream(nch, queues), channels(nch), pin(p)		
 		{ begin(pin); }
 	void begin(int pin);
-	//friend class AudioInputTDMbase;
 	static bool update_responsibility;
 protected:
 	int channels;
 	int pin;
 	static int pin_mask;
-	//static void config_tdm(int pinTx = -1, int pinRx = -1, int clks_per_frame = 256);
 	static const int MAX_TDM_OUTPUTS = 64;
 	static audio_block_t *block_input[MAX_TDM_OUTPUTS];
 	static DMAChannel dma;

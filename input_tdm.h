@@ -31,13 +31,12 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
-#include <output_tdm.h>
+#include <output_tdm.h>  // need knowledge of the AudioHardwareTDM class
 
 class AudioInputTDMbase : public AudioStream, AudioHardwareTDM
 {
 public:
 	AudioInputTDMbase(int p) : AudioStream(0, NULL), pin(p)  { begin(); }
-	//virtual void update(void);
 	void begin(int pin = 1);
 protected:
 	int pin;

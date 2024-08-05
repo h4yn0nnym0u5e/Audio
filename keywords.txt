@@ -216,6 +216,8 @@ setFrequency	KEYWORD2
 interpolationMethod	KEYWORD2
 passbandGain	KEYWORD2
 inputDrive	KEYWORD2
+setBCLKinverted	KEYWORD2
+getBCLKinverted	KEYWORD2
 
 AudioMemoryUsage	KEYWORD2
 AudioMemoryUsageMax	KEYWORD2
