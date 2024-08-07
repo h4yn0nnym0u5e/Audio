@@ -36,10 +36,13 @@
 class AudioInputTDMbase : public AudioStream, public AudioHardwareTDM
 {
 public:
-	AudioInputTDMbase(int p) : AudioStream(0, NULL), pin(p)  { begin(); }
-	void begin(int pin = 1);
+	AudioInputTDMbase(int p, int cpf = 256) 
+		: AudioStream(0, NULL), pin(p)
+		{ begin(pin, cpf); }
+	void begin(int pin, int cpf);
 protected:
 	int pin;
+	static int clks_per_frame;
 	static int pin_mask;
 	static bool update_responsibility;
 	static DMAChannel dma;
@@ -67,6 +70,7 @@ public:
 class AudioInputTDM : public AudioInputTDM16
 { public: AudioInputTDM()  : AudioInputTDM16(1) {} };
 
+#if defined(__IMXRT1062__)	
 class AudioInputTDMB : public AudioInputTDM16
 { public: AudioInputTDMB()  : AudioInputTDM16(2) {} };
 
@@ -75,5 +79,21 @@ class AudioInputTDMC : public AudioInputTDM16
 
 class AudioInputTDMD : public AudioInputTDM16
 { public: AudioInputTDMD()  : AudioInputTDM16(4) {} };
+
+//--------------------------------------------------------
+// 8-channel TDM using two input pins and a 128-bit frame
+class AudioInputTDM8 : public AudioInputTDMbase
+{
+public:
+	AudioInputTDM8(int pin=1) : AudioInputTDMbase(pin, 128) {}
+	virtual void update(void);
+};
+
+class AudioInputTDMAB : public AudioInputTDM8
+{ public: AudioInputTDMAB()  : AudioInputTDM8(2) {} };
+
+class AudioInputTDMCD : public AudioInputTDM8
+{ public: AudioInputTDMCD() : AudioInputTDM8(4) {} };
+#endif // defined(__IMXRT1062__)	
 
 #endif

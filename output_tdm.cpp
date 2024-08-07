@@ -146,13 +146,10 @@ void AudioOutputTDMbase::begin(int pin, //!< pin number, range 1-4
 		if (!update_responsibility)
 			update_responsibility = update_setup();
 
-		dma.enable();
 		dma.attachInterrupt(isr);
 	}
-	else // second or later call: minor changes only
-	{
-		zapDMA();  // restart hardware and DMA for this and any input objects
-	}
+	zapDMA();  // (re)start hardware and DMA for this and any input objects
+
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 #endif

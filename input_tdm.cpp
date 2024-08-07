@@ -30,6 +30,7 @@
 #include "utility/imxrt_hw.h"
 
 audio_block_t* AudioInputTDMbase::block_incoming[MAX_TDM_INPUTS] = {nullptr};
+int AudioInputTDMbase::clks_per_frame = 256;
 int AudioInputTDMbase::pin_mask = 0;
 bool AudioInputTDMbase::update_responsibility = false;
 volatile AudioInputTDMbase::TDMstate_e AudioInputTDMbase::state = INACTIVE;
@@ -44,10 +45,12 @@ static uint32_t tdm_rx_buffer[AUDIO_BLOCK_SAMPLES*16];
 #endif // hardware-dependent
 
 
-void AudioInputTDMbase::begin(int pin /* = 1 */)
+void AudioInputTDMbase::begin(int pin, //!< pin number, range 1-4
+							  int cpf /* = 256 */) //!< clocks per frame => single/dual pins
 {
 	if (INACTIVE == state) // never been called before
 	{
+		clks_per_frame = cpf;
 		dma.begin(true); // Allocate the DMA channel first
 		for (int i=0; i < MAX_TDM_INPUTS; i++) 
 			block_incoming[i] = nullptr;
@@ -65,7 +68,9 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 
 #if defined(__IMXRT1062__)
 	// Each pin receives 16x 16-bit channels, and we double buffer, so:
-	uint32_t rx_buf_needed = pin*sizeof(uint32_t)*AUDIO_BLOCK_SAMPLES*16;
+	uint32_t rx_buf_needed = (clks_per_frame == 256)
+							?pin*sizeof(uint32_t)*AUDIO_BLOCK_SAMPLES*16  // 16x 16-bit channels, or...
+							:pin*sizeof(uint64_t)*AUDIO_BLOCK_SAMPLES* 4; //  4x 32-bit channels
 	if (rx_buf_needed > tdm_rxbuf_len) // buffer isn't big enough
 	{
 		void* buf = realloc(tdm_rx_malloc, rx_buf_needed + 32); // need to 32-byte align
@@ -81,7 +86,7 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 #endif // defined(__IMXRT1062__)
 
 	// TODO: should we set & clear the I2S_RCSR_SR bit here?
-	config_tdm(-1,pin);  // leave Tx pins, configure Rx pins
+	config_tdm(-1, pin, clks_per_frame);  // leave Tx pins, configure Rx pins
 #if defined(KINETISK)
 	CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
 	dma.TCD->SADDR = &I2S0_RDR0;
@@ -133,13 +138,10 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
 		if (!update_responsibility)
 			update_responsibility = update_setup();
-		dma.enable();
+
 		dma.attachInterrupt(isr);	
 	}
-	else // second or later call: minor changes only
-	{
-		zapDMA();  // restart hardware and DMA for this and any output objects
-	}
+	zapDMA();  // (re)start hardware and DMA for this and any output objects
 
 	I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 #endif	
@@ -150,7 +152,7 @@ void AudioInputTDMbase::begin(int pin /* = 1 */)
 void AudioInputTDMbase::isr(void)
 {
 	uint32_t daddr, nch;
-	const uint32_t *src;
+	const uint32_t* src;
 	unsigned int i;
 	
 	switch (pin_mask) // figure out how many pins we're using
@@ -172,7 +174,7 @@ void AudioInputTDMbase::isr(void)
 	if (daddr < (uint32_t)tdm_rx_buffer + tdm_rxbuf_len / 2) {
 		// DMA is receiving to the first half of the buffer
 		// need to remove data from the second half
-		src = &tdm_rx_buffer[AUDIO_BLOCK_SAMPLES*8*nch];
+		src = (uint32_t*)((uint32_t)tdm_rx_buffer + tdm_rxbuf_len / 2);
 	} else {
 		// DMA is receiving to the second half of the buffer
 		// need to remove data from the first half
@@ -184,20 +186,35 @@ void AudioInputTDMbase::isr(void)
 		#if IMXRT_CACHE_ENABLED >=1
 		arm_dcache_delete((void*)src, tdm_rxbuf_len / 2);
 		#endif
-		/*
-		 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
-		 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
-		 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
-		 */
-		for (uint32_t ch=0;ch<nch;ch++)
+		if (256 == clks_per_frame)
 		{
-			uint32_t choff = ch*16;
-			for (i=0; i < 16; i++) 
+			/*
+			 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
+			 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
+			 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
+			 */
+			for (uint32_t pin=0;pin<nch;pin++)
 			{
-				int16_t* src16 = ((int16_t*) src)+((i^1)&1)+ch*2+((i&-2)*nch); // need to swap MSW and LSW
-				for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, src16 += 16*nch) block_incoming[i+choff]->data[j] = *src16;
+				uint32_t choff = pin*16;
+				for (i=0; i < 16; i++) 
+				{
+					int16_t* src16 = ((int16_t*) src)+((i^1)&1)+pin*2+((i&-2)*nch); // need to swap MSW and LSW
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, src16 += 16*nch) block_incoming[i+choff]->data[j] = *src16;
+				}
 			}
-		}			
+		}
+		else
+		{
+			for (uint32_t pin=0;pin<nch;pin++) // nch = 2 or 4
+			{
+				uint32_t choff = pin*4;
+				for (i=0; i < 4; i++) 
+				{
+					int32_t* src32 = (int32_t*) src+i*nch+pin;
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, src32 += 4*nch) block_incoming[i+choff]->data[j] = (*src32)/65536;
+				}
+			}
+		}
 	}
 	if (update_responsibility) update_all();
 }
@@ -236,4 +253,35 @@ void AudioInputTDM16::update(void)
 }
 
 
+void AudioInputTDM8::update(void)
+{
+	unsigned int i, j;
+	audio_block_t* new_block[8];
+	audio_block_t* out_block[8];
+	audio_block_t** incoming = block_incoming + (pin/2-1)*8;
+
+	// allocate 8 new blocks.  If any fails, allocate none
+	for (i=0; i < 8; i++) 
+	{
+		new_block[i] = allocate();
+		if (new_block[i] == nullptr) 
+		{
+			for (j=0; j < i; j++) 
+				release(new_block[j]);
+			memset(new_block, 0, sizeof(new_block));
+			break;
+		}
+	}
+	__disable_irq();
+	memcpy(out_block, incoming, sizeof(out_block)); // copy blocks to transmit
+	memcpy(incoming, new_block, sizeof(new_block)); // queue new, empty blocks ready for filling	
+	__enable_irq();
+	if (out_block[0] != nullptr) {		
+		// if we got 1 block, all 8 are filled
+		for (i=0; i < 8; i++) {
+			transmit(out_block[i], i);
+			release(out_block[i]);
+		}
+	}
+}
 #endif
