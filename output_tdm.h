@@ -57,7 +57,7 @@ protected:
 	static void zapDMA(void);
 private:
 	struct DMAsettings {DMAChannel* dma; uint32_t* buf; uint32_t buflen;}; 	
-	static DMAsettings TxDMA, RxDMA; 
+	static DMAsettings TxDMA, RxDMA;
 public:
 	static void setBCLKinverted(bool invert)
 	{
@@ -81,14 +81,15 @@ public:
 class AudioOutputTDMbase : public AudioStream, public AudioHardwareTDM
 {
 public:
-	AudioOutputTDMbase(int nch, audio_block_t** queues, int p) 
+	AudioOutputTDMbase(int nch, audio_block_t** queues, int p, int cpf = 256) 
 		: AudioStream(nch, queues), channels(nch), pin(p)		
-		{ begin(pin); }
-	void begin(int pin);
+		{ begin(pin, cpf); }
+	void begin(int pin, int cpf);
 	static bool update_responsibility;
 protected:
 	int channels;
 	int pin;
+	static int clks_per_frame;
 	static int pin_mask;
 	static const int MAX_TDM_OUTPUTS = 64;
 	static audio_block_t *block_input[MAX_TDM_OUTPUTS];
@@ -131,6 +132,25 @@ class AudioOutputTDMC : public AudioOutputTDM16
 
 class AudioOutputTDMD : public AudioOutputTDM16
 { public: AudioOutputTDMD() : AudioOutputTDM16(4) {} };
+
+//--------------------------------------------------------
+// 8-channel TDM using two output pins and a 128-bit frame
+class AudioOutputTDM8 : public AudioOutputTDMbase
+{
+public:
+	AudioOutputTDM8(int pin=1) : AudioOutputTDMbase(8, inputQueueArray, pin, 128) {}
+	virtual void update(void);
+private:
+	audio_block_t *inputQueueArray[9];
+};
+
+class AudioOutputTDMAB : public AudioOutputTDM8
+{ public: AudioOutputTDMAB()  : AudioOutputTDM8(2) {} };
+
+class AudioOutputTDMCD : public AudioOutputTDM8
+{ public: AudioOutputTDMCD() : AudioOutputTDM8(4) {} };
+
+
 #endif // defined(__IMXRT1062__)
 
 

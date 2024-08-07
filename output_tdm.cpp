@@ -33,6 +33,7 @@
 #include "utility/imxrt_hw.h"
 
 audio_block_t* AudioOutputTDMbase::block_input[MAX_TDM_OUTPUTS] = {nullptr};
+int AudioOutputTDMbase::clks_per_frame = 256;
 int AudioOutputTDMbase::pin_mask = 0;
 bool AudioOutputTDMbase::update_responsibility = false;
 volatile AudioOutputTDMbase::TDMstate_e AudioOutputTDMbase::state = INACTIVE;
@@ -47,10 +48,12 @@ DMAChannel AudioOutputTDMbase::dma(false);
 #endif // hardware-dependent
 
 
-void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
+void AudioOutputTDMbase::begin(int pin, //!< pin number, range 1-4
+							   int cpf /* = 256 */) //!< clocks per frame => single/dual pins
 {
 	if (INACTIVE == state) // never been called before
 	{
+		clks_per_frame = cpf;
 		dma.begin(true); // Allocate the DMA channel first
 		for (int i=0; i < MAX_TDM_OUTPUTS; i++) 
 			block_input[i] = nullptr;
@@ -69,8 +72,10 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 #if defined(KINETISK)
 	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
 #elif defined(__IMXRT1062__)
-	// Each pin transmits 16x 16-bit channels, and we double buffer, so:
-	uint32_t tx_buf_needed = pin*sizeof(uint32_t)*AUDIO_BLOCK_SAMPLES*16;
+	// We double buffer, so:
+	uint32_t tx_buf_needed = (clks_per_frame == 256)
+							?pin*sizeof(uint32_t)*AUDIO_BLOCK_SAMPLES*16  // 16x 16-bit channels, or...
+							:pin*sizeof(uint64_t)*AUDIO_BLOCK_SAMPLES* 4; //  4x 32-bit channels
 	if (tx_buf_needed > tdm_txbuf_len) // buffer isn't big enough
 	{
 		void* buf = realloc(tdm_tx_malloc, tx_buf_needed + 32); // need to 32-byte align
@@ -87,7 +92,7 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 #endif // hardware-dependent
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_tdm(pin, -1);  // leave Rx pins, configure Tx pins
+	config_tdm(pin, -1, clks_per_frame);  // leave Rx pins, configure Tx pins
 #if defined(KINETISK)
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
@@ -158,7 +163,7 @@ void AudioOutputTDMbase::begin(int pin) //!< pin number, range 1-4
 
 void AudioOutputTDMbase::isr(void)
 {
-	uint32_t *dest;
+	uint32_t* dest;
 	//const uint32_t *src1, *src2;
 	uint32_t i, saddr, nch;
 	
@@ -184,7 +189,7 @@ void AudioOutputTDMbase::isr(void)
 	if (saddr < (uint32_t)tdm_tx_buffer + tdm_txbuf_len / 2) {
 		// DMA is transmitting the first half of the buffer
 		// so we must fill the second half
-		dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8*nch;
+		dest = (uint32_t*) ((uint32_t) tdm_tx_buffer + tdm_txbuf_len / 2);
 	} else {
 		// DMA is transmitting the second half of the buffer
 		// so we must fill the first half
@@ -196,23 +201,45 @@ void AudioOutputTDMbase::isr(void)
 	uint32_t *dc = dest;
 	#endif
 	
-	/*
-	 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
-	 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
-	 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
-	 */
-	for (uint32_t ch=0;ch<nch;ch++)
+	if (256 == clks_per_frame)
 	{
-		uint32_t choff = ch*16;
-		for (i=0; i < 16; i++) 
+		/*
+		 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
+		 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
+		 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
+		 */
+		for (uint32_t pin=0;pin<nch;pin++)
 		{
-			int16_t* dest16 = ((int16_t*) dest)+((i^1)&1)+ch*2+((i&-2)*nch); // need to swap MSW and LSW
-			if (nullptr == block_input[i+choff])
-				for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = 0;
-			else
-				for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = block_input[i+choff]->data[j];
+			uint32_t choff = pin*16; // 16x channels per pin
+			for (i=0; i < 16; i++) 
+			{
+				int16_t* dest16 = ((int16_t*) dest)+((i^1)&1)+pin*2+((i&-2)*nch); // need to swap MSW and LSW
+				if (nullptr == block_input[i+choff])
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = 0;
+				else
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = block_input[i+choff]->data[j];
+			}
 		}
-	}			
+	}
+	else
+	{
+		/*
+		 * For 2 pins: C0 C4 C1 C5 C2 C6 C3 C7
+		 * For 4 pins: C00 C04 C08 C12  C01 C05 C09 C13  C02 ...
+		 */
+		for (uint32_t pin=0;pin<nch;pin++) // nch = 2 or 4
+		{
+			uint32_t choff = pin*4; // 4x channels per pin
+			for (i=0; i < 4; i++) 
+			{
+				int32_t* dest32 = (int32_t*) dest+i*nch+pin;
+				if (nullptr == block_input[i+choff])
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest32 += 4*nch) *dest32 = 0L;
+				else
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest32 += 4*nch) *dest32 = block_input[i+choff]->data[j] * 65536;
+			}
+		}
+	}
 	#if IMXRT_CACHE_ENABLED >= 2
 	arm_dcache_flush_delete(dc, tdm_txbuf_len / 2 );
 	#endif
@@ -231,6 +258,25 @@ void AudioOutputTDM16::update(void)
 	audio_block_t *prev[channels];
 	int i;
 	unsigned int choff = (pin-1)*channels; // offset into block_channels
+
+	__disable_irq();
+	for (i=0; i < channels; i++) {
+		prev[i] = block_input[i+choff];
+		block_input[i+choff] = receiveReadOnly(i);
+	}
+	__enable_irq();
+	for (i=0; i < channels; i++) {
+		if (prev[i]) release(prev[i]);
+	}
+}
+
+void AudioOutputTDM8::update(void)
+{
+	audio_block_t *prev[channels];
+	int i;
+	
+	// for the dual rate format, pin will be 2 or 4
+	unsigned int choff = (pin/2-1)*channels; // offset into block_channels
 
 	__disable_irq();
 	for (i=0; i < channels; i++) {
@@ -377,7 +423,10 @@ void AudioHardwareTDM::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number
 	CCM_CSCMR1 = (CCM_CSCMR1 & ~(CCM_CSCMR1_SAI1_CLK_SEL_MASK))
 		   | CCM_CSCMR1_SAI1_CLK_SEL(2); // &0x03 // (0,1,2): PLL3PFD0, PLL5, PLL4
 
-	n1 = n1 / 2; //Double Speed for TDM
+	// PCM3168 has a maximum MCLK of 256fs
+	// for 96kHz dual rate operation
+	if (256 == clks_per_frame)
+		n1 = n1 / 2; //Double Speed for TDM: 512fs
 
 	CCM_CS1CDR = (CCM_CS1CDR & ~(CCM_CS1CDR_SAI1_CLK_PRED_MASK | CCM_CS1CDR_SAI1_CLK_PODF_MASK))
 		   | CCM_CS1CDR_SAI1_CLK_PRED(n1-1) // &0x07
@@ -390,11 +439,12 @@ void AudioHardwareTDM::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number
 	int rsync = 0;
 	int tsync = 1;
 	int frame_size = clks_per_frame/32;  // => 4 or 8 32-bit words per frame
+	int BCLKdiv = 1; // 256 / clks_per_frame;
 
 	I2S1_TMR = 0;
 	I2S1_TCR1 = I2S_TCR1_RFW(4);
 	I2S1_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1)
-		| I2S_TCR2_BCD | I2S_TCR2_DIV(0);
+		| I2S_TCR2_BCD | I2S_TCR2_DIV(BCLKdiv-1);
 	I2S1_TCR3 = I2S_TCR3_TCE * txPinMask;
 	I2S1_TCR4 = I2S_TCR4_FRSZ(frame_size-1) | I2S_TCR4_SYWD(0) | I2S_TCR4_MF
 		| I2S_TCR4_FSE | I2S_TCR4_FSD |
@@ -404,7 +454,7 @@ void AudioHardwareTDM::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number
 	I2S1_RMR = 0;
 	I2S1_RCR1 = I2S_RCR1_RFW(4);
 	I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
-		| I2S_RCR2_BCD | I2S_RCR2_DIV(0);
+		| I2S_RCR2_BCD | I2S_RCR2_DIV(BCLKdiv-1);
 	I2S1_RCR3 = I2S_RCR3_RCE * rxPinMask;
 	I2S1_RCR4 = I2S_RCR4_FRSZ(frame_size-1) | I2S_RCR4_SYWD(0) | I2S_RCR4_MF
 		| I2S_RCR4_FSE | I2S_RCR4_FSD |
