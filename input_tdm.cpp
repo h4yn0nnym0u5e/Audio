@@ -112,18 +112,21 @@ void AudioInputTDMbase::begin(int pin, //!< pin number, range 1-4
 	{
 	  case 0x0F:
 		CORE_PIN32_CONFIG  = 3;  //1:RX_DATA3
+		IOMUXC_SAI1_RX_DATA3_SELECT_INPUT = 1;
 	  case 0x07:
 		CORE_PIN9_CONFIG  = 3;  //1:RX_DATA2
+		IOMUXC_SAI1_RX_DATA2_SELECT_INPUT = 1;
 	  case 0x03:
 		CORE_PIN6_CONFIG = 3;  //1:RX_DATA1
+		IOMUXC_SAI1_RX_DATA1_SELECT_INPUT = 1;
 	  case 0x01:
 		CORE_PIN8_CONFIG  = 3;  //1:RX_DATA0
+		IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
 		break;
 	}
 
 	if (STOPPED != state) // first call to begin(): set everything up
 	{
-		IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
 		dma.TCD->SADDR = &I2S1_RDR0;
 		dma.TCD->SOFF = 0;
 		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
@@ -210,7 +213,7 @@ void AudioInputTDMbase::isr(void)
 				uint32_t choff = pin*4;
 				for (i=0; i < 4; i++) 
 				{
-					int32_t* src32 = (int32_t*) src+i*nch+pin;
+					int32_t* src32 = (int32_t*) src+i*nch+pin; // 0,2,4,6 1,3,5,7 or 0,4,8,12  1,5,9,13  2,6,10,14  3,7,11,15
 					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, src32 += 4*nch) block_incoming[i+choff]->data[j] = (*src32)/65536;
 				}
 			}

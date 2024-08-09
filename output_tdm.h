@@ -40,13 +40,13 @@
 #define I2S_RCR3_CFR (1UL<<24) 
 #define I2S_RCR4_FCOMB(n)               ((uint32_t)(n & 0x3)<<26)	// FIFO Combine Mode
 #define I2S_RCR4_FCOMB_DISABLED          I2S_RCR4_FCOMB(0) // No FIFO combining
-#define I2S_RCR4_FCOMB_ENABLED_ON_WRITES I2S_RCR4_FCOMB(1) // <-- this is the one you want.
-#define I2S_RCR4_FCOMB_ENABLED_ON_READS  I2S_RCR4_FCOMB(2) 
+#define I2S_RCR4_FCOMB_ENABLED_ON_WRITES I2S_RCR4_FCOMB(1) 
+#define I2S_RCR4_FCOMB_ENABLED_ON_READS  I2S_RCR4_FCOMB(2) // <-- this is the one we want
 #define I2S_RCR4_FCOMB_ENABLED_ON_RW     I2S_RCR4_FCOMB(3)
 #define I2S_TCR4_FCOMB(n)               ((uint32_t)(n & 0x3)<<26)	// FIFO Combine Mode
 #define I2S_TCR4_FCOMB_DISABLED          I2S_TCR4_FCOMB(0)
-#define I2S_TCR4_FCOMB_ENABLED_ON_READS  I2S_TCR4_FCOMB(1) // <--- this is the one you want
-#define I2S_TCR4_FCOMB_ENABLED_ON_WRITES I2S_TCR4_FCOMB(2)
+#define I2S_TCR4_FCOMB_ENABLED_ON_READS  I2S_TCR4_FCOMB(1) 
+#define I2S_TCR4_FCOMB_ENABLED_ON_WRITES I2S_TCR4_FCOMB(2) // <--- this is the one we want
 #define I2S_TCR4_FCOMB_ENABLED_ON_RW     I2S_TCR4_FCOMB(3)
 
 class AudioHardwareTDM
