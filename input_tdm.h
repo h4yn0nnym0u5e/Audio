@@ -31,18 +31,69 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
-class AudioInputTDM : public AudioStream
+#include <output_tdm.h>  // need knowledge of the AudioHardwareTDM class
+
+class AudioInputTDMbase : public AudioStream, public AudioHardwareTDM
 {
 public:
-	AudioInputTDM(void) : AudioStream(0, NULL) { begin(); }
-	virtual void update(void);
-	void begin(void);
-protected:	
+	AudioInputTDMbase(int p, int cpf = 256) 
+		: AudioStream(0, NULL), pin(p)
+		{ begin(pin, cpf); }
+	void begin(int pin, int cpf);
+protected:
+	int pin;
+	static int clks_per_frame;
+	static int pin_mask;
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
+	static const int MAX_TDM_INPUTS = 64;
+	static audio_block_t *block_incoming[MAX_TDM_INPUTS];
 private:
-	static audio_block_t *block_incoming[16];
+	static volatile enum TDMstate_e {INACTIVE, ACTIVE, STOPPING, STOPPED} state;  // state of TDM hardware
+#if defined(KINETISK)
+	static uint32_t tdm_rx_buffer[AUDIO_BLOCK_SAMPLES*16];
+#elif defined(__IMXRT1062__)	
+	static uint32_t* tdm_rx_malloc; // actual allocation
+	static uint32_t* tdm_rx_buffer;	// allocation rounded to 32-byte boundary
+	static uint32_t  tdm_rxbuf_len; // space available in TX buffer
+#endif // hardware-dependent
 };
+
+class AudioInputTDM16 : public AudioInputTDMbase
+{
+public:	
+	AudioInputTDM16(int pin) : AudioInputTDMbase(pin) {}
+	virtual void update(void);
+};
+
+class AudioInputTDM : public AudioInputTDM16
+{ public: AudioInputTDM()  : AudioInputTDM16(1) {} };
+
+#if defined(__IMXRT1062__)	
+class AudioInputTDMB : public AudioInputTDM16
+{ public: AudioInputTDMB()  : AudioInputTDM16(2) {} };
+
+class AudioInputTDMC : public AudioInputTDM16
+{ public: AudioInputTDMC()  : AudioInputTDM16(3) {} };
+
+class AudioInputTDMD : public AudioInputTDM16
+{ public: AudioInputTDMD()  : AudioInputTDM16(4) {} };
+
+//--------------------------------------------------------
+// 8-channel TDM using two input pins and a 128-bit frame
+class AudioInputTDM8 : public AudioInputTDMbase
+{
+public:
+	AudioInputTDM8(int pin=1) : AudioInputTDMbase(pin, 128) {}
+	virtual void update(void);
+};
+
+class AudioInputTDMAB : public AudioInputTDM8
+{ public: AudioInputTDMAB()  : AudioInputTDM8(2) {} };
+
+class AudioInputTDMCD : public AudioInputTDM8
+{ public: AudioInputTDMCD() : AudioInputTDM8(4) {} };
+#endif // defined(__IMXRT1062__)	
 
 #endif

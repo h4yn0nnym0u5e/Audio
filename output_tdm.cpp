@@ -32,30 +32,67 @@
 #include "memcpy_audio.h"
 #include "utility/imxrt_hw.h"
 
-audio_block_t * AudioOutputTDM::block_input[16] = {
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
-};
-bool AudioOutputTDM::update_responsibility = false;
-DMAChannel AudioOutputTDM::dma(false);
-DMAMEM __attribute__((aligned(32)))
-static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
-DMAMEM __attribute__((aligned(32)))
-static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
+audio_block_t* AudioOutputTDMbase::block_input[MAX_TDM_OUTPUTS] = {nullptr};
+int AudioOutputTDMbase::clks_per_frame = 256;
+int AudioOutputTDMbase::pin_mask = 0;
+bool AudioOutputTDMbase::update_responsibility = false;
+volatile AudioOutputTDMbase::TDMstate_e AudioOutputTDMbase::state = INACTIVE;
+DMAChannel AudioOutputTDMbase::dma(false);
+#if defined(KINETISK)
+	DMAMEM __attribute__((aligned(32)))
+	static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
+#elif defined(__IMXRT1062__)	
+	uint32_t* AudioOutputTDMbase::tdm_tx_malloc = nullptr;
+	uint32_t* AudioOutputTDMbase::tdm_tx_buffer = nullptr;
+	uint32_t  AudioOutputTDMbase::tdm_txbuf_len = 0;
+#endif // hardware-dependent
 
 
-void AudioOutputTDM::begin(void)
+void AudioOutputTDMbase::begin(int pin, //!< pin number, range 1-4
+							   int cpf /* = 256 */) //!< clocks per frame => single/dual pins
 {
-	dma.begin(true); // Allocate the DMA channel first
-
-	for (int i=0; i < 16; i++) {
-		block_input[i] = nullptr;
+	if (INACTIVE == state) // never been called before
+	{
+		clks_per_frame = cpf;
+		dma.begin(true); // Allocate the DMA channel first
+		for (int i=0; i < MAX_TDM_OUTPUTS; i++) 
+			block_input[i] = nullptr;
 	}
-	memset(zeros, 0, sizeof(zeros));
+	else
+	{
+		elapsedMillis timeout = 0;
+		
+		state = STOPPING;
+		while (STOPPING == state && timeout<20)
+			;
+		// ISR has disabled the DMA now, so we should be safe to
+		// reallocate the TX buffer
+	}
+	
+#if defined(KINETISK)
 	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
+#elif defined(__IMXRT1062__)
+	// We double buffer, so:
+	uint32_t tx_buf_needed = (clks_per_frame == 256)
+							?pin*sizeof(uint32_t)*AUDIO_BLOCK_SAMPLES*16  // 16x 16-bit channels, or...
+							:pin*sizeof(uint64_t)*AUDIO_BLOCK_SAMPLES* 4; //  4x 32-bit channels
+	if (tx_buf_needed > tdm_txbuf_len) // buffer isn't big enough
+	{
+		void* buf = realloc(tdm_tx_malloc, tx_buf_needed + 32); // need to 32-byte align
+		if (nullptr != buf) // got a new buffer
+		{
+			tdm_tx_malloc = (uint32_t*) buf;  // actual memory allocated, in case we need to realloc()
+			tdm_tx_buffer = (uint32_t*)(((uint32_t) buf+32) & -32U);
+			tdm_txbuf_len = tx_buf_needed;
+			pin_mask |= (1<<(pin))-1; // enable all pins up to and including this one
+		}		
+	}
+	setDMA(dma, tdm_tx_buffer, tdm_txbuf_len, true);
+	memset(tdm_tx_buffer, 0, tdm_txbuf_len);
+#endif // hardware-dependent
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_tdm();
+	config_tdm(pin, -1, clks_per_frame);  // leave Rx pins, configure Tx pins
 #if defined(KINETISK)
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
@@ -78,70 +115,78 @@ void AudioOutputTDM::begin(void)
 	I2S0_TCSR = I2S_TCSR_SR;
 	I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 #elif defined(__IMXRT1062__)
-	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
+	switch (pin_mask)
+	{
+	  case 0x0F:
+		CORE_PIN6_CONFIG  = 3;  //1:TX_DATA3
+	  case 0x07:
+		CORE_PIN9_CONFIG  = 3;  //1:TX_DATA2
+	  case 0x03:
+		CORE_PIN32_CONFIG = 3;  //1:TX_DATA1
+	  case 0x01:
+		CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
+		break;
+	}
 
-	dma.TCD->SADDR = tdm_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
-	dma.TCD->DADDR = &I2S1_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
+	if (STOPPED != state) // first call to begin(): set everything up
+	{
+		dma.TCD->SADDR = tdm_tx_buffer;
+		dma.TCD->SOFF = 4;
+		dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+		dma.TCD->NBYTES_MLNO = 4;
+		dma.TCD->SLAST = -tdm_txbuf_len;
+		dma.TCD->DADDR = &I2S1_TDR0;
+		dma.TCD->DOFF = 0;
+		dma.TCD->CITER_ELINKNO = tdm_txbuf_len / 4;
+		dma.TCD->DLASTSGA = 0;
+		dma.TCD->BITER_ELINKNO = tdm_txbuf_len / 4;
+		dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+		dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 
-	update_responsibility = update_setup();
-	dma.enable();
+		if (!update_responsibility)
+			update_responsibility = update_setup();
+
+		dma.attachInterrupt(isr);
+	}
+	zapDMA();  // (re)start hardware and DMA for this and any input objects
 
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-
 #endif
-	dma.attachInterrupt(isr);
+
+	state = ACTIVE;
 }
 
-// TODO: needs optimization...
-static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *src2)
+
+void AudioOutputTDMbase::isr(void)
 {
-	uint32_t i, in1, in2, out1, out2;
-
-	for (i=0; i < AUDIO_BLOCK_SAMPLES/4; i++) {
-
-		in1 = *src1++;
-		in2 = *src2++;
-		out1 = (in1 << 16) | (in2 & 0xFFFF);
-		out2 = (in1 & 0xFFFF0000) | (in2 >> 16);
-		*dest = out1;
-		*(dest + 8) = out2;
-
-		in1 = *src1++;
-		in2 = *src2++;
-		out1 = (in1 << 16) | (in2 & 0xFFFF);
-		out2 = (in1 & 0xFFFF0000) | (in2 >> 16);
-		*(dest + 16)= out1;
-		*(dest + 24) = out2;
-
-		dest += 32;
+	uint32_t* dest;
+	//const uint32_t *src1, *src2;
+	uint32_t i, saddr, nch;
+	
+	switch (pin_mask) // figure out how many pins we're using
+	{
+		default:
+		case 0x01: nch = 1; break;
+		case 0x03: nch = 2; break;
+		case 0x07: nch = 3; break;
+		case 0x0F: nch = 4; break;
 	}
-}
-
-void AudioOutputTDM::isr(void)
-{
-	uint32_t *dest;
-	const uint32_t *src1, *src2;
-	uint32_t i, saddr;
-
+#if defined(KINETISK)
+	uint32_t tdm_txbuf_len = sizeof(tdm_tx_buffer);
+#endif	
+	
 #if defined(KINETISK) || defined(__IMXRT1062__)
 	saddr = (uint32_t)(dma.TCD->SADDR);
 #endif
 	dma.clearInterrupt();
-	if (saddr < (uint32_t)tdm_tx_buffer + sizeof(tdm_tx_buffer) / 2) {
+	if (STOPPING == state) // begin() called, signal it's OK to make changes
+		state = STOPPED;
+		
+	if (saddr < (uint32_t)tdm_tx_buffer + tdm_txbuf_len / 2) {
 		// DMA is transmitting the first half of the buffer
 		// so we must fill the second half
-		dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8;
+		dest = (uint32_t*) ((uint32_t) tdm_tx_buffer + tdm_txbuf_len / 2);
 	} else {
 		// DMA is transmitting the second half of the buffer
 		// so we must fill the first half
@@ -153,18 +198,50 @@ void AudioOutputTDM::isr(void)
 	uint32_t *dc = dest;
 	#endif
 	
-	for (i=0; i < 16; i += 2) {
-		src1 = block_input[i] ? (uint32_t *)(block_input[i]->data) : zeros;
-		src2 = block_input[i+1] ? (uint32_t *)(block_input[i+1]->data) : zeros;
-		memcpy_tdm_tx(dest, src1, src2);
-		dest++;
+	if (256 == clks_per_frame)
+	{
+		/*
+		 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
+		 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
+		 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
+		 */
+		for (uint32_t pin=0;pin<nch;pin++)
+		{
+			uint32_t choff = pin*16; // 16x channels per pin
+			for (i=0; i < 16; i++) 
+			{
+				int16_t* dest16 = ((int16_t*) dest)+((i^1)&1)+pin*2+((i&-2)*nch); // need to swap MSW and LSW
+				if (nullptr == block_input[i+choff])
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = 0;
+				else
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest16 += 16*nch) *dest16 = block_input[i+choff]->data[j];
+			}
+		}
 	}
-
+	else
+	{
+		/*
+		 * For 2 pins: C0 C4 C1 C5 C2 C6 C3 C7
+		 * For 4 pins: C00 C04 C08 C12  C01 C05 C09 C13  C02 ...
+		 */
+		for (uint32_t pin=0;pin<nch;pin++) // nch = 2 or 4
+		{
+			uint32_t choff = pin*4; // 4x channels per pin
+			for (i=0; i < 4; i++) 
+			{
+				int32_t* dest32 = (int32_t*) dest+i*nch+pin;
+				if (nullptr == block_input[i+choff])
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest32 += 4*nch) *dest32 = 0L;
+				else
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, dest32 += 4*nch) *dest32 = block_input[i+choff]->data[j] * 65536;
+			}
+		}
+	}
 	#if IMXRT_CACHE_ENABLED >= 2
-	arm_dcache_flush_delete(dc, sizeof(tdm_tx_buffer) / 2 );
+	arm_dcache_flush_delete(dc, tdm_txbuf_len / 2 );
 	#endif
-
-	for (i=0; i < 16; i++) {
+	
+	for (i=0; i < 16*nch; i++) {
 		if (block_input[i]) {
 			release(block_input[i]);
 			block_input[i] = nullptr;
@@ -173,18 +250,38 @@ void AudioOutputTDM::isr(void)
 }
 
 
-void AudioOutputTDM::update(void)
+void AudioOutputTDM16::update(void)
 {
-	audio_block_t *prev[16];
-	unsigned int i;
+	audio_block_t *prev[channels];
+	int i;
+	unsigned int choff = (pin-1)*channels; // offset into block_channels
 
 	__disable_irq();
-	for (i=0; i < 16; i++) {
-		prev[i] = block_input[i];
-		block_input[i] = receiveReadOnly(i);
+	for (i=0; i < channels; i++) {
+		prev[i] = block_input[i+choff];
+		block_input[i+choff] = receiveReadOnly(i);
 	}
 	__enable_irq();
-	for (i=0; i < 16; i++) {
+	for (i=0; i < channels; i++) {
+		if (prev[i]) release(prev[i]);
+	}
+}
+
+void AudioOutputTDM8::update(void)
+{
+	audio_block_t *prev[channels];
+	int i;
+	
+	// for the dual rate format, pin will be 2 or 4
+	unsigned int choff = (pin/2-1)*channels; // offset into block_channels
+
+	__disable_irq();
+	for (i=0; i < channels; i++) {
+		prev[i] = block_input[i+choff];
+		block_input[i+choff] = receiveReadOnly(i);
+	}
+	__enable_irq();
+	for (i=0; i < channels; i++) {
 		if (prev[i]) release(prev[i]);
 	}
 }
@@ -240,7 +337,9 @@ void AudioOutputTDM::update(void)
 #endif
 #endif
 
-void AudioOutputTDM::config_tdm(void)
+void AudioHardwareTDM::config_tdm(int pinTx, /* = -1, */ 	// transmit pin number, or -1 for unchanged
+								  int pinRx, /* = -1, */	// receive pin number, or -1 for unchanged
+								  int clks_per_frame /* = 256 */) // bit clocks per sample frame
 {
 #if defined(KINETISK)
 	SIM_SCGC6 |= SIM_SCGC6_I2S;
@@ -282,11 +381,30 @@ void AudioOutputTDM::config_tdm(void)
 	CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK - 22.5 MHz
 
 #elif defined(__IMXRT1062__)
+	// retrieve existing pin mask values
+	uint32_t txPinMask = (I2S1_TCR3 / I2S_TCR3_TCE) & 0x0F;
+	uint32_t rxPinMask = (I2S1_RCR3 / I2S_RCR3_RCE) & 0x0F;
+	
+	// create updated masks, if needed
+	if (pinTx > 0) txPinMask |= (1<<pinTx)-1;
+	if (pinRx > 0) rxPinMask |= (1<<pinRx)-1;
+	
 	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 
-	// if either transmitter or receiver is enabled, do nothing
-	if (I2S1_TCSR & I2S_TCSR_TE) return;
-	if (I2S1_RCSR & I2S_RCSR_RE) return;
+	// if either transmitter or receiver is enabled, do nothing...
+	if ((I2S1_TCSR & I2S_TCSR_TE) 
+	 || (I2S1_RCSR & I2S_RCSR_RE))
+	 { 
+		// Documentation (e.g. 38.5.1.7.4) says we should only reset FIFOs when
+		// a channel is disabled, but this seems to work OK as-is. Consider
+		// changing to a temporary disable if there are issues. Note that
+		// the calling code should do a soft reset anyway, which may be enough.
+		I2S1_TCR3  = (I2S_TCR3_CFR | I2S_TCR3_TCE) * txPinMask; // ...except set channel flags
+		I2S1_TCR4 |= txPinMask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0;
+		I2S1_RCR3  = (I2S_RCR3_CFR | I2S_RCR3_RCE) * rxPinMask; 
+		I2S1_RCR4 |= rxPinMask > 0x01?I2S_RCR4_FCOMB_ENABLED_ON_READS:0;
+		return;
+	 }
 //PLL:
 	int fs = AUDIO_SAMPLE_RATE_EXACT;
 	// PLL between 27*24 = 648MHz und 54*24=1296MHz
@@ -302,7 +420,10 @@ void AudioOutputTDM::config_tdm(void)
 	CCM_CSCMR1 = (CCM_CSCMR1 & ~(CCM_CSCMR1_SAI1_CLK_SEL_MASK))
 		   | CCM_CSCMR1_SAI1_CLK_SEL(2); // &0x03 // (0,1,2): PLL3PFD0, PLL5, PLL4
 
-	n1 = n1 / 2; //Double Speed for TDM
+	// PCM3168 has a maximum MCLK of 256fs
+	// for 96kHz dual rate operation
+	if (256 == clks_per_frame)
+		n1 = n1 / 2; //Double Speed for TDM: 512fs
 
 	CCM_CS1CDR = (CCM_CS1CDR & ~(CCM_CS1CDR_SAI1_CLK_PRED_MASK | CCM_CS1CDR_SAI1_CLK_PODF_MASK))
 		   | CCM_CS1CDR_SAI1_CLK_PRED(n1-1) // &0x07
@@ -314,23 +435,27 @@ void AudioOutputTDM::config_tdm(void)
 	// configure transmitter
 	int rsync = 0;
 	int tsync = 1;
+	int frame_size = clks_per_frame/32;  // => 4 or 8 32-bit words per frame
+	int BCLKdiv = 1; // 256 / clks_per_frame;
 
 	I2S1_TMR = 0;
 	I2S1_TCR1 = I2S_TCR1_RFW(4);
 	I2S1_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1)
-		| I2S_TCR2_BCD | I2S_TCR2_DIV(0);
-	I2S1_TCR3 = I2S_TCR3_TCE;
-	I2S1_TCR4 = I2S_TCR4_FRSZ(7) | I2S_TCR4_SYWD(0) | I2S_TCR4_MF
-		| I2S_TCR4_FSE | I2S_TCR4_FSD;
+		| I2S_TCR2_BCD | I2S_TCR2_DIV(BCLKdiv-1);
+	I2S1_TCR3 = I2S_TCR3_TCE * txPinMask;
+	I2S1_TCR4 = I2S_TCR4_FRSZ(frame_size-1) | I2S_TCR4_SYWD(0) | I2S_TCR4_MF
+		| I2S_TCR4_FSE | I2S_TCR4_FSD |
+		(txPinMask > 0x01?I2S_TCR4_FCOMB_ENABLED_ON_WRITES:0);
 	I2S1_TCR5 = I2S_TCR5_WNW(31) | I2S_TCR5_W0W(31) | I2S_TCR5_FBT(31);
 
 	I2S1_RMR = 0;
 	I2S1_RCR1 = I2S_RCR1_RFW(4);
 	I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
-		| I2S_RCR2_BCD | I2S_RCR2_DIV(0);
-	I2S1_RCR3 = I2S_RCR3_RCE;
-	I2S1_RCR4 = I2S_RCR4_FRSZ(7) | I2S_RCR4_SYWD(0) | I2S_RCR4_MF
-		| I2S_RCR4_FSE | I2S_RCR4_FSD;
+		| I2S_RCR2_BCD | I2S_RCR2_DIV(BCLKdiv-1);
+	I2S1_RCR3 = I2S_RCR3_RCE * rxPinMask;
+	I2S1_RCR4 = I2S_RCR4_FRSZ(frame_size-1) | I2S_RCR4_SYWD(0) | I2S_RCR4_MF
+		| I2S_RCR4_FSE | I2S_RCR4_FSD |
+		(rxPinMask > 0x01?I2S_RCR4_FCOMB_ENABLED_ON_READS:0);
 	I2S1_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
 
 	CORE_PIN23_CONFIG = 3;  //1:MCLK
@@ -338,5 +463,72 @@ void AudioOutputTDM::config_tdm(void)
 	CORE_PIN20_CONFIG = 3;  //1:RX_SYNC
 #endif
 }
+
+
+/*
+ * The following variables and functions allow input and output objects to re-start
+ * the SAI1 hardware and DMA for themselves and the complementary object(s). This 
+ * is needed, otherwise the streams get out of sync and audio ends up on the wrong channel.
+ */
+AudioHardwareTDM::DMAsettings AudioHardwareTDM::TxDMA = {0}, AudioHardwareTDM::RxDMA = {0};
+void AudioHardwareTDM::setDMA(DMAChannel& dma, uint32_t* buf, uint32_t buflen, bool which)
+{
+	DMAsettings* settings = which?&TxDMA:&RxDMA;
+	
+	settings->dma = &dma;
+	settings->buf = buf;
+	settings->buflen = buflen;
+}
+
+void AudioHardwareTDM::zapDMA(void)
+{
+	if (nullptr != TxDMA.dma)
+	{
+		TxDMA.dma->disable();
+		
+		I2S1_TCSR |= I2S_TCSR_SR; // must reset SAI1, or we lose sync
+		
+		TxDMA.dma->TCD->SADDR = TxDMA.buf;
+		TxDMA.dma->TCD->SLAST = -TxDMA.buflen;
+		TxDMA.dma->TCD->CITER_ELINKNO = TxDMA.buflen / 4;
+		TxDMA.dma->TCD->BITER_ELINKNO = TxDMA.buflen / 4;
+		TxDMA.dma->enable();
+
+		I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+	}
+	
+	if (nullptr != RxDMA.dma)
+	{
+		RxDMA.dma->disable();
+		
+		I2S1_RCSR |= I2S_RCSR_SR; // must reset SAI1, or we lose sync
+		
+		RxDMA.dma->TCD->DADDR = RxDMA.buf;
+		RxDMA.dma->TCD->DLASTSGA = -RxDMA.buflen;
+		RxDMA.dma->TCD->CITER_ELINKNO = RxDMA.buflen / 4;
+		RxDMA.dma->TCD->BITER_ELINKNO = RxDMA.buflen / 4;
+		RxDMA.dma->enable();
+		
+		I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;		
+	}
+	
+}
+
+// Utility for debug only
+void AudioHardwareTDM::printSettings()
+{
+	for (int which=0;which<2;which++)
+	{
+		DMAsettings* settings = which?&TxDMA:&RxDMA;
+		
+		Serial.printf("%s: ", which?"TxDMA":"RxDMA");
+		Serial.printf("%08X; %08X, %d\n",
+			(uint32_t) settings->dma,
+			(uint32_t) settings->buf,
+					   settings->buflen);
+	}
+	Serial.printf("BCLK is%s inverted\n",getBCLKinverted()?"":" not");
+}
+
 
 #endif
