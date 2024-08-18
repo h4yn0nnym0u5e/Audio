@@ -92,7 +92,7 @@ protected:
 		file,		// file is being played
 		ending,
 		
-		memReady,	// memory is reay to play
+		memReady,	// memory is ready to play
 		memory		// playing from in-memory buffer
 	} playState, fileState;
 

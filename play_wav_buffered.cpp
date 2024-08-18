@@ -632,7 +632,7 @@ void AudioPlayWAVbuffered::update(void)
 						
 					}
 				}
-				else // playing a file: get more data
+				else // playing a file or from memory: get more data
 				{
 					result rdr = ok;
 					bool readNeeded = false;
@@ -646,6 +646,17 @@ void AudioPlayWAVbuffered::update(void)
 						{
 							while (thisILDA->recordFraction >= 1.0f) // need to load more from file / memory
 							{
+								if (memory == playState && readNeeded) // could be playing short file from memory
+								{	
+									uint8_t* pb;
+									size_t   sz;
+									
+									// do a fake filesystem read, it's already in memory
+									getNextRead(&pb, &sz);
+									readExecuted(sz);
+									readNeeded = false;
+								}
+								
 								if (thisILDA->records > 0) // we're still reading the current set of records
 								{
 									// unbuffer
@@ -674,6 +685,8 @@ void AudioPlayWAVbuffered::update(void)
 										thisILDA->recFormat = hdr.format;
 										thisILDA->records   = htons(hdr.records);							
 									}
+									else
+										break; // just use stale data for now: should never happen
 									
 									if (2 == hdr.format) // palette...
 										break; // ...convert and continue
@@ -914,7 +927,7 @@ bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
 	
 	eof = false;
 	records = 0;
-	samples = 0;
+	recordFraction = 0.0f;
 		
 	fileLoaded = ARM_DWT_CYCCNT;
 	
@@ -923,8 +936,7 @@ bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
 	setInUse(true); // prevent changes to buffer memory
 
 	rv = true; // nothing can go wrong (!)
-	return rv;	
-	
+	return rv;		
 }
 
 /**
