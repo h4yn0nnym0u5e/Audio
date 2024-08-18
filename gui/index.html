@@ -3266,6 +3266,11 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	<p>Functionality is similar to that of the playWAVstereo object.
 	</p>
+	<p>
+	Plenty of buffer memory is required is required if high playback rates are required.
+	A minimum level of 4k is suggested, and this should be scaled according to the maximum
+	expected playback rate, so for 8x playback you should configure a 32k buffer.
+	</p>	
 	</div>
 	<h3>Audio Connections</h3>
 	<table class=doc align=center cellpadding=3>
@@ -3285,9 +3290,11 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	</div>
 	
-	<p class=func><span class=keyword>setPointsToSamples</span>(<span class=parameter>ratio</span>);</p>
-	<p class=desc>Set the number of samples that will be emitted for each point in the file. 
-	The default ratio is 2, resulting in a point output rate of 22.05kpts/s with stock Audio library settings.
+	<p class=func><span class=keyword>setPlaybackRate</span>(<span class=parameter>rate</span>);</p>
+	<p class=desc>Set the playback rate as a floating-point value.
+	The default rate is 1.0, resulting in a point output rate of 44.1kpts/s with stock Audio library settings.
+	Positions and colours are interpolated between the two nearest points, but the blanking output
+	is the logical OR of the two, meaning if either is blanked then the output is as well.
 	</p></script>
 <script type="text/x-red" data-template-name="AudioPlayILDA">
 	<div class="form-row">
