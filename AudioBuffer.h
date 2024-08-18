@@ -290,8 +290,12 @@ class AudioWAVdata
 		
 	struct ILDAformatUnpacked
 	{
-		int16_t X,Y,Z,R,G,B,status;
-	};		
+		union 
+		{
+			struct {int16_t X,Y,Z,R,G,B,status;};
+			int16_t raw[7];
+		};
+	};
 
 	//==========================================
 	struct RIFFhdr_t

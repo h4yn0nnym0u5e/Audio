@@ -202,7 +202,7 @@ AudioBuffer::result AudioBuffer::read(uint8_t* dest, //!< pointer to memory to c
 		else
 			rv = invalid; // buffer was not read, insufficient data was available
 	}
-	
+
 	return rv;
 }
 

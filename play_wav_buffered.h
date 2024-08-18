@@ -120,6 +120,7 @@ class AudioPlayWAVoct	 : public AudioPlayWAVbuffered {};
 class AudioPlayILDA	 : public AudioPlayWAVbuffered 
 {
 	friend class AudioPlayWAVbuffered;
+	void unpack(const uint8_t fmt, const ILDAformatAny& any, ILDAformatUnpacked& unpacked);
 protected:	
 	int16_t lastX, lastY, lastZ; // last known galvo positions, for when we stop
 	static const int sizes[6];
@@ -129,12 +130,13 @@ public:
 		: AudioPlayWAVbuffered(),
 		lastX(0), lastY(0), lastZ(0),
 		paletteValid(256), paletteSize(256), palette((ILDAformat2*) defaultPalette)
-		{ setPointsToSamples(2); chanCnt = 7; fileFormat = ILDA; }
+		{ setPlaybackRate(1.0f); chanCnt = 7; fileFormat = ILDA; }
 	int recFormat;  // format of records in this section (0,1,4,5; 2 changes palette, 3 doesn't exist)
 	int records; 	// remaining in this section
-	int samples;
+	ILDAformatAny firstRecord, secondRecord; // current record pair we're interpolating in
+	float recordFraction; // how far through current record pair playback has got
 	ILDAformatUnpacked unpacked; // this will hold all other record types
-	int samplesPerPoint;
+	float playbackRate; // rate of playback: 1.0 => 1 point every sample
 	
 	int paletteValid; // maximum valid index into palette memory
 	int paletteSize;  // number of entries possible in palette memory
@@ -148,7 +150,7 @@ public:
 	// functionality relevant only to ILDA playback
 	using AudioPlayWAVbuffered::play; 		// allow visibility of play() provided by base class
 	bool play(uint8_t* ilda, size_t len);	// add our own from-memory version, for ILDA only
-	void setPointsToSamples(int rate) { samplesPerPoint = rate; } 	// each ILDA point results in 'rate' samples
+	void setPlaybackRate(float rate) { playbackRate = rate; } 	// each ILDA point results in 'rate' samples
 	void setPaletteMemory(ILDAformat2* addr, int entries, int valid = -1); // point to new palette
 	void copyPalette(ILDAformat2* dst, const ILDAformat2* src, int entries); // copy data to palette: NULL src uses default palette
 };
