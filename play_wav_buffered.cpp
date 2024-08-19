@@ -1000,7 +1000,110 @@ void AudioPlayILDA::unpack(const uint8_t fmt, const ILDAformatAny& any, ILDAform
 			break;
 	}
 }
+
+
+/**
+ * Find out at what frequency an ILDA-format file will repeat,
+ * assuming one point is output per audio sample.
+ */
+float AudioPlayILDA::repeatFrequency(const char* file,  //!< path to ILDA file
+									 FS& fs /* = SD */) //!< optional filesystem
+{
+	int records = 0;
+	File f = fs.open(file,FILE_READ);
 	
+	if (f)
+	{
+		do
+		{
+			ILDAheader_s hdr;
+			size_t got = f.read(&hdr,sizeof hdr);
+			uint16_t frameRecords;
+			
+			if (got != sizeof hdr
+			 || hdr.ilda.u != 0x41444C49)
+			{
+				records = 0;
+				break;
+			}
+			frameRecords = htons(hdr.records);
+			if (0 == frameRecords) // zero records, EOF
+				break;
+			if (hdr.format != 2) // we don't play back palette frames!
+				records += frameRecords;
+				
+			// seek forward to next header
+			f.seek(f.position() + frameRecords*sizes[hdr.format]);
+		} while (1);		
+	}
+	
+	return records == 0 
+				?0.0f
+				:AUDIO_SAMPLE_RATE_EXACT / (float) records;
+}
+
+
+/**
+ * Find out at what frequency an ILDA-format file loaded into memory
+ * will repeat, assuming one point is output per audio sample.
+ */
+float AudioPlayILDA::repeatFrequency(const uint8_t* buffer) //!< location that file is loaded
+{
+	int records = 0;
+	
+	do
+	{
+		ILDAheader_s* phdr = (ILDAheader_s*) buffer;
+		if (phdr->ilda.u == 0x41444C49)
+		{
+			uint16_t frameRecords = htons(phdr->records);
+			if (0 == frameRecords) // zero records, EOF
+				break;
+			if (phdr->format != 2) // we don't play back palette frames!
+				records +=frameRecords;
+			buffer += sizeof *phdr + frameRecords*sizes[phdr->format];
+		}
+		else
+		{
+			records = 0;
+			break;
+		}	
+	} while (1);
+	
+	return records == 0 
+				?0.0f
+				:AUDIO_SAMPLE_RATE_EXACT / (float) records;
+}
+
+
+/**
+ * Load a file into memory managed by a MemBuffer object.
+ */
+MemBuffer* AudioPlayILDA::loadFile(const char* file, 	//!< name of file to load
+								   bufType where, 		//!< memory type to use (heap or EXTMEM only)
+								   FS& fs /* = SD */)	//!< optional filesystem to use
+{
+	MemBuffer* result = nullptr;
+	File f = fs.open(file,FILE_READ);
+	
+	if (f)
+	{
+		size_t sz = f.size();
+		MemBuffer* buffer = new MemBuffer;
+		
+		if (ok == buffer->createBuffer(sz,where))
+		{
+			size_t got = f.read(buffer->buffer, sz);
+			if (got == sz)
+				result = buffer;
+		}
+		if (nullptr == result)
+			delete buffer;
+	}
+	
+	return result;
+}
+
 
 
 // ILDA standard color palette 
