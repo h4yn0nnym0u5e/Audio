@@ -153,6 +153,7 @@ class AudioBuffer : public MemBuffer
 	bool getNextRead(uint8_t** pbuf, size_t* psz);  		// find out where (media) data needs to be read to
 	void readExecuted(size_t bytes) { _readExecuted(bytes); }  // signal that buffer data has been read in (from  media)
 	void dummyReadExecuted(size_t bytes) { _readExecuted(bytes, true); }  	// flip queueIn to other half, not affecting valid data count
+	void reValidateHalf(void) { _readExecuted(bufSize/2); } // buffer is static: re-validate "used" half
 	result read(uint8_t* dest, size_t bytes); 				// read buffer data into destination
 	
 	// "recording" mode

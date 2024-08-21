@@ -28,7 +28,6 @@
 #include "play_wav_buffered.h"
 #include <laser_synth.h>
 
-
 /*
  * Prepare to play back from a file
  */
@@ -639,7 +638,7 @@ void AudioPlayWAVbuffered::update(void)
 					int toRead = AUDIO_BLOCK_SAMPLES; 	// we need to create this many samples
 					AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
 					ILDAformatAny rec;
-					
+
 					while (toRead > 0) // keep going until we have a buffer full of samples
 					{
 						do // loop until we have records bracketing the next output sample time
@@ -648,12 +647,8 @@ void AudioPlayWAVbuffered::update(void)
 							{
 								if (memory == playState && readNeeded) // could be playing short file from memory
 								{	
-									uint8_t* pb;
-									size_t   sz;
-									
 									// do a fake filesystem read, it's already in memory
-									getNextRead(&pb, &sz);
-									readExecuted(sz);
+									reValidateHalf();
 									readNeeded = false;
 								}
 								
@@ -903,7 +898,7 @@ void AudioPlayILDA::copyPalette(ILDAformat2* dst, const ILDAformat2* src, int en
 }
 
 
-bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
+bool AudioPlayILDA::play(const uint8_t* ilda, size_t len)
 {
 	bool rv = false;
 	uint8_t* buf;
@@ -914,7 +909,7 @@ bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
 	
 	stop();
 	
-	createBuffer(ilda,len);	// pretend the in-memory data is a user-controlled buffer
+	createBuffer((uint8_t*) ilda,len);	// pretend the in-memory data is a user-controlled buffer
 	emptyBuffer();			// say it's empty to reset queue indexes and valid data counts
 	getNextRead(&buf, &sz);	// should be ilda and len! Could be side-effects so do it properly...
 	readExecuted(sz);		// say buffer data are valid

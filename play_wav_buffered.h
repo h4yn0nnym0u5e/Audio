@@ -149,7 +149,7 @@ public:
 	
 	// functionality relevant only to ILDA playback
 	using AudioPlayWAVbuffered::play; 		// allow visibility of play() provided by base class
-	bool play(uint8_t* ilda, size_t len);	// add our own from-memory version, for ILDA only
+	bool play(const uint8_t* ilda, size_t len);	// add our own from-memory version, for ILDA only
 	void setPlaybackRate(float rate) { playbackRate = rate; } 	// each ILDA point results in 'rate' samples
 	void setPaletteMemory(ILDAformat2* addr, int entries, int valid = -1); // point to new palette
 	static void copyPalette(ILDAformat2* dst, const ILDAformat2* src, int entries); // copy data to palette: NULL src uses default palette
