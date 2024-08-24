@@ -386,9 +386,28 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioInputPDM2",        "resource":"I2S2 Device",   "shareable":true,  "setting":"I2S Master"},
 		{"type":"AudioInputPDM2",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
 		{"type":"AudioInputPDM2",        "resource":"IN2 Pin",       "shareable":false},
+		
 		{"type":"AudioInputTDM",         "resource":"I2S Device",    "shareable":true,  "setting":"TDM Protocol"},
 		{"type":"AudioInputTDM",         "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
 		{"type":"AudioInputTDM",         "resource":"IN1 Pin",       "shareable":false},
+		{"type":"AudioInputTDMB",        "resource":"I2S Device",    "shareable":true,  "setting":"TDM Protocol"},
+		{"type":"AudioInputTDMB",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputTDMB",        "resource":"OUT1D Pin",     "shareable":false},
+		{"type":"AudioInputTDMC",        "resource":"I2S Device",    "shareable":true,  "setting":"TDM Protocol"},
+		{"type":"AudioInputTDMC",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputTDMC",        "resource":"OUT1C Pin",     "shareable":false},
+		{"type":"AudioInputTDMD",        "resource":"I2S Device",    "shareable":true,  "setting":"TDM Protocol"},
+		{"type":"AudioInputTDMD",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputTDMD",        "resource":"OUT1B Pin",     "shareable":false},
+		{"type":"AudioInputTDMAB",       "resource":"I2S Device",    "shareable":true,  "setting":"TDM128 Protocol"},
+		{"type":"AudioInputTDMAB",       "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputTDMAB",       "resource":"IN1 Pin",       "shareable":false},
+		{"type":"AudioInputTDMAB",       "resource":"OUT1D Pin",     "shareable":false},
+		{"type":"AudioInputTDMCD",       "resource":"I2S Device",    "shareable":true,  "setting":"TDM128 Protocol"},
+		{"type":"AudioInputTDMCD",       "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioInputTDMCD",       "resource":"OUT1C Pin",     "shareable":false},
+		{"type":"AudioInputTDMCD",       "resource":"OUT1B Pin",     "shareable":false},
+		
 		{"type":"AudioInputTDM2",        "resource":"I2S2 Device",   "shareable":true,  "setting":"TDM Protocol"},
 		{"type":"AudioInputTDM2",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
 		{"type":"AudioInputTDM2",        "resource":"IN2 Pin",       "shareable":false},
@@ -444,9 +463,28 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioOutputPWM",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
 		{"type":"AudioOutputMQS",        "resource":"MSQ Device",    "shareable":false},
 		{"type":"AudioOutputMQS",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		
 		{"type":"AudioOutputTDM",        "resource":"I2S Device",    "shareable":true,  "setting":"TDM Protocol"},
 		{"type":"AudioOutputTDM",        "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
 		{"type":"AudioOutputTDM",        "resource":"OUT1A Pin",     "shareable":false},
+		{"type":"AudioOutputTDMB",       "resource":"I2S Device",    "shareable":true,  "setting":"TDM Protocol"},
+		{"type":"AudioOutputTDMB",       "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputTDMB",       "resource":"OUT1B Pin",     "shareable":false},
+		{"type":"AudioOutputTDMC",       "resource":"I2S Device",    "shareable":true,  "setting":"TDM Protocol"},
+		{"type":"AudioOutputTDMC",       "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputTDMC",       "resource":"OUT1C Pin",     "shareable":false},
+		{"type":"AudioOutputTDMD",       "resource":"I2S Device",    "shareable":true,  "setting":"TDM Protocol"},
+		{"type":"AudioOutputTDMD",       "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputTDMD",       "resource":"OUT1D Pin",     "shareable":false},
+		{"type":"AudioOutputTDMAB",      "resource":"I2S Device",    "shareable":true,  "setting":"TDM128 Protocol"},
+		{"type":"AudioOutputTDMAB",      "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputTDMAB",      "resource":"OUT1A Pin",     "shareable":false},
+		{"type":"AudioOutputTDMAB",      "resource":"OUT1B Pin",     "shareable":false},
+		{"type":"AudioOutputTDMCD",      "resource":"I2S Device",    "shareable":true,  "setting":"TDM128 Protocol"},
+		{"type":"AudioOutputTDMCD",      "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
+		{"type":"AudioOutputTDMCD",      "resource":"OUT1C Pin",     "shareable":false},
+		{"type":"AudioOutputTDMCD",      "resource":"OUT1D Pin",     "shareable":false},
+		
 		{"type":"AudioOutputTDM2",       "resource":"I2S2 Device",   "shareable":true,  "setting":"TDM Protocol"},
 		{"type":"AudioOutputTDM2",       "resource":"Sample Rate",   "shareable":true,  "setting":"Teensy Control"},
 		{"type":"AudioOutputTDM2",       "resource":"OUT2 Pin",      "shareable":false},
@@ -476,6 +514,11 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioInputPDM","data":{"defaults":{"name":{"value":"new"}},"shortName":"pdm","inputs":0,"outputs":1,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioInputPDM2","data":{"defaults":{"name":{"value":"new"}},"shortName":"pdm2","inputs":0,"outputs":1,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioInputTDM","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdm","inputs":0,"outputs":16,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioInputTDMB","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmB","inputs":0,"outputs":16,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioInputTDMC","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmC","inputs":0,"outputs":16,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioInputTDMD","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmD","inputs":0,"outputs":16,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioInputTDMAB","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmAB","inputs":0,"outputs":8,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioInputTDMCD","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmCD","inputs":0,"outputs":8,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioInputTDM2","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdm2","inputs":0,"outputs":16,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioInputUSB","data":{"defaults":{"name":{"value":"new"}},"shortName":"usb","inputs":0,"outputs":2,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioInputUSBQuad","data":{"defaults":{"name":{"value":"new"}},"shortName":"usb_quad","inputs":0,"outputs":4,"category":"input-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -498,6 +541,11 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioOutputPWM","data":{"defaults":{"name":{"value":"new"}},"shortName":"pwm","inputs":1,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioOutputMQS","data":{"defaults":{"name":{"value":"new"}},"shortName":"mqs","inputs":2,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioOutputTDM","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdm","inputs":16,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioOutputTDMB","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmB","inputs":16,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioOutputTDMC","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmC","inputs":16,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioOutputTDMD","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmD","inputs":16,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioOutputTDMAB","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmAB","inputs":8,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioOutputTDMCD","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdmCD","inputs":8,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioOutputTDM2","data":{"defaults":{"name":{"value":"new"}},"shortName":"tdm2","inputs":16,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioOutputADAT","data":{"defaults":{"name":{"value":"new"}},"shortName":"adat","inputs":8,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioOutputUSB","data":{"defaults":{"name":{"value":"new"}},"shortName":"usb","inputs":2,"outputs":0,"category":"output-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -507,6 +555,7 @@ span.mainfunction {color: #993300; font-weight: bolder}
 
 		{"type":"AudioAmplifier","data":{"defaults":{"name":{"value":"new"}},"shortName":"amp","inputs":1,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioMixer4","data":{"defaults":{"name":{"value":"new"}},"shortName":"mixer","inputs":4,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioMixerSummer","data":{"defaults":{"name":{"value":"new"}},"shortName":"summer","inputs":4,"outputs":1,"category":"mixer-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayMemory","data":{"defaults":{"name":{"value":"new"}},"shortName":"playMem","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlaySdWav","data":{"defaults":{"name":{"value":"new"}},"shortName":"playSdWav","inputs":0,"outputs":2,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		
@@ -514,6 +563,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioPlayWAVquad",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVquad",  "inputs":0,"outputs":4,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayWAVhex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVhex",   "inputs":0,"outputs":6,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlayWAVoct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVoct",   "inputs":0,"outputs":8,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+
+		{"type":"AudioPlayILDA",     "data":{"defaults":{"name":{"value":"new"}},"shortName":"playILDA",   "inputs":0,"outputs":7,"category":"play-function","color":"#F8E6E0","icon":"arrow-in.png"}},
 		
 		{"type":"AudioRecordWAVmono",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVmono",  "inputs":1,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioRecordWAVstereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVstereo","inputs":2,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -555,6 +606,10 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioEffectGranular","data":{"shortName":"granular","inputs":1,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectDigitalCombine","data":{"shortName":"combine","inputs":2,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioEffectWaveFolder","data":{"defaults":{"name":{"value":"new"}},"shortName":"wavefolder","inputs":2,"outputs":1,"category":"effect-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+
+		{"type":"AudioEffectRotator","data":{"defaults":{"name":{"value":"new"}},"shortName":"rotator","inputs":3,"outputs":2,"category":"effect-function","color":"#F8E6E0","icon":"arrow-in.png"}},
+		{"type":"AudioEffectProtectStall","data":{"defaults":{"name":{"value":"new"}},"shortName":"protectStall","inputs":7,"outputs":7,"category":"effect-function","color":"#F8E6E0","icon":"arrow-in.png"}},
+
 		{"type":"AudioFilterBiquad","data":{"defaults":{"name":{"value":"new"}},"shortName":"biquad","inputs":1,"outputs":1,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioFilterFIR","data":{"defaults":{"name":{"value":"new"}},"shortName":"fir","inputs":1,"outputs":1,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioFilterStateVariable","data":{"defaults":{"name":{"value":"new"}},"shortName":"filter","inputs":2,"outputs":3,"category":"filter-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -571,7 +626,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioControlCS4272","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs4272","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioControlWM8731","data":{"defaults":{"name":{"value":"new"}},"shortName":"wm8731","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioControlWM8731master","data":{"defaults":{"name":{"value":"new"}},"shortName":"wm8731m","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioControlCS42448","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs42448","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}}
+		{"type":"AudioControlCS42448","data":{"defaults":{"name":{"value":"new"}},"shortName":"cs42448","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioControlPCM3168","data":{"defaults":{"name":{"value":"new"}},"shortName":"pcm3168","inputs":0,"outputs":0,"category":"control-function","color":"#E6E0F8","icon":"arrow-in.png"}}
 	]}
 </script>
 
@@ -1256,8 +1312,17 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		<tr class=odd><td align=center>Out 15</td><td>Bits 240 to 255</td></tr>
 	</table>
 	<h3>Functions</h3>
-	<p>This object has no functions to call from the Arduino sketch.  It
-		simply streams data from the TDM hardware to its 16 output ports.</p>
+	<p>This object streams data from the TDM hardware to its 16 output ports.
+	The following functions are provided.
+	</p>
+	<p class=func><span class=keyword>setBCLKinverted</span>(bool);</p>
+	<p class=desc>Call this with its parameter set to "true" to invert the default
+	polarity of the BCLK signal. This is required for some parts, e.g. the 
+	TLV320AIC3104 and ...3105.
+	</p>	
+	<p class=func><span class=keyword>getBCLKinverted</span>();</p>
+	<p class=desc>Returns true if BCLK polarity has been set to inverted.
+	</p>	
 	<h3>Hardware</h3>
 	<p>TDM has been tested with this
 		<a href="https://oshpark.com/shared_projects/2Yj6rFaW">
@@ -1280,8 +1345,10 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughTDM16</p>
 	</p>
 	<h3>Notes</h3>
-	<p>Only one TDM input and one TDM output object may be used.  The
-		I2S hardware is used by TDM, so TDM objects may not be used
+	<p>Valid combinations of TDM objects are TDM, TDM+TDMB, TDM+TDMB+TDMC,
+	   TDM+TDMB+TDMC+TDMD, TDMAB, or TDMAB+TDMCD. The Design Tool will show
+	   a warning if there is a pin or protocol clash with another object.</p>
+	<p> The	I2S hardware is used by TDM, so TDM objects may not be used
 		together with I2S, SPDIF or PT8211.</p>
 	<p>When used with TDM devices which transmit 32 bit audio, the
 		even numbered channels will contain the useful upper 16
@@ -1296,6 +1363,145 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		<input type="text" id="node-input-name" placeholder="Name">
 	</div>
 </script>
+
+<!-- ========================================================================================== -->
+<script type="text/x-red" data-help-name="AudioInputTDMB">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Receive a 256 bit Time Division Multiplexed frame containing
+		many audio channels. Uses OUT1D pin. See AudioInputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>6</td><td>RX</td><td>Input, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioInputTDMB">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------ -->
+<script type="text/x-red" data-help-name="AudioInputTDMC">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Receive a 256 bit Time Division Multiplexed frame containing
+		many audio channels. Uses OUT1C pin. See AudioInputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>9</td><td>RX</td><td>Input, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioInputTDMC">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------ -->
+<script type="text/x-red" data-help-name="AudioInputTDMD">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Receive a 256 bit Time Division Multiplexed frame containing
+		many audio channels. Uses OUT1B pin. See AudioInputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>32</td><td>RX</td><td>Input, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioInputTDMD">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------ -->
+<script type="text/x-red" data-help-name="AudioInputTDMAB">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Receive a dual 128-bit Time Division Multiplexed frame containing
+		8 audio channels. Required for parts that cannot achieve high
+		bandwidth with a single data pin, e.g. PCM3168 at 96kHz.
+		Uses IN1 and OUT1D pins. See AudioInputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>8</td><td>RX1</td><td>Input, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>6</td><td>RX2</td><td>Input, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioInputTDMAB">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------ -->
+<script type="text/x-red" data-help-name="AudioInputTDMCD">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Receive a dual 128-bit Time Division Multiplexed frame containing
+		8 audio channels. Required for parts that cannot achieve high
+		bandwidth with a single data pin, e.g. PCM3168 at 96kHz.
+		Uses OUT1B and OUT1C pins. See AudioInputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>9</td><td>RX1</td><td>Input, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>32</td><td>RX2</td><td>Input, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioInputTDMCD">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ========================================================================================== -->
+
 
 <script type="text/x-red" data-help-name="AudioInputTDM2">
 	<h3>Summary</h3>
@@ -2518,8 +2724,17 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		<tr class=odd><td align=center>In 15</td><td>Bits 240 to 255</td></tr>
 	</table>
 	<h3>Functions</h3>
-	<p>This object has no functions to call from the Arduino sketch.  It
-		simply streams data from its 16 input ports to the TDM hardware.</p>
+	<p>This object streams data from its 16 input ports to the TDM hardware.
+	The following functions are provided.
+	</p>
+	<p class=func><span class=keyword>setBCLKinverted</span>(bool);</p>
+	<p class=desc>Call this with its parameter set to "true" to invert the default
+	polarity of the BCLK signal. This is required for some parts, e.g. the 
+	TLV320AIC3104 and ...3105.
+	</p>	
+	<p class=func><span class=keyword>getBCLKinverted</span>();</p>
+	<p class=desc>Returns true if BCLK polarity has been set to inverted.
+	</p>	
 	<h3>Hardware</h3>
 	<p>TDM has been tested with this <a href="https://oshpark.com/shared_projects/2Yj6rFaW">
 		CS42448 Board for Teensy 3.x</a> and this
@@ -2547,8 +2762,10 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<p class=exam>File &gt; Examples &gt; Audio &gt; HardwareTesting &gt; PassThroughTDM16</p>
 	</p>
 	<h3>Notes</h3>
-	<p>Only one TDM input and one TDM output object may be used.  The
-		I2S hardware is used by TDM, so TDM objects may not be used
+	<p>Valid combinations of TDM objects are TDM, TDM+TDMB, TDM+TDMB+TDMC,
+	   TDM+TDMB+TDMC+TDMD, TDMAB, or TDMAB+TDMCD. The Design Tool will show
+	   a warning if there is a pin or protocol clash with another object.</p>
+	<p> The I2S hardware is used by TDM, so TDM objects may not be used
 		together with I2S, SPDIF or PT8211.</p>
 	<p>When used with TDM devices which receive 32 bit audio, the
 		even numbered channels are used for the top 16 bits.</p>
@@ -2559,6 +2776,145 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		<input type="text" id="node-input-name" placeholder="Name">
 	</div>
 </script>
+
+
+<!-- ========================================================================================== -->
+<script type="text/x-red" data-help-name="AudioOutputTDMB">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Transmit a 256 bit Time Division Multiplexed frame containing
+		many audio channels. Uses OUT1B pin. See AudioOutputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>32</td><td>TX</td><td>Output, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioOutputTDMB">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------ -->
+<script type="text/x-red" data-help-name="AudioOutputTDMC">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Transmit a 256 bit Time Division Multiplexed frame containing
+		many audio channels. Uses OUT1C pin. See AudioOutputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>9</td><td>TX</td><td>Input, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioOutputTDMC">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------ -->
+<script type="text/x-red" data-help-name="AudioOutputTDMD">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Transmit a 256 bit Time Division Multiplexed frame containing
+		many audio channels. Uses OUT1D pin. See AudioOutputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>6</td><td>TX</td><td>Output, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioOutputTDMD">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------ -->
+<script type="text/x-red" data-help-name="AudioOutputTDMAB">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Transmit a dual 128-bit Time Division Multiplexed frame containing
+		8 audio channels. Required for parts that cannot achieve high
+		bandwidth with a single data pin, e.g. PCM3168 at 96kHz.
+		Uses OUT1A and OUT1B pins. See AudioOutputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>7</td><td>TX1</td><td>Output, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>32</td><td>TX2</td><td>Output, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioOutputTDMAB">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------ -->
+<script type="text/x-red" data-help-name="AudioOutputTDMCD">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Transmit a dual 128-bit Time Division Multiplexed frame containing
+		8 audio channels. Required for parts that cannot achieve high
+		bandwidth with a single data pin, e.g. PCM3168 at 96kHz.
+		Uses OUT1C and OUT1D pins. See AudioOutputTDM for details.</p>
+	</div>
+	<h3>Boards Supported</h3>
+	<ul>
+	<li>Teensy 4.0
+	<li>Teensy 4.1
+	</ul>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>T4.x<br>Pin</th><th>Signal</th><th>Direction</th></tr>
+		<tr class=odd><td align=center>21</td><td>BCLK</td><td>Output, 11.3 MHz</td></tr>
+		<tr class=odd><td align=center>23</td><td>MCLK</td><td>Output, 22.6 MHz</td></tr>
+		<tr class=odd><td align=center>9</td><td>TX1</td><td>Output, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>6</td><td>TX2</td><td>Output, 11.3 Mbit/sec</td></tr>
+		<tr class=odd><td align=center>20</td><td>FS</td><td>Output</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioOutputTDMCD">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ========================================================================================== -->
 
 <script type="text/x-red" data-help-name="AudioOutputTDM2">
 	<h3>Summary</h3>
@@ -2964,6 +3320,33 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</div>
 </script>
 
+
+<!-- ---------------------------------------------------------------------------------->
+<script type="text/x-red" data-help-name="AudioMixerSummer">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Simply sums up to 4 signals together, over/underflowing rather than saturating.
+		Channels DO NOT support signal attenuation or amplification.</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>Input signal #1</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Input signal #2</td></tr>
+		<tr class=odd><td align=center>In 2</td><td>Input signal #3</td></tr>
+		<tr class=odd><td align=center>In 3</td><td>Input signal #4</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Sum of all inputs</td></tr>
+	</table>
+</script>
+<script type="text/x-red" data-template-name="AudioMixerSummer">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ---------------------------------------------------------------------------------->
+
+
 <script type="text/x-red" data-help-name="AudioPlayMemory">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
@@ -3194,6 +3577,124 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</div>
 </script>
 <script type="text/x-red" data-template-name="AudioPlayWAVoct">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ----------------------------------------------------------->
+
+<script type="text/x-red" data-help-name="AudioPlayILDA">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Play an ILDA-format laser show file.
+	</p>
+	<p>Functionality is similar to that of the playWAVstereo object.
+	</p>
+	<p>
+	Plenty of buffer memory is required is required if high playback rates are required.
+	A minimum level of 4k is suggested, and this should be scaled according to the maximum
+	expected playback rate, so for 8x playback you should configure a 32k buffer.
+	</p>	
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>Out 0</td><td>X position output</td></tr>
+		<tr class=odd><td align=center>Out 1</td><td>Y position output</td></tr>
+		<tr class=odd><td align=center>Out 2</td><td>Z position output</td></tr>
+		<tr class=odd><td align=center>Out 3</td><td>Red colour output</td></tr>
+		<tr class=odd><td align=center>Out 4</td><td>Green colour output</td></tr>
+		<tr class=odd><td align=center>Out 5</td><td>Blue colour output</td></tr>
+		<tr class=odd><td align=center>Out 6</td><td>Blanking output</td></tr>
+	</table>
+	<h3>Functions</h3>
+	<div class=tooltipinfo>
+	<p>The following functions are specific to ILDA file playback,
+	in addition to the normal file playback functions provided by the AudioPlayWAVstereo object.
+	</p>
+	</div>
+	
+	<p class=func><span class=keyword>setPlaybackRate</span>(<span class=parameter>rate</span>);</p>
+	<p class=desc>Set the playback rate as a floating-point value.
+	The default rate is 1.0, resulting in a point output rate of 44.1kpts/s with stock Audio library settings.
+	Positions and colours are interpolated between the two nearest points, but the blanking output
+	is the logical OR of the two, meaning if either is blanked then the output is as well.
+	</p></script>
+<script type="text/x-red" data-template-name="AudioPlayILDA">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+
+<!-- ----------------------------------------------------------->
+<script type="text/x-red" data-help-name="AudioEffectProtectStall">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Provide a degree of protection from a stalled laser synth application
+	</p>
+	<p>Intended to be placed immediately before the output object, with XY[Z]RGB[b]
+	signals fed through it. If the XY signals appear to stall in a fixed position, then
+	the RGB signal outputs will be set to a safe value.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>X position input</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Y position input</td></tr>
+		<tr class=odd><td align=center>In 2</td><td>Z position input</td></tr>
+		<tr class=odd><td align=center>In 3</td><td>Red colour input</td></tr>
+		<tr class=odd><td align=center>In 4</td><td>Green colour input</td></tr>
+		<tr class=odd><td align=center>In 5</td><td>Blue colour input</td></tr>
+		<tr class=odd><td align=center>In 6</td><td>Blanking input</td></tr>
+		
+		<tr class=odd><td align=center>Out 0</td><td>X position output</td></tr>
+		<tr class=odd><td align=center>Out 1</td><td>Y position output</td></tr>
+		<tr class=odd><td align=center>Out 2</td><td>Z position output</td></tr>
+		<tr class=odd><td align=center>Out 3</td><td>Red colour output</td></tr>
+		<tr class=odd><td align=center>Out 4</td><td>Green colour output</td></tr>
+		<tr class=odd><td align=center>Out 5</td><td>Blue colour output</td></tr>
+		<tr class=odd><td align=center>Out 6</td><td>Blanking output</td></tr>
+	</table>
+	<h3>Functions</h3>
+
+	<p class=func><span class=keyword>setRGBsafeValue</span>(<span class=parameter>value</span>);</p>
+	<p class=desc>Set the value to which the RGB channel outputs will be coerced if the position channels
+	appear to have stalled. Range -1.0 to +1.0, normally use -1.0 for signed RGB values, 
+	and 0.0 for unsigned.
+	</p>
+	<p class=func><span class=keyword>setBlankSafeValue</span>(<span class=parameter>value</span>);</p>
+	<p class=desc>Set the value to which the blanking channel output will be coerced if the position channels
+	appear to have stalled. Range -1.0 to +1.0, normally use -1.0 for signed RGB values, 
+	and 0.0 for unsigned.
+	</p>
+	<p class=func><span class=keyword>setStallThreshold</span>(<span class=parameter>range</span>);</p>
+	<p class=desc>Set the range to outside which a position channel must vary during one audio block to
+	keep the laser channels active. This is expressed as an integer, because it will typically
+	be a small number.
+	</p>
+	<p class=func><span class=keyword>setStallTimeout</span>(<span class=parameter>millis</span>);</p>
+	<p class=desc>Set the timeout after which an apparently static set of position channels will
+	result in the laser channels being forced inactive. This allows for a certain amount of slow movement,
+	bearing in mind that the block size is only 128 samples.
+	</p>
+	<p class=func><span class=keyword>isUpdating</span>();</p>
+	<p class=desc>Returns true if the stall protection is executing update() calls at a
+	reasonable interval. If this is false, protection may be non-functional.
+	</p>
+	<p class=func><span class=keyword>isProtecting</span>();</p>
+	<p class=desc>Returns true if the stall protection is currently active, 
+	i.e. forcing the colour channels to a safe state.
+	</p>
+	<p class=func><span class=keyword>getUpdateCount</span>();</p>
+	<p class=desc>Returns a count of the number of times the stall protection has updated. Can
+	be used as another cross-check that the protection system is functional.
+	</p>
+	</script>
+	
+<script type="text/x-red" data-template-name="AudioEffectProtectStall">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -5307,6 +5808,46 @@ double s_freq = .0625;</p>
     </div>
 </script>
 
+<!-- ------------------------------------------------------------------------------------>
+<script type="text/x-red" data-help-name="AudioEffectRotator">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>2D rotation of X/Y inputs</p>
+	<p>Used to apply real-time rotation to an X/Y position stream for a laser synth.
+	</p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Signal</th></tr>
+		<tr class=odd><td align=center>In 0</td><td>X co-ordinate</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Y co-ordinate</td></tr>
+		<tr class=odd><td align=center>In 2</td><td>Rotation</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Rotated X</td></tr>
+		<tr class=odd><td align=center>Out 1</td><td>Rotated Y</td></tr>
+	</table>
+	<p>Values of -1.0 to +1.0 on the rotation input
+	will cause rotation by -180° to +180° (unless reverse() has been used). 
+	Use a maximum amplitude sawtooth
+	input to create the appearance of continuous rotation.
+	</p>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>reverse</span>(flag);</p>
+	<p class=desc>Reverse the sense of the rotation input. 
+	If an AudioSynthWaveform object is used to create the rotation, it is impossible 
+	to "flip" its amplitude to reverse rotation without causing a jump:
+		use this function to change the rotation direction without such a discontinuity.
+		</p>
+</script>
+
+<script type="text/x-red" data-template-name="AudioEffectRotator">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- ------------------------------------------------------------------------------------>
+
 <script type="text/x-red" data-help-name="AudioEffectGranular">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
@@ -6657,6 +7198,73 @@ value  frequency
 </script>
 
 
+<!-- ------------------------------------------------------------------------------------------------------>
+<script type="text/x-red" data-help-name="AudioControlPCM3168">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
+	<p>Control the PCM3168 chip in TDM mode, for 6 inputs and 8 outputs.
+	</p>
+	<p align=center><img src="img/PCM3168.jpg"></p>
+	</div>
+	</div>
+	<h3>Audio Connections</h3>
+	<p>This object has no audio inputs or outputs.  Separate TDM objects
+		are used to send and receive audio data.
+	</p>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>reset</span>(pin);</p>
+	<p class=desc>Use to reset the PCM3168, whose RST pin must be connected to
+	the Teensy pin given as the parameter. This must be called before enable(),
+	unless you have implemented your own reset scheme.
+	</p><p class = desc>
+	The function returns the microsecond timestamp of when RST was negated, and enable()
+	enforces a 200us delay between this timestamp and enabling the chip. If the 200us have
+	already elapsed then no additional delay is applied.
+	</p>
+	<p class=func><span class=keyword>setAddress</span>(address);</p>
+	<p class=desc>Address value of 0 to 3 should match the 2 LSBits of your hardware I²C address.
+	(The PCM3168 uses addresses 0x44 to 0x47 - default is 0x44)
+	</p>
+	<p class=func><span class=keyword>setWire</span>(wire);</p>
+	<p class=desc>Wire object reference should match the I²C bus to which your PCM3168 is connected.
+	Defaults to Wire.
+	</p>
+	<p class=func><span class=keyword>enable</span>();</p>
+	<p class=desc>Enables the PCM3168 to work in TDM mode.
+	</p>
+	<p class=func><span class=keyword>volume</span>(level);</p>
+	<p class=desc>Set the volume level for all output channels. Range is 0 to 1.0.
+	</p>
+	<p class=func><span class=keyword>volume</span>(channel, level);</p>
+	<p class=desc>Set the volume level for a single output. Channel is 1 to 8.  Range is 0 to 1.0.
+	</p>
+	<p class=func><span class=keyword>inputLevel</span>(level);</p>
+	<p class=desc>Set the input gain level for all input channels. Range is 0 to 15.85.
+	</p>
+	<p class=func><span class=keyword>inputLevel</span>(channel, level);</p>
+	<p class=desc>Set the input gain level for a single input. Channel is 1 to 6. Range is 0 to 15.85.
+	</p>
+	<p class=func><span class=keyword>invertADC</span>(bitmask);</p>
+	<p class=desc>Inverts the phase of input channels whose bits are set in the mask.
+	</p>
+	<p class=func><span class=keyword>invertDAC</span>(bitmask);</p>
+	<p class=desc>Inverts the phase of output channels whose bits are set in the mask.
+	</p>
+	<h3>Notes</h3>
+	<div class=tooltipinfo>
+	<p>The PCM3168 chip requires a clock before it responds to I²C communications,
+	so its TDM object must be active before enable() is called. Additionally, it appears
+	highly advisable to cycle the /RST pin to reset the chip before using it.
+	</p>
+	</div>
+</script>
+<script type="text/x-red" data-template-name="AudioControlPCM3168">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+<!-- ------------------------------------------------------------------------------------------------------>
 
 </body>
 </html>
