@@ -7,6 +7,11 @@ AudioInputI2SHex	KEYWORD2
 AudioInputI2SOct	KEYWORD2
 AudioInputI2Sslave	KEYWORD2
 AudioInputTDM	KEYWORD2
+AudioInputTDMB	KEYWORD2
+AudioInputTDMC	KEYWORD2
+AudioInputTDMD	KEYWORD2
+AudioInputTDMAB	KEYWORD2
+AudioInputTDMCD	KEYWORD2
 AudioInputTDM2	KEYWORD2
 AudioInputPDM	KEYWORD2
 AudioInputUSB	KEYWORD2
@@ -23,6 +28,11 @@ AudioOutputSPDIF3	KEYWORD2
 AudioOutputPT8211	KEYWORD2
 AudioOutputPT8211_2	KEYWORD2
 AudioOutputTDM	KEYWORD2
+AudioOutputTDMB	KEYWORD2
+AudioOutputTDMC	KEYWORD2
+AudioOutputTDMD	KEYWORD2
+AudioOutputTDMAB	KEYWORD2
+AudioOutputTDMCD	KEYWORD2
 AudioOutputTDM2	KEYWORD2
 AudioOutputADAT	KEYWORD2
 AudioOutputPWM	KEYWORD2
@@ -241,6 +251,8 @@ setFrequency	KEYWORD2
 interpolationMethod	KEYWORD2
 passbandGain	KEYWORD2
 inputDrive	KEYWORD2
+setBCLKinverted	KEYWORD2
+getBCLKinverted	KEYWORD2
 
 AudioMemoryUsage	KEYWORD2
 AudioMemoryUsageMax	KEYWORD2

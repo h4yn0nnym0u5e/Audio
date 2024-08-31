@@ -28,7 +28,6 @@
 #include "play_wav_buffered.h"
 #include <laser_synth.h>
 
-
 /*
  * Prepare to play back from a file
  */
@@ -632,135 +631,114 @@ void AudioPlayWAVbuffered::update(void)
 						
 					}
 				}
-				else // playing a file: get more data
+				else // playing a file or from memory: get more data
 				{
 					result rdr = ok;
 					bool readNeeded = false;
 					int toRead = AUDIO_BLOCK_SAMPLES; 	// we need to create this many samples
 					AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
 					ILDAformatAny rec;
-					
-					while (toRead > 0)
+
+					while (toRead > 0) // keep going until we have a buffer full of samples
 					{
-						if (0 == thisILDA->samples)
+						do // loop until we have records bracketing the next output sample time
 						{
-							if (thisILDA->records > 0) // we're still reading the current set of records
+							while (thisILDA->recordFraction >= 1.0f) // need to load more from file / memory
 							{
-								// unbuffer
-								rdr = read((uint8_t*) &rec, AudioPlayILDA::sizes[thisILDA->recFormat]);
-								thisILDA->records--;
-								if (ok != rdr)
-									readNeeded = true;
+								if (memory == playState && readNeeded) // could be playing short file from memory
+								{	
+									// do a fake filesystem read, it's already in memory
+									reValidateHalf();
+									readNeeded = false;
+								}
 								
-								// convert to unpacked audio data
-								switch (thisILDA->recFormat)
+								if (thisILDA->records > 0) // we're still reading the current set of records
 								{
-									case 0: // XYZp
-										thisILDA->unpacked.X = htons(rec.f0.X);
-										thisILDA->unpacked.Y = htons(rec.f0.Y);
-										thisILDA->unpacked.Z = htons(rec.f0.Z);
-										{
-											int idx = rec.f0.index;
-											if (idx > thisILDA->paletteValid)
-												idx = thisILDA->paletteValid - 1;
-											thisILDA->unpacked.R = CONVERT(thisILDA->palette[idx].R);
-											thisILDA->unpacked.G = CONVERT(thisILDA->palette[idx].G);
-											thisILDA->unpacked.B = CONVERT(thisILDA->palette[idx].B);
-										}
-										thisILDA->unpacked.status = rec.f0.status;
-										break;
-										
-									case 1: // XYp
-										thisILDA->unpacked.X = htons(rec.f1.X);
-										thisILDA->unpacked.Y = htons(rec.f1.Y);
-										thisILDA->unpacked.Z = 0;
-										{
-											int idx = rec.f1.index;
-											if (idx > thisILDA->paletteValid)
-												idx = thisILDA->paletteValid - 1;
-											thisILDA->unpacked.R = CONVERT(thisILDA->palette[idx].R);
-											thisILDA->unpacked.G = CONVERT(thisILDA->palette[idx].G);
-											thisILDA->unpacked.B = CONVERT(thisILDA->palette[idx].B);
-										}
-										thisILDA->unpacked.status = rec.f1.status;
-										break;
-										
-									case 2: // palette
+									// unbuffer
+									rdr = read((uint8_t*) &rec, AudioPlayILDA::sizes[thisILDA->recFormat]);
+									thisILDA->records--;
+									if (ok != rdr)
+										readNeeded = true;
+									if (ok == rdr || halfEmpty == rdr) // got real data
 									{
-										int n = thisILDA->records; // remaining entries
-										
-										if (thisILDA->palette != thisILDA->defaultPalette // we have some valid palette memory
-										 && thisILDA->palette != nullptr)
-										{
-											
-											*thisILDA->palette = rec.f2; // safe: palette must have at least 2 entries
-											
-											if (n > thisILDA->paletteSize-1) // only read...
-												n = thisILDA->paletteSize-1; // ...as many as will fit
-											
-											rdr= read((uint8_t*) thisILDA->palette+1, n * AudioPlayILDA::sizes[thisILDA->recFormat]);
-											if (ok != rdr)
-												readNeeded = true;
-											
-											n = thisILDA->records - n; // how many didn't fit?
-										}
-										
-										if (n > 0) // need to discard unusable entries
-										{
-											rdr= read(nullptr, n * AudioPlayILDA::sizes[thisILDA->recFormat]); // discard
-											if (ok != rdr)
-												readNeeded = true;
-										}
+										thisILDA->firstRecord = thisILDA->secondRecord;
+										thisILDA->secondRecord = rec;
 									}
-										break;
-										
-									case 4:
-										thisILDA->unpacked.X = htons(rec.f4.X);
-										thisILDA->unpacked.Y = htons(rec.f4.Y);
-										thisILDA->unpacked.Z = htons(rec.f4.Z);
-										thisILDA->unpacked.R = CONVERT(rec.f4.R);
-										thisILDA->unpacked.G = CONVERT(rec.f4.G);
-										thisILDA->unpacked.B = CONVERT(rec.f4.B);
-										thisILDA->unpacked.status = rec.f4.status;
-										break;
-										
-									case 5:
-										thisILDA->unpacked.X = htons(rec.f5.X);
-										thisILDA->unpacked.Y = htons(rec.f5.Y);
-										thisILDA->unpacked.Z = 0;
-										thisILDA->unpacked.R = CONVERT(rec.f5.R);
-										thisILDA->unpacked.G = CONVERT(rec.f5.G);
-										thisILDA->unpacked.B = CONVERT(rec.f5.B);
-										thisILDA->unpacked.status = rec.f5.status;
-										break;
+									thisILDA->recordFraction -= 1.0f;  // this much closer to the record pair we need
 								}
-								
-							}
-							else // out of records, get a header
-							{
-								ILDAheader_s hdr;
-								
-								// unbuffer
-								rdr = read((uint8_t*) &hdr, sizeof hdr);
-								if (ok != rdr)
-									readNeeded = true;
-								
-								if (underflow != rdr && hdr.ilda.u == 0x41444C49) // TODO: fix magic number
+								else // out of records, get a header
 								{
-									thisILDA->recFormat = hdr.format;
-									thisILDA->records   = htons(hdr.records);							
+									ILDAheader_s hdr;
+									
+									// unbuffer
+									rdr = read((uint8_t*) &hdr, sizeof hdr);
+									if (ok != rdr)
+										readNeeded = true;
+									
+									if (underflow != rdr && hdr.ilda.u == 0x41444C49) // TODO: fix magic number
+									{
+										thisILDA->recFormat = hdr.format;
+										thisILDA->records   = htons(hdr.records);							
+									}
+									else
+										break; // just use stale data for now: should never happen
+									
+									if (2 == hdr.format) // palette...
+										break; // ...convert and continue
 								}
-								continue; // restart while() loop, we now have a new record count and format
 							}
-							thisILDA->samples = thisILDA->samplesPerPoint;
-						}
+							
+							if (2 != thisILDA->recFormat) // not a palette, interpolate
+							{
+								ILDAformatUnpacked first, second;
+								float sw = thisILDA->recordFraction, fw = 1.0f - sw;
+								
+								thisILDA->unpack(thisILDA->recFormat, thisILDA->firstRecord, first);
+								thisILDA->unpack(thisILDA->recFormat, thisILDA->secondRecord, second);
+								
+								// interpolate positions and colours
+								for (int i=0;i<6;i++)
+									thisILDA->unpacked.raw[i] = (int16_t) (fw * (float) first.raw[i] + sw * (float)second.raw[i]);
+								// either blanked means output is blanked
+								thisILDA->unpacked.status = first.status | second.status;								
+								break; // conversion done, we have a sample!
+							}
+							else // palette
+							{
+								int n = thisILDA->records; // number of colour entries (4.2.6)
+								
+								if (thisILDA->palette != thisILDA->defaultPalette // we have some valid palette memory
+								 && thisILDA->palette != nullptr)
+								{
+									
+									*thisILDA->palette = rec.f2; // safe: palette must have at least 2 entries
+									
+									if (n > thisILDA->paletteSize-1) // only read...
+										n = thisILDA->paletteSize-1; // ...as many as will fit
+									
+									rdr= read((uint8_t*) thisILDA->palette+1, n * AudioPlayILDA::sizes[thisILDA->recFormat]);
+									if (ok != rdr)
+										readNeeded = true;
+									
+									n = thisILDA->records - n; // how many didn't fit?
+								}
+								
+								if (n > 0) // need to discard unusable entries
+								{
+									rdr= read(nullptr, n * AudioPlayILDA::sizes[thisILDA->recFormat]); // discard
+									if (ok != rdr)
+										readNeeded = true;
+								}
+								continue; // continue while() loop
+							}
+						} while (1);
 						
 						if (2 == thisILDA->recFormat) // palette, nothing unpacked
 						{
-							thisILDA->samples = 0;
-							thisILDA->records = 0;
+							// thisILDA->recordFraction = 0; // no samples output, time hasn't changed
+							thisILDA->records = 0;  // no (point) records left in this frame
 						}
-						else
+						else // new point data generated, fill in all the buffers
 						{
 							*data[0]++ = thisILDA->unpacked.X;
 							*data[1]++ = thisILDA->unpacked.Y;
@@ -781,8 +759,8 @@ void AudioPlayWAVbuffered::update(void)
 								*data[6]++ = BLANKING(0);
 							}
 
-							toRead--;
-							thisILDA->samples--;
+							toRead--;  // one more sample generated
+							thisILDA->recordFraction += thisILDA->playbackRate; // step on in time
 						}
 					}
 					thisILDA->lastX = *(data[0] -1);
@@ -920,7 +898,7 @@ void AudioPlayILDA::copyPalette(ILDAformat2* dst, const ILDAformat2* src, int en
 }
 
 
-bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
+bool AudioPlayILDA::play(const uint8_t* ilda, size_t len)
 {
 	bool rv = false;
 	uint8_t* buf;
@@ -931,7 +909,7 @@ bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
 	
 	stop();
 	
-	createBuffer(ilda,len);	// pretend the in-memory data is a user-controlled buffer
+	createBuffer((uint8_t*) ilda,len);	// pretend the in-memory data is a user-controlled buffer
 	emptyBuffer();			// say it's empty to reset queue indexes and valid data counts
 	getNextRead(&buf, &sz);	// should be ilda and len! Could be side-effects so do it properly...
 	readExecuted(sz);		// say buffer data are valid
@@ -944,7 +922,7 @@ bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
 	
 	eof = false;
 	records = 0;
-	samples = 0;
+	recordFraction = 0.0f;
 		
 	fileLoaded = ARM_DWT_CYCCNT;
 	
@@ -953,9 +931,174 @@ bool AudioPlayILDA::play(uint8_t* ilda, size_t len)
 	setInUse(true); // prevent changes to buffer memory
 
 	rv = true; // nothing can go wrong (!)
-	return rv;	
-	
+	return rv;		
 }
+
+/**
+ * Unpack IDLA data record of any format
+ */
+void AudioPlayILDA::unpack(const uint8_t fmt, const ILDAformatAny& any, ILDAformatUnpacked& unpacked)
+{
+	switch (fmt)
+	{
+		case 0: // XYZp
+			unpacked.X = htons(any.f0.X);
+			unpacked.Y = htons(any.f0.Y);
+			unpacked.Z = htons(any.f0.Z);
+			{
+				int idx = any.f0.index;
+				if (idx > paletteValid)
+					idx = paletteValid - 1;
+				unpacked.R = CONVERT(palette[idx].R);
+				unpacked.G = CONVERT(palette[idx].G);
+				unpacked.B = CONVERT(palette[idx].B);
+			}
+			unpacked.status = any.f0.status;
+			break;
+			
+		case 1: // XYp
+			unpacked.X = htons(any.f1.X);
+			unpacked.Y = htons(any.f1.Y);
+			unpacked.Z = 0;
+			{
+				int idx = any.f1.index;
+				if (idx > paletteValid)
+					idx = paletteValid - 1;
+				unpacked.R = CONVERT(palette[idx].R);
+				unpacked.G = CONVERT(palette[idx].G);
+				unpacked.B = CONVERT(palette[idx].B);
+			}
+			unpacked.status = any.f1.status;
+			break;
+			
+		case 2: // palette: needs special treatment
+			break;
+			
+		case 4:
+			unpacked.X = htons(any.f4.X);
+			unpacked.Y = htons(any.f4.Y);
+			unpacked.Z = htons(any.f4.Z);
+			unpacked.R = CONVERT(any.f4.R);
+			unpacked.G = CONVERT(any.f4.G);
+			unpacked.B = CONVERT(any.f4.B);
+			unpacked.status = any.f4.status;
+			break;
+			
+		case 5:
+			unpacked.X = htons(any.f5.X);
+			unpacked.Y = htons(any.f5.Y);
+			unpacked.Z = 0;
+			unpacked.R = CONVERT(any.f5.R);
+			unpacked.G = CONVERT(any.f5.G);
+			unpacked.B = CONVERT(any.f5.B);
+			unpacked.status = any.f5.status;
+			break;
+	}
+}
+
+
+/**
+ * Find out at what frequency an ILDA-format file will repeat,
+ * assuming one point is output per audio sample.
+ */
+float AudioPlayILDA::repeatFrequency(const char* file,  //!< path to ILDA file
+									 FS& fs /* = SD */) //!< optional filesystem
+{
+	int records = 0;
+	File f = fs.open(file,FILE_READ);
+	
+	if (f)
+	{
+		do
+		{
+			ILDAheader_s hdr;
+			size_t got = f.read(&hdr,sizeof hdr);
+			uint16_t frameRecords;
+			
+			if (got != sizeof hdr
+			 || hdr.ilda.u != 0x41444C49)
+			{
+				records = 0;
+				break;
+			}
+			frameRecords = htons(hdr.records);
+			if (0 == frameRecords) // zero records, EOF
+				break;
+			if (hdr.format != 2) // we don't play back palette frames!
+				records += frameRecords;
+				
+			// seek forward to next header
+			f.seek(f.position() + frameRecords*sizes[hdr.format]);
+		} while (1);		
+	}
+	
+	return records == 0 
+				?0.0f
+				:AUDIO_SAMPLE_RATE_EXACT / (float) records;
+}
+
+
+/**
+ * Find out at what frequency an ILDA-format file loaded into memory
+ * will repeat, assuming one point is output per audio sample.
+ */
+float AudioPlayILDA::repeatFrequency(const uint8_t* buffer) //!< location that file is loaded
+{
+	int records = 0;
+	
+	do
+	{
+		ILDAheader_s* phdr = (ILDAheader_s*) buffer;
+		if (phdr->ilda.u == 0x41444C49)
+		{
+			uint16_t frameRecords = htons(phdr->records);
+			if (0 == frameRecords) // zero records, EOF
+				break;
+			if (phdr->format != 2) // we don't play back palette frames!
+				records +=frameRecords;
+			buffer += sizeof *phdr + frameRecords*sizes[phdr->format];
+		}
+		else
+		{
+			records = 0;
+			break;
+		}	
+	} while (1);
+	
+	return records == 0 
+				?0.0f
+				:AUDIO_SAMPLE_RATE_EXACT / (float) records;
+}
+
+
+/**
+ * Load a file into memory managed by a MemBuffer object.
+ */
+MemBuffer* AudioPlayILDA::loadFile(const char* file, 	//!< name of file to load
+								   bufType where, 		//!< memory type to use (heap or EXTMEM only)
+								   FS& fs /* = SD */)	//!< optional filesystem to use
+{
+	MemBuffer* result = nullptr;
+	File f = fs.open(file,FILE_READ);
+	
+	if (f)
+	{
+		size_t sz = f.size();
+		MemBuffer* buffer = new MemBuffer;
+		
+		if (ok == buffer->createBuffer(sz,where))
+		{
+			size_t got = f.read(buffer->buffer, sz);
+			if (got == sz)
+				result = buffer;
+		}
+		if (nullptr == result)
+			delete buffer;
+	}
+	
+	return result;
+}
+
 
 
 // ILDA standard color palette 

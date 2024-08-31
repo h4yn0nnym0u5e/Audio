@@ -31,6 +31,7 @@ static const uint32_t B2M_44100 = (uint32_t)((double)4294967296000.0 / AUDIO_SAM
 static const uint32_t B2M_22050 = (uint32_t)((double)4294967296000.0 / AUDIO_SAMPLE_RATE_EXACT * 2.0);
 static const uint32_t B2M_11025 = (uint32_t)((double)4294967296000.0 / AUDIO_SAMPLE_RATE_EXACT * 4.0);
 
+
 /**
  * Dispose of allocated buffer by releasing it back to the heap.
  * Heap used depends on where it was allocated from: in the case of a buffer 
@@ -176,7 +177,6 @@ AudioBuffer::result AudioBuffer::read(uint8_t* dest, //!< pointer to memory to c
 					memcpy(dest,buffer+queueOut,halfCount);
 					dest += halfCount;
 				}
-//for (size_t i=0;i<bufSize-queueOut;i++) buffer[queueOut+i] |= 0x20;
 				bytes -= halfCount; 				// this could be zero
 				validCount[whichHalf] = 0;			// this half must be empty now
 				queueOut = whichHalf?0:halfSize;	// switch queueOut to start of other half
@@ -202,7 +202,7 @@ AudioBuffer::result AudioBuffer::read(uint8_t* dest, //!< pointer to memory to c
 		else
 			rv = invalid; // buffer was not read, insufficient data was available
 	}
-	
+
 	return rv;
 }
 
