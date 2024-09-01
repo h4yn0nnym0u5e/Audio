@@ -130,15 +130,16 @@ public:
 		: AudioPlayWAVbuffered(),
 		lastX(0), lastY(0), lastZ(0),
 		paletteValid(256), paletteSize(256), palette((ILDAformat2*) defaultPalette)
-		{ setPlaybackRate(1.0f); chanCnt = 7; fileFormat = ILDA; }
+		{ setPlaybackRate(1.0f); chanCnt = 7; fileFormat = ILDA; setInterpolationMethod(FLOOR); }
 	int recFormat;  // format of records in this section (0,1,4,5; 2 changes palette, 3 doesn't exist)
 	int records; 	// remaining in this section
 	ILDAformatAny firstRecord, secondRecord; // current record pair we're interpolating in
 	float recordFraction; // how far through current record pair playback has got
 	ILDAformatUnpacked unpacked; // this will hold all other record types
 	float playbackRate; // rate of playback: 1.0 => 1 point every sample
+	enum InterpolationMethod_e {FLOOR, ROUND, INTERPOLATE} interpolationMethod;
 	
-	int paletteValid; // maximum valid index into palette memory
+	int paletteValid; // number of valid colours in palette memory
 	int paletteSize;  // number of entries possible in palette memory
 	ILDAformat2* palette; // colour palette data	
 	
@@ -151,6 +152,7 @@ public:
 	using AudioPlayWAVbuffered::play; 		// allow visibility of play() provided by base class
 	bool play(const uint8_t* ilda, size_t len);	// add our own from-memory version, for ILDA only
 	void setPlaybackRate(float rate) { playbackRate = rate; } 	// each ILDA point results in 'rate' samples
+	void setInterpolationMethod(InterpolationMethod_e m) { interpolationMethod = m; }
 	void setPaletteMemory(ILDAformat2* addr, int entries, int valid = -1); // point to new palette
 	static void copyPalette(ILDAformat2* dst, const ILDAformat2* src, int entries); // copy data to palette: NULL src uses default palette
 	static float repeatFrequency(const char* file, FS& fs = SD);

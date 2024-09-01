@@ -693,14 +693,30 @@ void AudioPlayWAVbuffered::update(void)
 								ILDAformatUnpacked first, second;
 								float sw = thisILDA->recordFraction, fw = 1.0f - sw;
 								
-								thisILDA->unpack(thisILDA->recFormat, thisILDA->firstRecord, first);
-								thisILDA->unpack(thisILDA->recFormat, thisILDA->secondRecord, second);
-								
-								// interpolate positions and colours
-								for (int i=0;i<6;i++)
-									thisILDA->unpacked.raw[i] = (int16_t) (fw * (float) first.raw[i] + sw * (float)second.raw[i]);
-								// either blanked means output is blanked
-								thisILDA->unpacked.status = first.status | second.status;								
+								switch (thisILDA->interpolationMethod)
+								{
+									case thisILDA->INTERPOLATE:
+										thisILDA->unpack(thisILDA->recFormat, thisILDA->firstRecord, first);
+										thisILDA->unpack(thisILDA->recFormat, thisILDA->secondRecord, second);
+										
+										// interpolate positions and colours
+										for (int i=0;i<6;i++)
+											thisILDA->unpacked.raw[i] = (int16_t) (fw * (float) first.raw[i] + sw * (float)second.raw[i]);
+										// either blanked means output is blanked
+										thisILDA->unpacked.status = first.status | second.status;								
+										break;
+									
+									case thisILDA->ROUND:
+										if (sw > 0.5f) // past halfway, round upwards
+										{
+											thisILDA->unpack(thisILDA->recFormat, thisILDA->secondRecord, thisILDA->unpacked);
+											break;
+										}
+										else // fall through to
+									case thisILDA->FLOOR:
+										thisILDA->unpack(thisILDA->recFormat, thisILDA->firstRecord, thisILDA->unpacked);
+										break;
+								}
 								break; // conversion done, we have a sample!
 							}
 							else // palette
@@ -962,7 +978,7 @@ void AudioPlayILDA::unpack(const uint8_t fmt, const ILDAformatAny& any, ILDAform
 			unpacked.Z = 0;
 			{
 				int idx = any.f1.index;
-				if (idx > paletteValid)
+				if (idx >= paletteValid)
 					idx = paletteValid - 1;
 				unpacked.R = CONVERT(palette[idx].R);
 				unpacked.G = CONVERT(palette[idx].G);
