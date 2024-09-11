@@ -27,9 +27,9 @@
 #ifndef play_sd_wav_h_
 #define play_sd_wav_h_
 
-#include "Arduino.h"
-#include "AudioStream.h"
-#include "SD.h"
+#include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
+#include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
+#include <SD.h>          // github.com/PaulStoffregen/SD/blob/Juse_Use_SdFat/src/SD.h
 
 // Need to buffer at least two audio blocks of samples, for stereo files,
 // but if AUDIO_BLOCK_SAMPLES has been set to a small value (<128 samples)
