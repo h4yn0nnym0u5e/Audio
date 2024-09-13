@@ -79,8 +79,12 @@ void AudioSynthWavetable::stop(void) {
 	cli();
 	if (env_state != STATE_IDLE) {
 		env_state = STATE_RELEASE;
-		env_count = current_sample->RELEASE_COUNT;
-		if (env_count == 0) env_count = 1;
+		if (nullptr != current_sample)
+			env_count = current_sample->RELEASE_COUNT;
+		else
+			env_count = 1;
+		if (env_count == 0) 
+			env_count = 1;
 		env_incr = -(env_mult) / (env_count * ENVELOPE_PERIOD);
 	}
 	PRINT_ENV(STATE_RELEASE);
