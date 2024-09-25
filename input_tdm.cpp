@@ -52,8 +52,10 @@ void AudioInputTDMbase::begin(int pin, //!< pin number, range 1-4
 	{
 		clks_per_frame = cpf;
 		dma.begin(true); // Allocate the DMA channel first
+		/* Unsafe? Risks leaking blocks 
 		for (int i=0; i < MAX_TDM_INPUTS; i++) 
 			block_incoming[i] = nullptr;
+		*/
 	}
 	else
 	{
@@ -184,41 +186,41 @@ void AudioInputTDMbase::isr(void)
 		src = &tdm_rx_buffer[0];
 	}
 	
-	if (block_incoming[0] != nullptr) // first block not present means none are present: drop the mic
+	#if IMXRT_CACHE_ENABLED >=1
+	arm_dcache_delete((void*)src, tdm_rxbuf_len / 2);
+	#endif
+	if (256 == clks_per_frame)
 	{
-		#if IMXRT_CACHE_ENABLED >=1
-		arm_dcache_delete((void*)src, tdm_rxbuf_len / 2);
-		#endif
-		if (256 == clks_per_frame)
+		/*
+		 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
+		 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
+		 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
+		 */
+		for (uint32_t pin=0;pin<nch;pin++)
 		{
-			/*
-			 * For 1 pin:  C01 C00 C03 C02 C05 C04 ...
-			 * For 2 pins: C01 C00 C17 C16 C03 C02 ...
-			 * For 3 pins: C01 C00 C17 C16 C33 C32 C03 C02 ...
-			 */
-			for (uint32_t pin=0;pin<nch;pin++)
+			uint32_t choff = pin*16;
+			for (i=0; i < 16; i++) 
 			{
-				uint32_t choff = pin*16;
-				for (i=0; i < 16; i++) 
-				{
-					int16_t* src16 = ((int16_t*) src)+((i^1)&1)+pin*2+((i&-2)*nch); // need to swap MSW and LSW
+				int16_t* src16 = ((int16_t*) src)+((i^1)&1)+pin*2+((i&-2)*nch); // need to swap MSW and LSW
+				if (nullptr != block_incoming[i+choff])
 					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, src16 += 16*nch) block_incoming[i+choff]->data[j] = *src16;
-				}
-			}
-		}
-		else
-		{
-			for (uint32_t pin=0;pin<nch;pin++) // nch = 2 or 4
-			{
-				uint32_t choff = pin*4;
-				for (i=0; i < 4; i++) 
-				{
-					int32_t* src32 = (int32_t*) src+i*nch+pin; // 0,2,4,6 1,3,5,7 or 0,4,8,12  1,5,9,13  2,6,10,14  3,7,11,15
-					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, src32 += 4*nch) block_incoming[i+choff]->data[j] = (*src32)/65536;
-				}
 			}
 		}
 	}
+	else
+	{
+		for (uint32_t pin=0;pin<nch;pin++) // nch = 2 or 4
+		{
+			uint32_t choff = pin*4;
+			for (i=0; i < 4; i++) 
+			{
+				int32_t* src32 = (int32_t*) src+i*nch+pin; // 0,2,4,6 1,3,5,7 or 0,4,8,12  1,5,9,13  2,6,10,14  3,7,11,15
+				if (nullptr != block_incoming[i+choff])
+					for (int j=0;j<AUDIO_BLOCK_SAMPLES; j++, src32 += 4*nch) block_incoming[i+choff]->data[j] = (*src32)/65536;
+			}
+		}
+	}
+
 	if (update_responsibility) update_all();
 }
 
