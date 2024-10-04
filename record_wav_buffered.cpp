@@ -27,6 +27,7 @@
 #include <Arduino.h>
 #include "record_wav_buffered.h"
 
+
 /* static */ uint8_t AudioRecordWAVbuffered::objcnt;
 /* static */ void AudioRecordWAVbuffered::EventResponse(EventResponderRef evref)
 {
@@ -55,8 +56,10 @@ void AudioRecordWAVbuffered::flushBuffer(uint8_t* pb, size_t sz)
 }//----------------------------------------------------
 
 		uint32_t now = micros();
+		disableResponse();
 		outN = wavfile.write(pb,sz);	// try for that
 		wavfile.flush();
+		enableResponse();
 		readMicros.newValue(micros() - now);
 		
 		if (outN < sz) // failed to write out all data
@@ -85,7 +88,7 @@ AudioRecordWAVbuffered::AudioRecordWAVbuffered(unsigned char ninput, audio_block
 	// prepare EventResponder to refill buffer
 	// during yield(), if triggered from update()
 	setContext(this);
-	attach(EventResponse);
+	//attach(EventResponse);
 }
 
 /**
@@ -97,7 +100,7 @@ AudioRecordWAVbuffered::AudioRecordWAVbuffered(unsigned char ninput, audio_block
  */
 bool AudioRecordWAVbuffered::recordSD(const char *filename, bool paused /* = false */)
 {
-	return record(SD.open(filename,O_RDWR), paused);
+	return record(filename, SD, paused);
 }
 
 
@@ -162,9 +165,11 @@ uint32_t AudioRecordWAVbuffered::_writeCurrentHeader(void)
 		// fix up the WAV file header with the correct lengths
 		header.data.clen = total_length;
 		header.riff.flen = total_length + sizeof header - offsetof(wavhdr_t,riff.wav);
+		disableResponse();
 		wavfile.seek(0);
 		if (sizeof header == wavfile.write(&header,sizeof header))
 			endPos = total_length;
+		enableResponse();
 	}
 	
 	return endPos;
@@ -182,10 +187,12 @@ uint32_t AudioRecordWAVbuffered::writeCurrentHeader(void)
 	
 	if (wavfile)
 	{
+		disableResponse();
 		size_t sz = wavfile.position();	// get current file position
 		endPos = _writeCurrentHeader(); // seek to 0 and write header
 		
 		wavfile.seek(sz); // back to old write position
+		enableResponse();
 	}
 	
 	return endPos;
@@ -201,9 +208,19 @@ void AudioRecordWAVbuffered::stop(void)
 		
 		state = STATE_STOP; // ensure update() no longer tries to write
 		
+		disableResponse();
+		
 		// ensure everything buffered gets written out
 		if (writePending)
-			yield();
+		{
+			if (getForceResponse()) // doing our own response scheduling
+			{
+				while (runPolled() > 0) // have to flush everything
+					;
+			}
+			else
+				yield();
+		}
 		getNextWrite(&pb,&sz);	// find out where and how much
 		flushBuffer(pb,sz);		// write out residual file data from the buffer
 
@@ -218,6 +235,8 @@ void AudioRecordWAVbuffered::stop(void)
 		_writeCurrentHeader();
 		
 		wavfile.close();
+		enableResponse();
+
 		eof = true;
 		setInUse(false); // allow changes to buffer memory
 	}

@@ -654,3 +654,52 @@ size_t AudioWAVdata::millisToPosition(float m,	// time [milliseconds]
 	
 	return pos;
 }
+
+
+/*
+ * Class extending EventResponder to provide facilities needed for 
+ * buffered access to filesystems. Because filesystems can themselves
+ * contain calls to yield(), we need to take special measures to
+ * avoid re-entering them during our response code.
+ */
+uint8_t AudioEventResponder::active_flags_copy;
+int AudioEventResponder::disableCount;
+AudioEventResponder::triggeredList AudioEventResponder::pollList;
+bool AudioEventResponder::forceResponse;
+
+void AudioEventResponder::addToList(void)
+{
+	triggeredList& list = pollList;
+
+	if (list.first == nullptr) // list is empty...
+	{
+		list.first = this;		// ...event is the first...
+		_aprev = nullptr; 	// ...nothing before it
+	} 
+	else // non-empty, put after last item...
+	{
+		_aprev = list.last;
+		_aprev->_anext = this;
+	}
+	list.last = this; // ...and at end of list
+	_anext = nullptr;
+}
+
+
+void AudioEventResponder::removeFromList(void)
+{
+	triggeredList& list = pollList;
+
+	if (list.first == this) 	// first list element?
+		list.first = _anext;	// new first
+		
+	if (list.last == this) 		// last list element?
+		list.last = _aprev;	// new last
+
+	if (nullptr != _anext)	// not last
+		_anext->_aprev = _aprev; // following item has new previous
+		
+	if (nullptr != _prev)	// not first
+		_aprev->_anext = _anext; // previous item has new following
+}
+

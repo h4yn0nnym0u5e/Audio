@@ -39,7 +39,7 @@
 #endif // !defined(SAFE_RELEASE_INPUTS)
 
 
-class AudioRecordWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
+class AudioRecordWAVbuffered : public AudioEventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
 {
 public:
 	AudioRecordWAVbuffered(unsigned char ninput, audio_block_t **iqueue);
@@ -53,7 +53,12 @@ public:
 	bool recordSD(const char* filename, bool paused = false);
 	bool record(const File _file, bool paused = false);
 	bool record(const char* filename, FS& fs = SD, bool paused = false)
-		{ return record(fs.open(filename,O_RDWR), paused); }
+		{ 
+			disableResponse();
+			bool result = record(fs.open(filename,O_RDWR), paused); 
+			enableResponse();
+			return result;
+		}
 	bool record(void)  { if (isPaused())  toggleRecordPause(); return isRecording(); }
 	bool pause(void) { if (isRecording()) toggleRecordPause(); return isPaused();  }
 	bool cueSD(const char* filename) { return recordSD(filename,true); }
