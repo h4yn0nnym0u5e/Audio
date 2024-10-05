@@ -82,6 +82,7 @@ public:
 	friend class AudioRecordWAVstereo;
 	
 private:
+	void attachDespatcher(void);
 	uint32_t _writeCurrentHeader(void);
 	audio_block_t *inputQueueArray[2];
 	enum state_e {STATE_STOP,STATE_PAUSED,STATE_RECORDING};

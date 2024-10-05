@@ -91,6 +91,18 @@ AudioRecordWAVbuffered::AudioRecordWAVbuffered(unsigned char ninput, audio_block
 	//attach(EventResponse);
 }
 
+// Figure out how to attach the EventDespatcher
+void AudioRecordWAVbuffered::attachDespatcher(void)
+{
+	if (getForceResponse())
+		attachPolled(EventResponse);
+	else
+		attach(EventResponse);
+	// attaching a yield() responder for the first time sets
+	// the flag, so ensure we don't clear it on enableResponse()!
+	updateResponse();  
+}	
+
 /**
  * Record to a file on SD card.
  * We open for read / write, but don't truncate the file as this may save
@@ -121,7 +133,7 @@ bool AudioRecordWAVbuffered::record(const File _file, bool paused /* = false */)
 		size_t sz,stagger;
 		constexpr int SLOTS=16;
 		
-		//* stagger write timings:
+		// stagger write timings:
 		stagger = bufSize / 1024; 
 		if (stagger > SLOTS)
 			stagger = SLOTS;
@@ -145,6 +157,8 @@ bool AudioRecordWAVbuffered::record(const File _file, bool paused /* = false */)
 		eof = false;
 		rv = true;
 		setInUse(true); // prevent changes to buffer memory
+		
+		attachDespatcher();
 	}
 
 	return rv;
