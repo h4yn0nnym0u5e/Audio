@@ -13,13 +13,13 @@ teensy41.menu.audiorate.96.build.flags.audiorate=96000.0f
 teensy41.menu.audiorate.96.build.flags.audiorateI=96000
 teensy40.menu.audiorate.44=44.1kHz
 teensy40.menu.audiorate.44.build.flags.audiorate=44100.0f
-teensy41.menu.audiorate.44.build.flags.audiorateI=44100
+teensy40.menu.audiorate.44.build.flags.audiorateI=44100
 teensy40.menu.audiorate.48=48kHz
 teensy40.menu.audiorate.48.build.flags.audiorate=48000.0f
-teensy41.menu.audiorate.48.build.flags.audiorateI=48000
+teensy40.menu.audiorate.48.build.flags.audiorateI=48000
 teensy40.menu.audiorate.96=96kHz
 teensy40.menu.audiorate.96.build.flags.audiorate=96000.0f
-teensy41.menu.audiorate.96.build.flags.audiorateI=96000
+teensy40.menu.audiorate.96.build.flags.audiorateI=96000
 
 menu.audioblocksize=Audio block size
 teensy41.menu.audioblocksize.normal=128 samples (normal)
