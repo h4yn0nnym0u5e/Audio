@@ -306,7 +306,7 @@ void setup()
   AudioMemoryUsageMaxReset();
 
   // yield() execution not masked - must poll events ourselves:
-  AudioEventResponder::setForceResponse(true); 
+  AudioEventResponder::setForceResponse(true); // use 'false' to select other response method
   Serial.printf("Using %s event execution\n",
                 AudioEventResponder::getForceResponse()
                           ?"self-polled"
