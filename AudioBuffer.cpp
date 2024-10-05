@@ -703,3 +703,125 @@ void AudioEventResponder::removeFromList(void)
 		_aprev->_anext = _anext; // previous item has new following
 }
 
+
+/**
+ * Prevent yield() from executing event responses
+ */
+void AudioEventResponder::disableResponse(void) 
+{
+	if (0 == disableCount)
+	{
+		active_flags_copy = yield_active_check_flags;
+		if (!forceResponse)
+			yield_active_check_flags &= ~YIELD_CHECK_EVENT_RESPONDER;
+	}
+	disableCount++;
+}
+
+	
+// Restore the yield enable flag
+void AudioEventResponder::enableResponse(void) 
+{ 
+	disableCount--;
+	if (disableCount <= 0)
+	{
+		if (!forceResponse)
+			yield_active_check_flags |= active_flags_copy;
+		disableCount = 0;
+	}
+}
+
+// Update the stashed enable flag after it might have changed,
+// and re-disable yield response if we're expecting that
+void AudioEventResponder::updateResponse(void) 
+{
+	active_flags_copy |= yield_active_check_flags & YIELD_CHECK_EVENT_RESPONDER;
+	if (disableCount > 0 && !forceResponse)
+		yield_active_check_flags &= ~YIELD_CHECK_EVENT_RESPONDER;
+		
+}
+
+		
+// Attach a function to be executed when polled from user code
+void AudioEventResponder::attachPolled(EventResponderFunction function) 
+{
+	detach();
+	bool irq = disableInterrupts();
+	_function = function;
+	_type = EventTypeImmediate; // not used
+	_isPolled = true;
+	enableInterrupts(irq);		
+}
+
+
+void AudioEventResponder::detach(void)
+{
+	if (_isPolled)
+	{
+		_isPolled = false;
+		_type = EventTypeDetached;
+		bool irq = disableInterrupts();
+		if (_triggered)
+			removeFromList();
+		enableInterrupts(irq);		
+	}
+	else
+		EventResponder::detach();
+}
+	
+	
+void AudioEventResponder::triggerEvent(int status /* =0 */, void *data /* =nullptr */) 
+{
+	if (_isPolled)
+	{
+		bool irq = disableInterrupts();
+		_status = status;
+		_data = data;
+		if (!_triggered)
+		{
+			addToList();
+			_triggered = true;
+		}
+		enableInterrupts(irq);
+	}
+	else
+		EventResponder::triggerEvent(status, data);
+	
+	// fix bug in EventResponder
+	if (EventTypeDetached == _type)
+		_triggered = false;
+}
+
+	
+void AudioEventResponder::m_runPolled(void)
+{
+	bool irq = disableInterrupts();
+	removeFromList();			// remove from pending list
+	_triggered = false;		// no longer triggered
+	enableInterrupts(irq);
+	if (_function)			// if function is attached...
+		(*(_function))(*((EventResponder*) this)); // ...run it
+}	
+
+	
+/**
+ * Run event from polled list.
+ * Return value is usually 0 or 1, because as things stand update() generates
+ * an event on every execution - it would be more efficient if it only 
+ * triggered a reload request if it knew there was an empty buffer. 
+ *
+ * \return -1 if nothing to do, 0 for event run but none remain, or 1 if pending events remain
+ */
+int AudioEventResponder::runPolled(void)
+{
+	int result = -1;
+	
+	AudioEventResponder* toRun = (AudioEventResponder*) pollList.first;  // keep a pointer to it
+	if (toRun != nullptr) // we have something to run
+	{
+		toRun->m_runPolled();
+		result = 0;
+	}
+	
+	return pollList.first == nullptr?result:1;
+}
