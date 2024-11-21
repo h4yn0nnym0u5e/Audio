@@ -289,12 +289,14 @@ class AudioWAVdata
 		};
 	};
 		
-	struct ILDAformatUnpacked
+	struct __attribute__ ((packed))
+	ILDAformatUnpacked
 	{
 		union 
 		{
 			struct {int16_t X,Y,Z,R,G,B,status;};
 			int16_t raw[7];
+			struct {int16_t XYZ[3], RGB[3];};
 		};
 	};
 

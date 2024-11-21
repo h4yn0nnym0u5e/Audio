@@ -692,16 +692,16 @@ void AudioPlayWAVbuffered::update(void)
 							{
 								ILDAformatUnpacked first, second;
 								float sw = thisILDA->recordFraction, fw = 1.0f - sw;
+								thisILDA->unpack(thisILDA->recFormat, thisILDA->firstRecord, first);
+								thisILDA->unpack(thisILDA->recFormat, thisILDA->secondRecord, second);
 								
-								switch (thisILDA->interpolationMethod)
+								// deal with colour interpolation:
+								switch (thisILDA->interpolateRGB)
 								{
 									case thisILDA->INTERPOLATE:
-										thisILDA->unpack(thisILDA->recFormat, thisILDA->firstRecord, first);
-										thisILDA->unpack(thisILDA->recFormat, thisILDA->secondRecord, second);
-										
-										// interpolate positions and colours
-										for (int i=0;i<6;i++)
-											thisILDA->unpacked.raw[i] = (int16_t) (fw * (float) first.raw[i] + sw * (float)second.raw[i]);
+										// interpolate colours
+										for (int i=0;i<3;i++)
+											thisILDA->unpacked.RGB[i] = (int16_t) (fw * (float) first.RGB[i] + sw * (float)second.RGB[i]);
 										// either blanked means output is blanked
 										thisILDA->unpacked.status = first.status | second.status;								
 										break;
@@ -709,14 +709,36 @@ void AudioPlayWAVbuffered::update(void)
 									case thisILDA->ROUND:
 										if (sw > 0.5f) // past halfway, round upwards
 										{
-											thisILDA->unpack(thisILDA->recFormat, thisILDA->secondRecord, thisILDA->unpacked);
+											memcpy(thisILDA->unpacked.RGB, second.RGB, sizeof second.RGB);
 											break;
 										}
 										else // fall through to
 									case thisILDA->FLOOR:
-										thisILDA->unpack(thisILDA->recFormat, thisILDA->firstRecord, thisILDA->unpacked);
+										memcpy(thisILDA->unpacked.RGB, first.RGB, sizeof first.RGB);
 										break;
 								}
+
+								// deal with position interpolation:
+								switch (thisILDA->interpolateXYZ)
+								{
+									case thisILDA->INTERPOLATE:
+										// interpolate colours
+										for (int i=0;i<3;i++)
+											thisILDA->unpacked.XYZ[i] = (int16_t) (fw * (float) first.XYZ[i] + sw * (float)second.XYZ[i]);
+										break;
+									
+									case thisILDA->ROUND:
+										if (sw > 0.5f) // past halfway, round upwards
+										{
+											memcpy(thisILDA->unpacked.XYZ, second.XYZ, sizeof second.XYZ);
+											break;
+										}
+										else // fall through to
+									case thisILDA->FLOOR:
+										memcpy(thisILDA->unpacked.XYZ, first.XYZ, sizeof first.XYZ);
+										break;
+								}
+
 								break; // conversion done, we have a sample!
 							}
 							else // palette
