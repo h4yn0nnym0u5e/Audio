@@ -44,7 +44,7 @@
 class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
 {
 public:
-	AudioPlayWAVbuffered(void);
+	AudioPlayWAVbuffered(unsigned char ninput = 0, audio_block_t **iqueue = nullptr);
 	~AudioPlayWAVbuffered(void);
 	
 	bool playSD(const char* filename, bool paused = false, float startFrom = 0.0f);
@@ -121,13 +121,17 @@ class AudioPlayILDA	 : public AudioPlayWAVbuffered
 {
 	friend class AudioPlayWAVbuffered;
 	void unpack(const uint8_t fmt, const ILDAformatAny& any, ILDAformatUnpacked& unpacked);
+	audio_block_t* inputQueueArray[1];
 protected:	
+	bool isTriggered; // true if playback has been triggered
+	int16_t lastTrigger;
 	int16_t lastX, lastY, lastZ; // last known galvo positions, for when we stop
 	static const int sizes[6];
 	static const ILDAformat2 defaultPalette[256];
 public:	
 	AudioPlayILDA() 
-		: AudioPlayWAVbuffered(),
+		: AudioPlayWAVbuffered(1,inputQueueArray),
+		isTriggered(true),
 		lastX(0), lastY(0), lastZ(0),
 		paletteValid(256), paletteSize(256), palette((ILDAformat2*) defaultPalette)
 		{ 
@@ -135,6 +139,7 @@ public:
 			setInterpolationRGB(FLOOR); 
 			setInterpolationXYZ(FLOOR); 
 		}
+int trigCount;		
 	int recFormat;  // format of records in this section (0,1,4,5; 2 changes palette, 3 doesn't exist)
 	int records; 	// remaining in this section
 	ILDAformatAny firstRecord, secondRecord; // current record pair we're interpolating in
@@ -142,6 +147,8 @@ public:
 	ILDAformatUnpacked unpacked; // this will hold all other record types
 	float playbackRate; // rate of playback: 1.0 => 1 point every sample
 	enum InterpolationMethod_e {FLOOR, ROUND, INTERPOLATE} interpolateRGB, interpolateXYZ;
+	enum class TriggerType {FREE_RUN, EDGE_POS, EDGE_NEG, LEVEL_HIGH, LEVEL_LOW} triggerType;
+	enum class TriggerEvery {FREE_RUN, FRAME, FILE} triggerEvery;
 	
 	int paletteValid; // number of valid colours in palette memory
 	int paletteSize;  // number of entries possible in palette memory
@@ -158,6 +165,8 @@ public:
 	void setPlaybackRate(float rate) { playbackRate = rate; } 	// each ILDA point results in 'rate' samples
 	void setInterpolationRGB(InterpolationMethod_e m) { interpolateRGB = m; }
 	void setInterpolationXYZ(InterpolationMethod_e m) { interpolateXYZ = m; }
+	void setTriggerType(TriggerType m) { triggerType = m; }
+	void setTriggerEvery(TriggerEvery m) { triggerEvery = m; }
 	void setPaletteMemory(ILDAformat2* addr, int entries, int valid = -1); // point to new palette
 	static void copyPalette(ILDAformat2* dst, const ILDAformat2* src, int entries); // copy data to palette: NULL src uses default palette
 	static float repeatFrequency(const char* file, FS& fs = SD);

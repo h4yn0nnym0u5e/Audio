@@ -274,8 +274,8 @@ uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
 
 
 /* Constructor */
-AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
-		AudioStream(0, NULL),
+AudioPlayWAVbuffered::AudioPlayWAVbuffered(unsigned char ninput, audio_block_t **iqueue) : 
+		AudioStream(ninput, iqueue),
 		lowWater(0xFFFFFFFF),
 		
 		eof(false), 
@@ -485,8 +485,8 @@ static void deinterleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 
 void AudioPlayWAVbuffered::update(void)
 {
-	audio_block_t* blocks[chanCnt];	
-	int16_t* data[chanCnt];
+	audio_block_t* blocks[chanCnt], *trigger_block;	
+	int16_t* data[chanCnt], *trigger_data = nullptr;
 	int alloCnt = 0; // count of blocks successfully allocated
 	
 	// only update if we're playing and not paused, and it's a WAV file
@@ -521,6 +521,16 @@ void AudioPlayWAVbuffered::update(void)
 		data[alloCnt] = blocks[alloCnt]->data;
 		alloCnt++;
 	}
+	
+	// ILDA files can have a trigger channel - see if this is the case
+	trigger_block = receiveReadOnly(0);
+	if (nullptr != trigger_block)
+	{
+		AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
+		trigger_data = trigger_block->data;
+		thisILDA->trigCount+=10000;
+	}
+	
 	
 	if (alloCnt >= chanCnt) // allocated enough - fill them with data
 	{
@@ -609,11 +619,11 @@ void AudioPlayWAVbuffered::update(void)
 				break;
 				
 			case ILDA:
-			{
+			{					
 				if (state == STATE_STOP || state == STATE_STOPPING || state == STATE_PAUSED)
 				{
 					AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
-					// stopped: still need to putput something sane
+					// stopped: still need to output something sane
 					for (int i=0;i<AUDIO_BLOCK_SAMPLES;i++)
 					{
 						// use last galvo position: this would be dangerous, but...
@@ -641,8 +651,43 @@ void AudioPlayWAVbuffered::update(void)
 
 					while (toRead > 0) // keep going until we have a buffer full of samples
 					{
+						if (nullptr != trigger_data)
+						{
+							int16_t trig = *trigger_data++; // get next trigger sample
+							switch (thisILDA->triggerType)
+							{
+								default:
+								case AudioPlayILDA::TriggerType::FREE_RUN:
+									thisILDA->isTriggered = true;
+									break;
+									
+								case AudioPlayILDA::TriggerType::EDGE_POS:
+									if (trig > thisILDA->lastTrigger) // any rise!
+									{
+										thisILDA->isTriggered = true;
+										thisILDA->trigCount++;
+									}
+									break;
+							}
+							thisILDA->lastTrigger = trig;
+						}
+							
 						do // loop until we have records bracketing the next output sample time
 						{
+							if (!thisILDA->isTriggered) // not triggered, don't read file
+							{
+								// create a blanked point
+								thisILDA->unpacked.X = thisILDA->lastX;
+								thisILDA->unpacked.Y = thisILDA->lastY;
+								thisILDA->unpacked.Z = thisILDA->lastZ;	
+								thisILDA->unpacked.status = 0x40;
+								
+								// step back in time, as buffering steps on, regardless
+								thisILDA->recordFraction -= thisILDA->playbackRate; 
+								
+								break; // and buffer the point
+							}
+							
 							while (thisILDA->recordFraction >= 1.0f) // need to load more from file / memory
 							{
 								if (memory == playState && readNeeded) // could be playing short file from memory
@@ -669,7 +714,7 @@ void AudioPlayWAVbuffered::update(void)
 								else // out of records, get a header
 								{
 									ILDAheader_s hdr;
-									
+																		
 									// unbuffer
 									rdr = read((uint8_t*) &hdr, sizeof hdr);
 									if (ok != rdr)
@@ -678,7 +723,15 @@ void AudioPlayWAVbuffered::update(void)
 									if (underflow != rdr && hdr.ilda.u == 0x41444C49) // TODO: fix magic number
 									{
 										thisILDA->recFormat = hdr.format;
-										thisILDA->records   = htons(hdr.records);							
+										thisILDA->records   = htons(hdr.records);
+										
+										// if triggering on frame starts, stop until re-triggered,
+										// unless this is the EOF header. If that's true, we will do
+										// another header read and get a non-zero record cound, stop,
+										// and be properly ready for triggering.
+										if (AudioPlayILDA::TriggerEvery::FRAME == thisILDA->triggerEvery
+										 && 0 != thisILDA->records) 
+											thisILDA->isTriggered = false;
 									}
 									else
 										break; // just use stale data for now: should never happen
@@ -710,11 +763,13 @@ void AudioPlayWAVbuffered::update(void)
 										if (sw > 0.5f) // past halfway, round upwards
 										{
 											memcpy(thisILDA->unpacked.RGB, second.RGB, sizeof second.RGB);
+											thisILDA->unpacked.status = second.status;								
 											break;
 										}
 										else // fall through to
 									case thisILDA->FLOOR:
 										memcpy(thisILDA->unpacked.RGB, first.RGB, sizeof first.RGB);
+										thisILDA->unpacked.status = first.status;								
 										break;
 								}
 
@@ -838,6 +893,8 @@ void AudioPlayWAVbuffered::update(void)
 	while (--alloCnt >= 0)
 		release(blocks[alloCnt]);
 	
+	if (nullptr != trigger_block)
+		release(trigger_block);
 }
 
 /*

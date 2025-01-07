@@ -6,6 +6,8 @@ The `AudioPlayWAV*` and `AudioRecordWAV*` objects are intended to provide good-p
 For playback, `AudioPlayWAVstereo`, `AudioPlayWAVquad`, `AudioPlayWAVhex`, and `AudioPlayWAVoct` objects are provided. These have 2, 4, 6 and 8 outputs respectively; in order to play a mono WAV file, use either output of an `AudioPlayWAVstereo` object.
 ### Recording
 For recording, `AudioRecordWAVmono`, `AudioRecordWAVstereo`, `AudioRecordWAVquad`, `AudioRecordWAVhex`, and `AudioRecordWAVoct` objects are provided. These have 1, 2, 4, 6 and 8 inputs respectively. Inputs which are not connected will still result in a channel being present in the stored WAV file, but it will be silent.
+### Pre-load
+For low-latency playback applications, an `AudioPreload` class is provided. This is used to store file information and some audio data from the start of the file, so that playback can start on the next audio system update. Playback transitions seamlessly to streaming from the fileystem once the pre-loadded audio data is exhausted.
 
 ## Enums
 ### `AudioBuffer::result`
@@ -14,8 +16,21 @@ One of ``AudioBuffer::ok``, ``AudioBuffer::halfEmpty``, ``AudioBuffer::underflow
 One of ``AudioBuffer::none``, ``AudioBuffer::given``, ``AudioBuffer::inHeap``, ``AudioBuffer::inExt``; used to define where an object's buffer memory is located. See ``createBuffer()``.
 
 ## Functions
+### System control
+A number of functions are provided to control operation of the system, depending on the needs of your sketch. If your sketch does not access the filesystem during playback or recording then you can ignore these.
+
+### `AudioEventResponder::setForceResponse(bool)`
+Calling this function with a `true` parameter *forces* the system to execute Event responses from within the `yield()` function, *even if* a call to `AudioEventResponder::disableResponse(bool)` has been made. If this is the case, then the events that the system generates are placed into a separate list, and *must* be executed by calls to `AudioEventResponder::runPolled()` from your sketch, at sufficiently frequent intervals so the buffers are updated in a timely manner. 
+
+### `AudioEventResponder::disableResponse()`
+### `AudioEventResponder::enableResponse()`
+If a call to `AudioEventResponder::setForceResponse(true)` has *not* been made, and your code accesses the filesystem, those access calls (e.g. `open()`, `read()`, `write()` etc.) *must* be "wrapped" in calls to these two functions. They act in a similar manner to disabling interrupts, but apply to all EventResponder functions attached to `yield()`. If you do not do this then filesystem accesses during playback or recording will very likely cause your sketch to become unstable or crash.
+
+### `AudioEventResponder::runPolled()` 
+Call this from your sketch, at sufficiently frequent intervals so the buffers are updated in a timely manner, if you have previously made a call to `AudioEventResponder::setForceResponse(true)`. 
+
 ### Buffer functions
-For best results a buffer should be allocated prior to using any of these objects; if you fail to do so, a minimal 1k buffer will be allocated on the first operation, but it is unlikely to be large enough to provide stable operation.
+For best results a buffer should be allocated prior to using any of the playback and record objects; if you fail to do so, a minimal 1k buffer will be allocated on the first operation, but it is unlikely to be large enough to provide stable operation.
 ### `AudioBuffer::result createBuffer(size_t size,AudioBuffer::bufType location)`
 Creates a memory buffer of the required ``size`` in the requested ``location``. The return value will be ``AudioBuffer::ok`` if there was enough memory available to allocate the buffer, or `AudioBuffer::invalid` if memory could not be allocated, or the object was actively using the buffer to play or record when the attempt was made. 
 
@@ -27,17 +42,41 @@ It is highly recommended that ``size`` be a multiple of 1024. Use of this varian
 ### `AudioBuffer::result disposeBuffer()`
 Signals that the object no longer requires the use of the buffer allocated by a call to ``createBuffer()``. If allocated by the ``size, location`` overload, then the memory will be freed up; if the ``address, size`` overload was used, the application may re-purpose the buffer _after_ this call has been made. Returns ``AudioBuffer::ok`` if the buffer was disposed of, or `AudioBuffer::invalid` if the object was actively using the buffer to play or record when the attempt was made.
 
+### Pre-load
+### `AudioPreload()`
+Defines an "empty" pre-load object.
+### `AudioPreload(AudioBuffer::bufType bt, size_t sz)`
+Defines a pre-load object with buffer memory of size `sz`, in memory area `bt`. The buffer memory is allocated by the object's constructor.
+### `AudioPreload(uint8_t* buf, size_t sz)`
+Defines a pre-load object with buffer memory of size `sz`, at address `buf`: the programmer is responsible for managing the buffer memory.
+### `AudioBuffer::result preLoad(const char* fp, AudioBuffer::bufType bt, size_t sz, float startFrom = 0.0f, FS& fs = SD)`
+Allocate buffer and load audio data from file named in `fp`
+### `AudioBuffer::result preLoad(const char* fp, uint8_t* buf, size_t sz, float startFrom = 0.0f, FS& fs = SD)`
+Load audio data from file named in `fp` into provided buffer memory at `buf`
+### `AudioBuffer::result preLoad(const char* fp, float startFrom = 0.0f, FS& fs = SD)`
+Load audio data from file named in `fp` into pre-existing buffer memory.
+### `bool isReady(void)`
+Returns `true` if pre-load object has data loaded.
+
 ### Operational functions
 ### Playback
 ### ``bool playSD(const char* filename [,bool paused=false [,float startFrom = 0.0]])``
 ### ``bool cueSD(const char* filename [,float startFrom = 0.0])``
 ### ``bool play(File file [,bool paused=false [,float startFrom = 0.0]])``
+### ``bool play(const char* filename, [,bool paused=false [,float startFrom = 0.0]])``
+### ``bool play(const char* filename, FS& filesystem, [,bool paused=false [,float startFrom = 0.0]])``
+### ``bool play(AudioPreload& p, [,bool paused=false [,float startFrom = 0.0]])``
 ### ``bool cue(File file [,float startFrom = 0.0])``
-Play a file from SD or another filesystem. If the optional ``paused`` parameter is provided and set to true, then playing will start in "paused" mode; the identical effect can be achieved by using the ``cue()`` variants, which are equivalent to ``play(<something>,true)``.
+Play a file from SD, another filesystem, or a pre-load object. If the optional ``paused`` parameter is provided and set to true, then playing will start in "paused" mode; the identical effect can be achieved by using the ``cue()`` variants, which are equivalent to ``play(<something>,true)``.
 
-The optional `startFrom` parameter sets an offset into the audio data from which playback should start; the value is in milliseconds. This may be useful if you have pre-loaded the start of the file for playing directly from memory using the AudioPlayMemory object, and will play the rest from the filesystem once it has been cued up. This allows the use of large sample sets while still minimising latency and using only a single file for each sample. 
+The optional `startFrom` parameter sets an offset into the audio data from which playback should start; the value is in milliseconds. ~~This may be useful if you have pre-loaded the start of the file for playing directly from memory using the AudioPlayMemory object, and will play the rest from the filesystem once it has been cued up. This allows the use of large sample sets while still minimising latency and using only a single file for each sample.~~ Usage deprecated: use an `AudioPreload` object to achieve low-latency start of playback.
 
-Whichever variant is used, the buffer will be pre-loaded from the filesystem during the function call, which may mean that the call takes a few milliseconds to return. If synchronisation of multiple files is important to your application, you should start them in paused mode and then resume them simultaneously - see the ``play()`` function. 
+Unless an `AudioPreload` object is used, the buffer will be pre-loaded from the filesystem during the `play()` function call, which may mean that the call takes a few milliseconds to return. If synchronisation of multiple files is important to your application, you should start them in paused mode and then resume them simultaneously.
+
+Playing a pre-load object will start emitting audio on the next audio update, from the buffer data already loaded. The filename and filesystem are also stored in the object, and used to transition to streaming playback once the pre-load buffer is exhausted.
+
+### `void adjustHeaderInfo(void)`
+Forces a re-read of the WAV header, typically after recording is stopped. The header is written when recording stops and the file size is known, but if you have started playback while recording, you *must* call this to ensure playback will reach the end of the file. See also `writeCurrentHeader()`. Typically used for 'looper' applications.
 
 ### Recording
 ### ``bool recordSD(const char* filename [,bool paused=false])``
@@ -47,6 +86,9 @@ Whichever variant is used, the buffer will be pre-loaded from the filesystem dur
 Record a file to SD or another filesystem. If the optional ``paused`` parameter is provided and set to true, then recording will start in "paused" mode; the identical effect can be achieved by using the ``cue()`` variants, which are equivalent to ``record(<something>,true)``.
 
 If synchronisation of multiple files is important to your application, you should start them in paused mode and then resume them simultaneously - see the ``record()`` function. 
+
+### `void writeCurrentHeader(void)`
+Forces a valid WAV header to be written before recording is stopped. Usually the header is only written when recording stops and the file size is known, but if you want to start playback while recording, you *must* call this before doing so. See also `adjustHeaderInfo()`. Typically used for 'looper' applications.
 
 ### Transport controls
 ### ``bool pause()``
@@ -83,19 +125,39 @@ Returns the file length, in milliseconds. For playback this is straighforward. D
 ## Constraints
 ### Memory buffers
 Each object _must_ have its own memory buffer to hold audio data awaiting playback or storage to the filesystem. The larger the buffer the more resilience the system will have to filesystem (or other) delays, but obviously at a penalty of reducing the memory available for other aspects of your application. If you have PSRAM fitted this can be used for buffer memory (see ``createBuffer()``).
-### Yield()
-Transfers between buffers and filesystem are scheduled using the EventResponder library, which is set up to execute them when the yield() function is called. The user _does not have to_ add explicit calls to `yield()`, as these will occur whenever `loop()` is allowed to return, and possibly in some (undocumented?) library functions. It is almost always good practise to allow `loop()` to return often as this allows internal "housekeeping" activities to occur; if you cannot do this, be sure to include `yield()` calls that execute sufficiently often to keep the buffers updated.
+### yield()
+By default, transfers between buffers and filesystem are scheduled using the EventResponder library, which is set up to execute them when the `yield()` function is called. The user _does not have to_ add explicit calls to `yield()`, as these will occur whenever `loop()` is allowed to return, and possibly in some (undocumented) library functions. It is almost always good practise to allow `loop()` to return often as this allows internal "housekeeping" activities to occur; if you cannot do this, be sure to include `yield()` calls that execute sufficiently often to keep the buffers updated.
+
 ### Filesystem access
-Because buffer transfers occur during `yield()`, and this is effectively part of the user's application, other filesystem operations (like reading/writing settings or log files) can be undertaken freely by the sketch.
+The `yield()` mechanism *does not work* if filesystem access is required within your sketch, e.g. to load / save playlists. If this is the case, there are a couple of options to isolate the sketch and buffering accesses from one another - see the `System control` functions.
+
 ### Timing
-Filesystem access can take a significant amount of time to execute, depending on the size of the transaction, quality of the medium, filesystem fragmentation and so forth. As a result, functions like ``playSD()`` and ``stop()`` (for a recording object) can take a few milliseconds to execute, as can ``yield()`` if a filesystem transfer is triggered. Some effort has been expended to ensure that accesses are spread out in time: for example, if 4 files are being played at once, all 4 buffer reloads should not occur on the same ``yield()``, but will probably happen on 4 separate ``yield()`` calls.  
+Filesystem access can take a significant amount of time to execute, depending on the size of the transaction, quality of the medium, filesystem fragmentation and so forth. As a result, functions like ``playSD()`` and ``stop()`` (for a recording object) can take a few milliseconds to execute, as can ``yield()`` if a filesystem transfer is triggered. Some effort has been expended to ensure that accesses are spread out in time: for example, if 4 files are being played at once, all 4 buffer reloads should not occur on the same `yield()`, but will probably happen on 4 separate ``yield()`` calls.  
 
 ## Examples
 These can be found in Examples/Audio/Buffered
+### WavFilePlayer
+Adapted from the existing WAV file player example. Shows:
+* how to create buffers
+* that `yield()` or `delay()` calls are needed if you don't let `loop()` exit
+* `play()` does *not* need a delay before `isPlaying()` becomes true
+
 ### Recorder
 This is a variant on the Recorder example, but using the buffered objects to record and play a _stereo WAV_ file, rather than a queue and application-based writes to record a _mono RAW_ file, plus the ``AudioPlaySdRaw`` object for playback. As written it uses 128k of heap for the buffers. You will need an audio adaptor and a source of audio connected to the line inputs for this one. A couple of ``AudioAnalyzePeak`` objects are used to provide a crude level meter to allow you to set up prior to recording.
 ### RecSynthMusic
 This is based on the PlaySynthMusic example. It plays a short piece of music using a very simple 16-voice polyphonic synth, while simultaneously recording it to three WAV files with 4, 6 and 8 tracks - the last track of the 6- and 8-track files is unconnected and hence silent. It then re-patches the audio connections and plays the files back, which should sound identical to the original.
+### RecSynthMusicV2
+Same as `RecSynthMusic`, but achieves tighter note timing by using an IntervalTimer rather than `delay()`.
+### RecSynthMusicV3
+Same as `RecSynthMusicV2`, with the addition of a file copy during the file playback phase, demonstrating the ability to isolate filesystem accesses to provide a stable system.
+### SDpiano
+88-note 3 samples per note piano. See the ReadMe in the sketch folder. Pre-dates `AudioPreload` objects, and shows how hard it is to get it right if you don't have them...
+### SDpianoUsingPreload
+88-note 3 samples per note piano, using AudioPreload objects.
+### AudioTestPlayMultiSD
+Plays audio simultaneously from two separate SD cards - the Teensy 4.1 built-in one, and the one on the Audio Adaptor.
+### PreloadWhileRecording
+Simple 'looper' showing how to start playing back a file while it's still being recorded, and ensuring it plays to the end.
 
 ## Under the hood
 The following graphic describes what's going on under the hood, and when, during playback of a WAV file. Time runs from top to bottom; green bars show the regular 2.9ms audio update; brown bars at irregular intervals show when calls to yield() occur; grey blocks show when your sketch code is running. Not particularly to scale - for a start a 700kB/s filesystem would be a bit on the slow side...
