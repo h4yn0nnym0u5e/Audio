@@ -139,9 +139,9 @@ public:
 			setInterpolationRGB(FLOOR); 
 			setInterpolationXYZ(FLOOR); 
 		}
-int trigCount;		
 	int recFormat;  // format of records in this section (0,1,4,5; 2 changes palette, 3 doesn't exist)
 	int records; 	// remaining in this section
+	int frame;		// frame number
 	ILDAformatAny firstRecord, secondRecord; // current record pair we're interpolating in
 	float recordFraction; // how far through current record pair playback has got
 	ILDAformatUnpacked unpacked; // this will hold all other record types
@@ -162,7 +162,7 @@ int trigCount;
 	// functionality relevant only to ILDA playback
 	using AudioPlayWAVbuffered::play; 		// allow visibility of play() provided by base class
 	bool play(const uint8_t* ilda, size_t len);	// add our own from-memory version, for ILDA only
-	void setPlaybackRate(float rate) { playbackRate = rate; } 	// each ILDA point results in 'rate' samples
+	void setPlaybackRate(float rate) { playbackRate = rate; } 	// each ILDA point results in 1/'rate' samples
 	void setInterpolationRGB(InterpolationMethod_e m) { interpolateRGB = m; }
 	void setInterpolationXYZ(InterpolationMethod_e m) { interpolateXYZ = m; }
 	void setTriggerType(TriggerType m) { triggerType = m; }

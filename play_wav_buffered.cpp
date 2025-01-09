@@ -525,12 +525,8 @@ void AudioPlayWAVbuffered::update(void)
 	// ILDA files can have a trigger channel - see if this is the case
 	trigger_block = receiveReadOnly(0);
 	if (nullptr != trigger_block)
-	{
-		AudioPlayILDA* thisILDA = (AudioPlayILDA*) this;
 		trigger_data = trigger_block->data;
-		thisILDA->trigCount+=10000;
-	}
-	
+
 	
 	if (alloCnt >= chanCnt) // allocated enough - fill them with data
 	{
@@ -660,13 +656,23 @@ void AudioPlayWAVbuffered::update(void)
 								case AudioPlayILDA::TriggerType::FREE_RUN:
 									thisILDA->isTriggered = true;
 									break;
-									
+
 								case AudioPlayILDA::TriggerType::EDGE_POS:
 									if (trig > thisILDA->lastTrigger) // any rise!
-									{
 										thisILDA->isTriggered = true;
-										thisILDA->trigCount++;
-									}
+									break;
+
+								case AudioPlayILDA::TriggerType::EDGE_NEG:
+									if (trig < thisILDA->lastTrigger) // any fall!
+										thisILDA->isTriggered = true;
+									break;
+
+								case AudioPlayILDA::TriggerType::LEVEL_HIGH:
+									thisILDA->isTriggered = trig > 0;
+									break;
+
+								case AudioPlayILDA::TriggerType::LEVEL_LOW:
+									thisILDA->isTriggered = trig < 0;
 									break;
 							}
 							thisILDA->lastTrigger = trig;
@@ -724,13 +730,19 @@ void AudioPlayWAVbuffered::update(void)
 									{
 										thisILDA->recFormat = hdr.format;
 										thisILDA->records   = htons(hdr.records);
+										thisILDA->frame   	= htons(hdr.number);
 										
 										// if triggering on frame starts, stop until re-triggered,
 										// unless this is the EOF header. If that's true, we will do
-										// another header read and get a non-zero record cound, stop,
+										// another header read and get a non-zero record count, stop,
 										// and be properly ready for triggering.
-										if (AudioPlayILDA::TriggerEvery::FRAME == thisILDA->triggerEvery
-										 && 0 != thisILDA->records) 
+										if (AudioPlayILDA::TriggerEvery::FRAME == thisILDA->triggerEvery)
+											thisILDA->isTriggered = false;
+										
+										// if triggering on file starts, and we've reached the last
+										// frame, stop until re-triggered
+										if (AudioPlayILDA::TriggerEvery::FILE == thisILDA->triggerEvery
+										 && 0 == thisILDA->records) 
 											thisILDA->isTriggered = false;
 									}
 									else
@@ -740,7 +752,7 @@ void AudioPlayWAVbuffered::update(void)
 										break; // ...convert and continue
 								}
 							}
-							
+														
 							if (2 != thisILDA->recFormat) // not a palette, interpolate
 							{
 								ILDAformatUnpacked first, second;
@@ -855,10 +867,11 @@ void AudioPlayWAVbuffered::update(void)
 							toRead--;  // one more sample generated
 							thisILDA->recordFraction += thisILDA->playbackRate; // step on in time
 						}
+						
+						thisILDA->lastX = *(data[0] -1);
+						thisILDA->lastY = *(data[1] -1);
+						thisILDA->lastZ = *(data[2] -1);
 					}
-					thisILDA->lastX = *(data[0] -1);
-					thisILDA->lastY = *(data[1] -1);
-					thisILDA->lastZ = *(data[2] -1);
 					
 					if (readNeeded 			// there's now room for a buffer read,
 						&& !eof 			// and more file data available

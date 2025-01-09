@@ -3293,10 +3293,56 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	
 	<p class=func><span class=keyword>setPlaybackRate</span>(<span class=parameter>rate</span>);</p>
 	<p class=desc>Set the playback rate as a floating-point value.
-	The default rate is 1.0, resulting in a point output rate of 44.1kpts/s with stock Audio library settings.
+	The default rate is 1.0, resulting in a point output rate of 44.1kpts/s with stock Audio library settings;
+	a rate of 2.0 will play back at double speed, and so on.
 	Positions and colours are interpolated between the two nearest points, but the blanking output
 	is the logical OR of the two, meaning if either is blanked then the output is as well.
-	</p></script>
+	</p>
+	
+	<p class=func><span class=keyword>setInterpolationRGB</span>(<span class=parameter>enum</span>);</p>
+	<p class=desc>Set the colour interpolation method as an enumerated value, when the playback rate is not 1.0.
+	AudioPlayILDA::FLOOR uses the colour from the nearest previous record, and ::ROUND from the nearest record:
+	for these methods no colour values are "made up". ::INTERPOLATE interpolates colours between the nearest two 
+	records, so transitions are smoothed.
+	</p>
+	
+	<p class=func><span class=keyword>setInterpolationXYZ</span>(<span class=parameter>enum</span>);</p>
+	<p class=desc>Set the position interpolation method as an enumerated value, when the playback rate is not 1.0.
+	AudioPlayILDA::FLOOR uses the position from the nearest previous record, and ::ROUND from the nearest record:
+	for these methods no position values are "made up". ::INTERPOLATE interpolates positions between the nearest two 
+	records, so transitions are smoothed.
+	</p>
+	
+	<p class=func><span class=keyword>setTriggerType</span>(<span class=parameter>enum</span>);</p>
+	<p class=desc>Set the trigger type. If used, an audio stream should be connected to the trigger input,
+	allowing sample-accurate synchronisation of files to other display elements.
+	AudioPlayILDA::TriggerType::FREE_RUN disables triggering; ::EDGE_POS and ::EDGE_NEG will trigger on any 
+	rise in the input stream, e.g. a pulse waveform edge; ::LEVEL_HIGH and LEVEL_LOW will enable playback
+	as long as the stream value is >0 and <0 respectively (exactly 0 results in no change).
+	</p>
+	
+	<p class=func><span class=keyword>setTriggerEvery</span>(<span class=parameter>enum</span>);</p>
+	<p class=desc>Set the trigger duration. Applies to the EDGE_ trigger types.
+	AudioPlayILDA::TriggerEvery::FREE_RUN disables triggering; ::FRAME triggers playback of a single frame, 
+	stopping at the next header and awaiting another trigger; and the ::FILE option plays the entire file once,
+	then stop.
+	</p>
+
+	<p class=func><span class=keyword>setPaletteMemory</span>(
+						<span class=parameter>*memory</span>,
+						<span class=parameter>entries</span>,
+						<span class=parameter>valid?</span>
+						);</p>
+	<p class=func><span class=keyword>copyPalette</span>(
+						<span class=parameter>*dst</span>,
+						<span class=parameter>*src</span>,
+						<span class=parameter>entries</span>
+						);</p>
+	<p class=func><span class=keyword>repeatFrequency</span>(<span class=parameter>*filename</span>,[<span class=parameter>filesystem</span>,]);</p>
+	<p class=func><span class=keyword>repeatFrequency</span>(<span class=parameter>*buffer</span>);</p>
+	
+</script>
+	
 <script type="text/x-red" data-template-name="AudioPlayILDA">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
