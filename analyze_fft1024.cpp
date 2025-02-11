@@ -31,100 +31,73 @@
 
 
 // 140312 - PAH - slightly faster copy
+// 2025-02: JRO - merge copy and windowing code for better efficiency
 #if defined(__ARM_ARCH_7EM__)
-static void copy_to_fft_buffer(void *destination, const void *source)
+static void window_block_to_fft_buffer(audio_block_t* block, int blockNum, void *buffer, const void *window)
 {
-	const uint16_t *src = (const uint16_t *)source;
-	uint32_t *dst = (uint32_t *)destination;
+	uint32_t *buf = (uint32_t*)(((int16_t *)buffer) + AUDIO_BLOCK_SAMPLES*blockNum*2);
+	const int16_t *win = (int16_t *)window + AUDIO_BLOCK_SAMPLES*blockNum;
 
-	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
-		*dst++ = *src++;  // real sample plus a zero for imaginary
+	if (nullptr != window) // only window if we have one set!
+	{
+		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
+		{
+			int32_t val = block->data[i] * *win++;
+			*buf++ = val >> 15;
+		}
 	}
-}
-
-static void apply_window_to_fft_buffer(void *buffer, const void *window)
-{
-	int16_t *buf = (int16_t *)buffer;
-	const int16_t *win = (int16_t *)window;;
-
-	for (int i=0; i < 1024; i++) {
-		int32_t val = *buf * *win++;
-		//*buf = signed_saturate_rshift(val, 16, 15);
-		*buf = val >> 15;
-		buf += 2;
+	else
+	{
+		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
+			*buf++ = block->data[i];
 	}
-
 }
 #endif
 
 void AudioAnalyzeFFT1024::update(void)
 {
+	const uint8_t HALF_FULL = NUM_BINS/AUDIO_BLOCK_SAMPLES;
 	audio_block_t *block;
 
 	block = receiveReadOnly();
 	if (!block) return;
 
 #if defined(__ARM_ARCH_7EM__)
-	switch (state) {
-	case 0:
-		blocklist[0] = block;
-		state = 1;
-		break;
-	case 1:
-		blocklist[1] = block;
-		state = 2;
-		break;
-	case 2:
-		blocklist[2] = block;
-		state = 3;
-		break;
-	case 3:
-		blocklist[3] = block;
-		state = 4;
-		break;
-	case 4:
-		blocklist[4] = block;
-		state = 5;
-		break;
-	case 5:
-		blocklist[5] = block;
-		state = 6;
-		break;
-	case 6:
-		blocklist[6] = block;
-		state = 7;
-		break;
-	case 7:
-		blocklist[7] = block;
-		// TODO: perhaps distribute the work over multiple update() ??
-		//       github pull requsts welcome......
-		copy_to_fft_buffer(buffer+0x000, blocklist[0]->data);
-		copy_to_fft_buffer(buffer+0x100, blocklist[1]->data);
-		copy_to_fft_buffer(buffer+0x200, blocklist[2]->data);
-		copy_to_fft_buffer(buffer+0x300, blocklist[3]->data);
-		copy_to_fft_buffer(buffer+0x400, blocklist[4]->data);
-		copy_to_fft_buffer(buffer+0x500, blocklist[5]->data);
-		copy_to_fft_buffer(buffer+0x600, blocklist[6]->data);
-		copy_to_fft_buffer(buffer+0x700, blocklist[7]->data);
-		if (window) apply_window_to_fft_buffer(buffer, window);
-		arm_cfft_radix4_q15(&fft_inst, buffer);
-		// TODO: support averaging multiple copies
-		for (int i=0; i < 512; i++) {
-			uint32_t tmp = *((uint32_t *)buffer + i); // real & imag
-			uint32_t magsq = multiply_16tx16t_add_16bx16b(tmp, tmp);
-			output[i] = sqrt_uint32_approx(magsq);
+	if (state < HALF_FULL) 
+	{
+		// startup - just store blocks
+		blocklist[state] = block;
+		state++;
+	}
+	else
+	{
+		// running
+		// window old block to buffer and release it
+		window_block_to_fft_buffer(blocklist[state-HALF_FULL], state-HALF_FULL, buffer, window);
+		release(blocklist[state-HALF_FULL]);
+
+		// window new block to buffer and retain
+		window_block_to_fft_buffer(block, state, buffer, window);
+		blocklist[state-HALF_FULL] = block;
+
+		// wait for a full set of blocks
+		if (HALF_FULL*2-1 != state)
+		{
+			state++;
 		}
-		outputflag = true;
-		release(blocklist[0]);
-		release(blocklist[1]);
-		release(blocklist[2]);
-		release(blocklist[3]);
-		blocklist[0] = blocklist[4];
-		blocklist[1] = blocklist[5];
-		blocklist[2] = blocklist[6];
-		blocklist[3] = blocklist[7];
-		state = 4;
-		break;
+		else
+		{
+			// compute new FFT every HALF_FULL blocks received:
+			arm_cfft_radix4_q15(&fft_inst, buffer);
+			// TODO: support averaging multiple copies
+			for (unsigned int i=0; i < NUM_BINS; i++) {
+				uint32_t tmp = *((uint32_t *)buffer + i); // real & imag
+				uint32_t magsq = multiply_16tx16t_add_16bx16b(tmp, tmp);
+				output[i] = sqrt_uint32_approx(magsq);
+			}
+			outputflag = true;
+			state = HALF_FULL;
+		}
 	}
 #else
 	release(block);

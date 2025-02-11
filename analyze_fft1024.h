@@ -48,11 +48,16 @@ extern const int16_t AudioWindowTukey1024[];
 
 class AudioAnalyzeFFT1024 : public AudioStream
 {
+	// this defines the size of the FFT, and
+	// MUST corresond to  the window size!
+	static const unsigned int NUM_BINS = 512;
 public:
 	AudioAnalyzeFFT1024() : AudioStream(1, inputQueueArray),
 	  window(AudioWindowHanning1024), state(0), outputflag(false) {
-		arm_cfft_radix4_init_q15(&fft_inst, 1024, 0, 1);
+		arm_cfft_radix4_init_q15(&fft_inst, NUM_BINS*2, 0, 1);
 	}
+
+
 	bool available() {
 		if (outputflag == true) {
 			outputflag = false;
@@ -60,40 +65,50 @@ public:
 		}
 		return false;
 	}
+
+
 	float read(unsigned int binNumber) {
-		if (binNumber > 511) return 0.0;
+		if (binNumber >= NUM_BINS) return 0.0;
 		return (float)(output[binNumber]) * (1.0f / 16384.0f);
 	}
+
+
 	float read(unsigned int binFirst, unsigned int binLast) {
 		if (binFirst > binLast) {
 			unsigned int tmp = binLast;
 			binLast = binFirst;
 			binFirst = tmp;
 		}
-		if (binFirst > 511) return 0.0;
-		if (binLast > 511) binLast = 511;
+		if (binFirst >= NUM_BINS) return 0.0;
+		if (binLast >= NUM_BINS) binLast = NUM_BINS-1;
 		uint32_t sum = 0;
 		do {
 			sum += output[binFirst++];
 		} while (binFirst <= binLast);
 		return (float)sum * (1.0f / 16384.0f);
 	}
+
+
 	void averageTogether(uint8_t n) {
 		// not implemented yet (may never be, 86 Hz output rate is ok)
 	}
+
+
 	void windowFunction(const int16_t *w) {
 		window = w;
 	}
+
+	
 	virtual void update(void);
-	uint16_t output[512] __attribute__ ((aligned (4)));
+	uint16_t output[NUM_BINS] __attribute__ ((aligned (4)));
 private:
 	void init(void);
 	const int16_t *window;
-	audio_block_t *blocklist[8];
-	int16_t buffer[2048] __attribute__ ((aligned (4)));
+	audio_block_t *blocklist[NUM_BINS / AUDIO_BLOCK_SAMPLES];
+	int16_t buffer[NUM_BINS*4] __attribute__ ((aligned (4)));
 	//uint32_t sum[512];
 	//uint8_t count;
-	uint8_t state;
+	uint8_t state; // OK for block size down to 2 samples!
 	//uint8_t naverage;
 	volatile bool outputflag;
 	audio_block_t *inputQueueArray[1];
