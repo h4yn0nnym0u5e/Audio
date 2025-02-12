@@ -30,8 +30,24 @@
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <arm_math.h>    // github.com/PaulStoffregen/cores/blob/master/teensy4/arm_math.h
+#include "utility/dspinst.h"
 
-// windows.c
+// windows.c - FFT256
+extern "C" {
+extern const int16_t AudioWindowHanning256[];
+extern const int16_t AudioWindowBartlett256[];
+extern const int16_t AudioWindowBlackman256[];
+extern const int16_t AudioWindowFlattop256[];
+extern const int16_t AudioWindowBlackmanHarris256[];
+extern const int16_t AudioWindowNuttall256[];
+extern const int16_t AudioWindowBlackmanNuttall256[];
+extern const int16_t AudioWindowWelch256[];
+extern const int16_t AudioWindowHamming256[];
+extern const int16_t AudioWindowCosine256[];
+extern const int16_t AudioWindowTukey256[];
+}
+
+// windows.c - FFT1024
 extern "C" {
 extern const int16_t AudioWindowHanning1024[];
 extern const int16_t AudioWindowBartlett1024[];
@@ -46,14 +62,31 @@ extern const int16_t AudioWindowCosine1024[];
 extern const int16_t AudioWindowTukey1024[];
 }
 
-class AudioAnalyzeFFT1024 : public AudioStream
+class AudioAnalyzeFFT_Base : public AudioStream
 {
 	// this defines the size of the FFT, and
 	// MUST corresond to  the window size!
-	static const unsigned int NUM_BINS = 512;
+	const unsigned int NUM_BINS;
+	const unsigned int NUM_PREV; // number of previous blocks blocklist can hold
 public:
-	AudioAnalyzeFFT1024() : AudioStream(1, inputQueueArray),
-	  window(AudioWindowHanning1024), state(0), outputflag(false) {
+	AudioAnalyzeFFT_Base(unsigned int bins, 
+						 unsigned int blks, 
+						 const int16_t* win,
+						 audio_block_t** bl,
+						 int16_t* buf,
+						 uint16_t* op,
+						 uint32_t* su,
+						 uint8_t nav) 
+		: AudioStream(1, inputQueueArray),
+		NUM_BINS(bins),
+		NUM_PREV(blks),
+		output(op),
+	  	window(win), 
+		blocklist(bl),
+		buffer(buf),
+		sum(su), naverage(nav),
+		state(0), outputflag(false) 
+	{
 		arm_cfft_radix4_init_q15(&fft_inst, NUM_BINS*2, 0, 1);
 	}
 
@@ -90,7 +123,8 @@ public:
 
 
 	void averageTogether(uint8_t n) {
-		// not implemented yet (may never be, 86 Hz output rate is ok)
+		if (n == 0) n = 1;
+		naverage = n;
 	}
 
 
@@ -98,21 +132,64 @@ public:
 		window = w;
 	}
 
+	// C++ mandates this is inline, which is what we want
+	uint32_t makeMagSq(int16_t* buffer, unsigned int i)
+	{
+		uint32_t tmp = *((uint32_t *)buffer + i); // real & imag
+		return multiply_16tx16t_add_16bx16b(tmp, tmp);
+	}
+
 	
 	virtual void update(void);
-	uint16_t output[NUM_BINS] __attribute__ ((aligned (4)));
+	uint16_t* output;
 private:
-	void init(void);
 	const int16_t *window;
-	audio_block_t *blocklist[NUM_BINS / AUDIO_BLOCK_SAMPLES];
-	int16_t buffer[NUM_BINS*4] __attribute__ ((aligned (4)));
-	//uint32_t sum[512];
-	//uint8_t count;
+	audio_block_t** blocklist;
+	int16_t*  buffer;
+	uint32_t* sum;
+	uint8_t count;
+	uint8_t naverage;
 	uint8_t state; // OK for block size down to 2 samples!
-	//uint8_t naverage;
 	volatile bool outputflag;
 	audio_block_t *inputQueueArray[1];
 	arm_cfft_radix4_instance_q15 fft_inst;
+};
+
+
+class AudioAnalyzeFFT1024 : public AudioAnalyzeFFT_Base
+{
+		static const unsigned int NUM_BINS = 512;
+		static const unsigned int NUM_PREV = NUM_BINS >  AUDIO_BLOCK_SAMPLES
+												?(NUM_BINS*2 / AUDIO_BLOCK_SAMPLES)
+												:1;
+		audio_block_t *blocklist[NUM_PREV];
+		int16_t buffer[NUM_BINS*4] __attribute__ ((aligned (4)));
+		uint32_t su[NUM_BINS];
+	public:
+		AudioAnalyzeFFT1024() 
+			: AudioAnalyzeFFT_Base(NUM_BINS, NUM_PREV,
+								   AudioWindowHanning1024,
+								   blocklist, buffer, output, 
+								   su, 1)
+			{}
+		uint16_t output[NUM_BINS] __attribute__ ((aligned (4)));
+};
+
+
+class AudioAnalyzeFFT256n : public AudioAnalyzeFFT_Base
+{
+		static const unsigned int NUM_BINS = 128;
+		static const unsigned int NUM_PREV = 0;
+		int16_t buffer[NUM_BINS*4] __attribute__ ((aligned (4)));
+		uint32_t su[NUM_BINS];
+	public:
+		AudioAnalyzeFFT256n() 
+			: AudioAnalyzeFFT_Base(NUM_BINS, NUM_PREV,
+								   AudioWindowHanning256,
+								   nullptr, buffer, output, 
+								   su, 8)
+			{}
+		uint16_t output[NUM_BINS] __attribute__ ((aligned (4)));
 };
 
 #endif
