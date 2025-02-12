@@ -62,6 +62,9 @@ void AudioAnalyzeFFT256::update(void)
 
 	block = receiveReadOnly();
 	if (!block) return;
+
+	// Produce a new FFT every 128 samples, or every
+	// update if AUDIO_BLOCK_SAMPLES > 128
 #if AUDIO_BLOCK_SAMPLES == 128 && defined (__ARM_ARCH_7EM__)
 	if (!prevblock) {
 		prevblock = block;
@@ -115,7 +118,7 @@ void AudioAnalyzeFFT256::update(void)
 	} else {
 		count = 2;
 		const uint32_t *p = (uint32_t *)buffer;
-		for (int i=0; i < 128; i++) {
+		for (unsigned int i=0; i < NUM_BINS; i++) {
 			uint32_t tmp = *p++;
 			int16_t v1 = tmp & 0xFFFF;
 			int16_t v2 = tmp >> 16;

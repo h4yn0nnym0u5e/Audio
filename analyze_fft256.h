@@ -48,10 +48,14 @@ extern const int16_t AudioWindowTukey256[];
 
 class AudioAnalyzeFFT256 : public AudioStream
 {
+	static const unsigned int NUM_BINS = 128;
+	static const unsigned int NUM_PREV = NUM_BINS >  AUDIO_BLOCK_SAMPLES
+								?(NUM_BINS*2 / AUDIO_BLOCK_SAMPLES)
+								:1;
 public:
 	AudioAnalyzeFFT256() : AudioStream(1, inputQueueArray),
 	  window(AudioWindowHanning256), count(0), outputflag(false) {
-		arm_cfft_radix4_init_q15(&fft_inst, 256, 0, 1);
+		arm_cfft_radix4_init_q15(&fft_inst, NUM_BINS*2, 0, 1);
 #if AUDIO_BLOCK_SAMPLES == 128
 		prevblock = NULL;
 		naverage = 8;
@@ -69,7 +73,7 @@ public:
 		return false;
 	}
 	float read(unsigned int binNumber) {
-		if (binNumber > 127) return 0.0;
+		if (binNumber >= NUM_BINS) return 0.0;
 		return (float)(output[binNumber]) * (1.0f / 16384.0f);
 	}
 	float read(unsigned int binFirst, unsigned int binLast) {
@@ -78,8 +82,8 @@ public:
 			binLast = binFirst;
 			binFirst = tmp;
 		}
-		if (binFirst > 127) return 0.0;
-		if (binLast > 127) binLast = 127;
+		if (binFirst >= NUM_BINS) return 0.0;
+		if (binLast  >= NUM_BINS) binLast = NUM_BINS-1;
 		uint32_t sum = 0;
 		do {
 			sum += output[binFirst++];
@@ -96,15 +100,15 @@ public:
 		window = w;
 	}
 	virtual void update(void);
-	uint16_t output[128] __attribute__ ((aligned (4)));
+	uint16_t output[NUM_BINS] __attribute__ ((aligned (4)));
 private:
 	const int16_t *window;
 #if AUDIO_BLOCK_SAMPLES == 128
 	audio_block_t *prevblock;
 #elif AUDIO_BLOCK_SAMPLES == 64
-	audio_block_t *prevblocks[3];
+	audio_block_t *prevblocks[NUM_PREV];
 #endif
-	int16_t buffer[512] __attribute__ ((aligned (4)));
+	int16_t buffer[NUM_BINS*4] __attribute__ ((aligned (4)));
 #if AUDIO_BLOCK_SAMPLES == 128
 	uint32_t sum[128];
 	uint8_t naverage;
