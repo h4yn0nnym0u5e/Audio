@@ -176,14 +176,14 @@ class AudioAnalyzeFFT1024 : public AudioAnalyzeFFT_Base
 };
 
 
-class AudioAnalyzeFFT256n : public AudioAnalyzeFFT_Base
+class AudioAnalyzeFFT256 : public AudioAnalyzeFFT_Base
 {
 		static const unsigned int NUM_BINS = 128;
 		static const unsigned int NUM_PREV = 0;
 		int16_t buffer[NUM_BINS*4] __attribute__ ((aligned (4)));
 		uint32_t su[NUM_BINS];
 	public:
-		AudioAnalyzeFFT256n() 
+		AudioAnalyzeFFT256() 
 			: AudioAnalyzeFFT_Base(NUM_BINS, NUM_PREV,
 								   AudioWindowHanning256,
 								   nullptr, buffer, output, 
