@@ -25,7 +25,7 @@
  */
 
 #include <Arduino.h>
-#include "analyze_fft1024.h"
+#include "analyze_fft.h"
 #include "sqrt_integer.h"
 
 
