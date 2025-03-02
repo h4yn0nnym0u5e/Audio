@@ -72,7 +72,7 @@ class Voice
 
     // GUItool: begin automatically generated code
     AudioSynthWaveform       wav;      //xy=303,404
-    //AudioInputI2S i2s1;   not needed, except to allow export from Design Tool
+    //AudioInputI2S i2s1;   //xy=353,290 not needed, except to allow export from Design Tool
     AudioEffectEnvelope      env;      //xy=449,401
 
     AudioConnection          patchCord1{wav, env};
