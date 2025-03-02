@@ -396,7 +396,7 @@ RED.nodes = (function() {
 			}
 
 			if (type == NODE_AC) {
-				parts = name.match(/^([^\(]*\()([^\)]*)(.*)/);
+				parts = name.match(/^([^\{\(]*[\{\(])([^\}\)]*)(.*)/);
 				if (parts && parts.length > 1) {
 					conn = $.trim(parts[2]).split(",");
 					cables.push(conn);
@@ -412,6 +412,9 @@ RED.nodes = (function() {
 				// more than one object!
 				while (name.match(/\([^)]*\)/)) // find stuff in matching brackets
 				  name = name.replace(/\([^()]*\)/,'') // and remove it, including the brackets
+				
+				while (name.match(/\{[^}]*\}/)) // find stuff in matching braces
+				  name = name.replace(/{[^{}]*}/,'') // and remove it, including the braces
 				
 				if (name.indexOf(",") >= 0) {
 					names = name.split(",");
