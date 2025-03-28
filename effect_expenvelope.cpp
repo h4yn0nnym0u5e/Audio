@@ -288,9 +288,9 @@ void AudioEffectExpEnvelope::update(void)
 		  int32_t addFactor = multiply_32x32_rshift32(target,factor);
 		  // mult = mult*(1 - attack) + target * attack: stabilises at "target"
 		  // we use DSP instructions for speed, though we lose a couple of bits of precision
-	#define MULT_STEP unsigned_saturate_rshift(mult_hires,16,(SHIFT - 16)); \
+	#define MULT_STEP unsigned_saturate_rshift(mult_hires,16,(EXPENV_SHIFT - 16)); \
 					  mult_hires = (multiply_32x32_rshift32(mult_hires,factor1) + \
-									addFactor) << (32 - SHIFT); \
+									addFactor) << (32 - EXPENV_SHIFT); \
 					  if (state < STATE_DYNAMIC_DOWN \
 							  ?mult_hires >= transition_mult \
 							  :mult_hires <= transition_mult) {/*count = 0;*/ target = mult_hires = transition_mult; addFactor = 0; factor1 = EEE_ONE;} \
