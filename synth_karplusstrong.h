@@ -38,7 +38,7 @@ class AudioSynthKarplusStrong : public AudioStream
 public:
 	AudioSynthKarplusStrong() 
 		: AudioStream(1, inputQueueArray),
-		  state(silent), buffers{0}, 
+		  state(silent), 
 		  _feedbackLevel(32686),
 		  _driveLevel(0)
 		{}
@@ -54,7 +54,6 @@ public:
 private:
 	uint8_t  state;     // 0=steady output, 1=begin on next update, 2=playing
 	uint16_t bufferLen;		// total length of buffered audio (samples)
-	uint16_t bufferCount;	// number of audio blocks currently used for buffering
 	uint16_t bufferNum;		// index of current buffer
 	uint16_t bufferIndex;	// index into current buffer
 	uint16_t bufferIndexLimit;	// max index into last buffer, +1
@@ -65,8 +64,17 @@ private:
 	
 	int32_t  magnitude; // current output level
 	static uint32_t seed;  // must start at 1
-	static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
-	audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks: maximum 22 for C0
+	class IndexableBuffer
+	{
+		public:
+			IndexableBuffer() : buffers{0}, bufferCount(0) {}
+			bool allocate(uint16_t count);
+			void release(void);
+
+			static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
+			audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks: maximum 22 for C0	
+			uint16_t bufferCount;	// number of audio blocks currently allocated for buffering
+	} theBuffer;
 	int16_t _feedbackLevel;
 	int16_t _driveLevel;
 	audio_block_t* inputQueueArray[1];

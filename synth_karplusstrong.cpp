@@ -41,6 +41,34 @@ static uint32_t pseudorand(uint32_t lo)
 }
 #endif
 
+bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
+{
+	bool result = true;
+	size_t i;
+	for (i=0; i < count && result; i++)
+	{
+		buffers[i] = AudioStream::allocate();
+		if (nullptr == buffers[i])
+			result = false;
+	}
+	bufferCount = i;
+
+	return result;
+}
+
+void AudioSynthKarplusStrong::IndexableBuffer::release(void)
+{
+	size_t i;
+	for (i=0; i < maxBufferCount; i++)
+	{
+		if (nullptr != buffers[i])
+		{
+		 	AudioStream::release(buffers[i]);
+			buffers[i] = nullptr;
+		}
+	}
+	bufferCount = 0;
+}
 
 void AudioSynthKarplusStrong::noteOn(float frequency, float velocity) 
 {
@@ -57,54 +85,26 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 	if (frequency < lowestFreq)
 		frequency = lowestFreq;
 	bufferLen = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f; // length of one cycle
-	bufferCount = bufferLen / AUDIO_BLOCK_SAMPLES + 1; // one cycle, rounded up
-	bufferIndexLimit = bufferLen - (bufferCount - 1)*AUDIO_BLOCK_SAMPLES;
-	bufferIndex = 0;
-	bufferNum = 0;
+	bufferNum = bufferLen / AUDIO_BLOCK_SAMPLES + 1; // one cycle, rounded up
+	bufferIndexLimit = bufferLen - (bufferNum - 1)*AUDIO_BLOCK_SAMPLES;
 	
-	size_t i;
-	for (i=0; i < bufferCount; i++)
-	{
-		buffers[i] = allocate();
-		if (nullptr == buffers[i])
-		{
-			bufferLen = 0;
-			break;
-		}
-	}
-	
-	if (0 == bufferLen) // couldn't allocate, stay silent
-	{
-		for (i=0; i < bufferCount; i++)
-		{
-			if (nullptr == buffers[i]) // nothing beyond here, quite
-				break;
-			else
-			{
-				release(buffers[i]);
-				buffers[i] = nullptr;
-			}
-		}
-	}
+	if (!theBuffer.allocate(bufferNum)) // couldn't allocate, stay silent
+		theBuffer.release();
 	else
+	{
+		bufferIndex = 0;
+		bufferNum = 0;
+	
 		state = started; // allocated, we're playing
-Serial.printf("buffers: %d; state: %d\n",bufferCount,state);	
+	}
+Serial.printf("buffers: %d; state: %d; length: %d; index limit %d\n",theBuffer.bufferCount,state, bufferLen, bufferIndexLimit);	
 }
 
 
 void AudioSynthKarplusStrong::noteOff(float velocity) 
 {
 	state = silent; // first, to prevent update() using stale pointers
-	for (size_t i=0;i<maxBufferCount;i++)
-	{
-		if (nullptr == buffers[i])
-			break;
-		else
-		{
-			release(buffers[i]);
-			buffers[i] = nullptr;
-		}
-	}
+	theBuffer.release();
 }
 
 
@@ -152,9 +152,9 @@ void AudioSynthKarplusStrong::update(void)
 		int samples = bufferLen;
 		
 		// fill one full cycle with pseudo-noise
-		for (size_t i=0; i < bufferCount; i++) 		
+		for (size_t i=0; i < theBuffer.bufferCount; i++) 		
 		{
-			int16_t* buffer = buffers[i]->data;
+			int16_t* buffer = theBuffer.buffers[i]->data;
 			for (size_t j=0; j < AUDIO_BLOCK_SAMPLES; j++)
 			{
 				lo = pseudorand(lo);
@@ -167,27 +167,25 @@ void AudioSynthKarplusStrong::update(void)
 		state = playing;
 	}
 
+	// find oldest sample we want to feed back
 	int16_t prior;
 	if (bufferIndex > 0) 
-		prior = buffers[bufferNum]->data[bufferIndex - 1];
+		prior = theBuffer.buffers[bufferNum]->data[bufferIndex - 1];
 	else 
 	{
 		if (bufferNum > 0)
-			prior = buffers[bufferNum - 1]->data[AUDIO_BLOCK_SAMPLES - 1];
+			prior = theBuffer.buffers[bufferNum - 1]->data[AUDIO_BLOCK_SAMPLES - 1];
 		else
-			prior = buffers[bufferCount - 1]->data[bufferIndexLimit - 1];
+			prior = theBuffer.buffers[theBuffer.bufferCount - 1]->data[bufferIndexLimit - 1];
 	}
 	
-	int16_t* buffer = buffers[bufferNum]->data;
-	size_t limit = (bufferNum == bufferCount - 1)
+
+	int16_t* buffer = theBuffer.buffers[bufferNum]->data;
+	size_t limit = (bufferNum == theBuffer.bufferCount - 1)
 							?bufferIndexLimit
 							:AUDIO_BLOCK_SAMPLES;
-							
-	// remember where feedback data gets stored, in case
-	// we want to overwrite it
-	fbkNum = bufferNum;
-	fbkIndex = bufferIndex;
-	
+
+	// finally, create new audio data
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 	{
 		int16_t in = buffer[bufferIndex];
@@ -202,11 +200,11 @@ void AudioSynthKarplusStrong::update(void)
 		{
 			bufferIndex = 0;
 			bufferNum++;
-			if (bufferNum >= bufferCount) // end of all blocks
+			if (bufferNum >= theBuffer.bufferCount) // end of all blocks
 				bufferNum = 0;
 			
-			buffer = buffers[bufferNum]->data;
-			limit = (bufferNum == bufferCount - 1)
+			buffer = theBuffer.buffers[bufferNum]->data;
+			limit = (bufferNum == theBuffer.bufferCount - 1)
 							?bufferIndexLimit
 							:AUDIO_BLOCK_SAMPLES;
 		}
