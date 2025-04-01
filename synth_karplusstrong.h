@@ -63,17 +63,36 @@ private:
 	uint16_t fbkIndex;	// index into feedback buffer
 	
 	int32_t  magnitude; // current output level
-	static uint32_t seed;  // must start at 1
 	class IndexableBuffer
 	{
+			static uint32_t seed;  // must start at 1
 		public:
 			IndexableBuffer() : buffers{0}, bufferCount(0) {}
 			bool allocate(uint16_t count);
 			void release(void);
+			void prefill(int samples, int32_t magnitude);
+			int32_t limitToBuffer(int32_t index)
+			{
+				if (index < 0 || index >= sampleCount)
+				{
+					index = index % sampleCount;
+					if (index < 0)
+						index += sampleCount;
+				}
+				return index;
+			}
+
+			int16_t& operator[](int32_t index)
+			{
+				index = limitToBuffer(index);
+				int blockNum = index / AUDIO_BLOCK_SAMPLES;
+				return buffers[blockNum]->data[index-AUDIO_BLOCK_SAMPLES*blockNum];
+			}
 
 			static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
 			audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks: maximum 22 for C0	
 			uint16_t bufferCount;	// number of audio blocks currently allocated for buffering
+			int32_t sampleCount;
 	} theBuffer;
 	int16_t _feedbackLevel;
 	int16_t _driveLevel;

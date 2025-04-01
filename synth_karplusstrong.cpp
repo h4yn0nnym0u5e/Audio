@@ -27,6 +27,7 @@
 #include <Arduino.h>
 #include "synth_karplusstrong.h"
 
+//=============================================================================
 #if defined(KINETISK) || defined(__IMXRT1062__)
 static uint32_t pseudorand(uint32_t lo)
 {
@@ -41,6 +42,7 @@ static uint32_t pseudorand(uint32_t lo)
 }
 #endif
 
+uint32_t AudioSynthKarplusStrong::IndexableBuffer::seed = 1;
 bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
 {
 	bool result = true;
@@ -52,6 +54,7 @@ bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
 			result = false;
 	}
 	bufferCount = i;
+	sampleCount = bufferCount*AUDIO_BLOCK_SAMPLES;
 
 	return result;
 }
@@ -70,6 +73,27 @@ void AudioSynthKarplusStrong::IndexableBuffer::release(void)
 	bufferCount = 0;
 }
 
+void AudioSynthKarplusStrong::IndexableBuffer::prefill(int samples, int32_t magnitude)
+{
+	uint32_t lo = seed;
+
+	// fill one full cycle with pseudo-noise
+	for (size_t i=0; i < bufferCount; i++) 		
+	{
+		int16_t* buffer = buffers[i]->data;
+		for (size_t j=0; j < AUDIO_BLOCK_SAMPLES; j++)
+		{
+			lo = pseudorand(lo);
+			buffer[j] = signed_multiply_32x16b(magnitude, lo);
+			//if (0 >= --samples)
+			//	break;
+		}
+	}
+	seed = lo; // re-seed for different noise next time
+}
+
+
+//=============================================================================
 void AudioSynthKarplusStrong::noteOn(float frequency, float velocity) 
 {
 	if (velocity > 1.0f) {
@@ -97,7 +121,8 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 	
 		state = started; // allocated, we're playing
 	}
-Serial.printf("buffers: %d; state: %d; length: %d; index limit %d\n",theBuffer.bufferCount,state, bufferLen, bufferIndexLimit);	
+Serial.printf("buffers: %d; state: %d; length: %d; index limit %d\n",
+				theBuffer.bufferCount,state, bufferLen, bufferIndexLimit);	
 }
 
 
@@ -116,6 +141,7 @@ void AudioSynthKarplusStrong::setLevel(float level,int16_t* levelPtr)
 }
 
 
+//-----------------------------------------------------------------------------
 void AudioSynthKarplusStrong::update(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
@@ -148,29 +174,16 @@ void AudioSynthKarplusStrong::update(void)
 	// if just started, provide the initial stimulus		
 	if (state == started) 
 	{
-		uint32_t lo = seed;
-		int samples = bufferLen;
-		
-		// fill one full cycle with pseudo-noise
-		for (size_t i=0; i < theBuffer.bufferCount; i++) 		
-		{
-			int16_t* buffer = theBuffer.buffers[i]->data;
-			for (size_t j=0; j < AUDIO_BLOCK_SAMPLES; j++)
-			{
-				lo = pseudorand(lo);
-				buffer[j] = signed_multiply_32x16b(magnitude, lo);
-				if (0 >= --samples)
-					break;
-			}
-		}
-		seed = lo; // re-seed for different noise next time
+		theBuffer.prefill(bufferLen, magnitude);
 		state = playing;
 	}
 
+	
 	// find oldest sample we want to feed back
 	int16_t prior;
 	if (bufferIndex > 0) 
 		prior = theBuffer.buffers[bufferNum]->data[bufferIndex - 1];
+	
 	else 
 	{
 		if (bufferNum > 0)
@@ -184,17 +197,21 @@ void AudioSynthKarplusStrong::update(void)
 	size_t limit = (bufferNum == theBuffer.bufferCount - 1)
 							?bufferIndexLimit
 							:AUDIO_BLOCK_SAMPLES;
+	
 
 	// finally, create new audio data
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 	{
+		//int16_t prior = theBuffer[bufferIndex - bufferLen]; // frequency fixed at "bufferLen" samples
 		int16_t in = buffer[bufferIndex];
 		int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
 		if (nullptr != drive)
 			out += (*drive++ * _driveLevel) >> 16;
 		*data++ = out;
 		buffer[bufferIndex] = out; // store feedback data for next cycle
+		
 		prior = in;
+		
 		
 		if (++bufferIndex >= limit) // reached the end of this audio block
 		{
@@ -208,7 +225,10 @@ void AudioSynthKarplusStrong::update(void)
 							?bufferIndexLimit
 							:AUDIO_BLOCK_SAMPLES;
 		}
+		
+
 	}
+	//bufferIndex = theBuffer.limitToBuffer(bufferIndex);
 
 	transmit(block);
 	release(block); 
@@ -218,6 +238,4 @@ void AudioSynthKarplusStrong::update(void)
 #endif
 }
 
-
-uint32_t AudioSynthKarplusStrong::seed = 1;
 
