@@ -29,15 +29,15 @@
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include "utility/dspinst.h"
-#include "filter_biquad.h"
 
-class AudioSynthKarplusStrong : public AudioFilterBiquad
+
+class AudioSynthKarplusStrong : public AudioStream
 {
 	enum state_e {silent, started, playing};
 	void setLevel(float level,int16_t* levelPtr);
 public:
 	AudioSynthKarplusStrong() 
-		: //AudioStream(1, inputQueueArray),
+		: AudioStream(1, inputQueueArray),
 		  state(silent), buffers{0}, 
 		  _feedbackLevel(32686),
 		  _driveLevel(0)
@@ -66,7 +66,7 @@ private:
 	int32_t  magnitude; // current output level
 	static uint32_t seed;  // must start at 1
 	static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
-	audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks
+	audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks: maximum 22 for C0
 	int16_t _feedbackLevel;
 	int16_t _driveLevel;
 	audio_block_t* inputQueueArray[1];

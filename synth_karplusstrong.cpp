@@ -124,30 +124,34 @@ void AudioSynthKarplusStrong::update(void)
 	// deal with drive
 	input = receiveReadOnly();	// do we have a drive block?
 
-	if (state == silent) 
+	if (state == silent) // not actually playing...
 	{
 		if (nullptr != input)
-			release(input);
+			release(input); // ...release any drive block
 		return;
 	}
 	
+	// prepare to output
 	block = allocate();
 	if (nullptr == block)
 	{
-		state = 0;
+		state = silent; // darn: give up
 		return;
 	}
 
+	// prepare audio data pointers, in and out
 	int16_t *data = block->data;
 	int16_t* drive = nullptr;
 	if (nullptr != input)
 		drive = input->data;
 
+	// if just started, provide the initial stimulus		
 	if (state == started) 
 	{
 		uint32_t lo = seed;
 		int samples = bufferLen;
 		
+		// fill one full cycle with pseudo-noise
 		for (size_t i=0; i < bufferCount; i++) 		
 		{
 			int16_t* buffer = buffers[i]->data;
@@ -159,7 +163,7 @@ void AudioSynthKarplusStrong::update(void)
 					break;
 			}
 		}
-		seed = lo;
+		seed = lo; // re-seed for different noise next time
 		state = playing;
 	}
 
@@ -180,7 +184,7 @@ void AudioSynthKarplusStrong::update(void)
 							:AUDIO_BLOCK_SAMPLES;
 							
 	// remember where feedback data gets stored, in case
-	// we want to overwite it
+	// we want to overwrite it
 	fbkNum = bufferNum;
 	fbkIndex = bufferIndex;
 	
