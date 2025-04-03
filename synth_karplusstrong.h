@@ -52,15 +52,9 @@ public:
 	static constexpr float lowestFreq = 15.7f; // gets down to C0 / MIDI 12
 	
 private:
-	uint8_t  state;     // 0=steady output, 1=begin on next update, 2=playing
-	uint16_t bufferLen;		// total length of buffered audio (samples)
-	uint16_t bufferNum;		// index of current buffer
-	uint16_t bufferIndex;	// index into current buffer
-	uint16_t bufferIndexLimit;	// max index into last buffer, +1
-	
-	// keep track of where feedback goes
-	uint16_t fbkNum;	// index of feedback buffer
-	uint16_t fbkIndex;	// index into feedback buffer
+	uint8_t state;     		// 0=steady output, 1=begin on next update, 2=playing
+	int32_t bufferLen;		// total length of buffered audio (samples)
+	int32_t bufferIndex;	// index into current buffer
 	
 	int32_t  magnitude; // current output level
 	class IndexableBuffer

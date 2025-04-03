@@ -96,6 +96,8 @@ void AudioSynthKarplusStrong::IndexableBuffer::prefill(int samples, int32_t magn
 //=============================================================================
 void AudioSynthKarplusStrong::noteOn(float frequency, float velocity) 
 {
+	int bufferNum;
+
 	if (velocity > 1.0f) {
 		velocity = 0.0f;
 	} else if (velocity <= 0.0f) {
@@ -109,20 +111,17 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 	if (frequency < lowestFreq)
 		frequency = lowestFreq;
 	bufferLen = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f; // length of one cycle
-	bufferNum = bufferLen / AUDIO_BLOCK_SAMPLES + 1; // one cycle, rounded up
-	bufferIndexLimit = bufferLen - (bufferNum - 1)*AUDIO_BLOCK_SAMPLES;
+	bufferNum = bufferLen / AUDIO_BLOCK_SAMPLES + 3; // one cycle, rounded up
 	
 	if (!theBuffer.allocate(bufferNum)) // couldn't allocate, stay silent
 		theBuffer.release();
 	else
 	{
-		bufferIndex = 0;
-		bufferNum = 0;
-	
+		bufferIndex = 0;	
 		state = started; // allocated, we're playing
 	}
-Serial.printf("buffers: %d; state: %d; length: %d; index limit %d\n",
-				theBuffer.bufferCount,state, bufferLen, bufferIndexLimit);	
+Serial.printf("buffers: %d; state: %d; length: %d\n",
+				theBuffer.bufferCount,state, bufferLen);	
 }
 
 
@@ -174,11 +173,11 @@ void AudioSynthKarplusStrong::update(void)
 	// if just started, provide the initial stimulus		
 	if (state == started) 
 	{
-		theBuffer.prefill(bufferLen, magnitude);
+		theBuffer.prefill(theBuffer.sampleCount, magnitude);
 		state = playing;
 	}
 
-	
+	/*
 	// find oldest sample we want to feed back
 	int16_t prior;
 	if (bufferIndex > 0) 
@@ -198,20 +197,20 @@ void AudioSynthKarplusStrong::update(void)
 							?bufferIndexLimit
 							:AUDIO_BLOCK_SAMPLES;
 	
-
+*/
 	// finally, create new audio data
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 	{
-		//int16_t prior = theBuffer[bufferIndex - bufferLen]; // frequency fixed at "bufferLen" samples
-		int16_t in = buffer[bufferIndex];
+		int16_t prior = theBuffer[bufferIndex - bufferLen]; // frequency fixed at "bufferLen" samples
+		int16_t in = theBuffer[bufferIndex];
 		int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
 		if (nullptr != drive)
 			out += (*drive++ * _driveLevel) >> 16;
 		*data++ = out;
-		buffer[bufferIndex] = out; // store feedback data for next cycle
-		
+		theBuffer[bufferIndex] = out; // store feedback data for next cycle
+		bufferIndex++;
+		/*
 		prior = in;
-		
 		
 		if (++bufferIndex >= limit) // reached the end of this audio block
 		{
@@ -225,10 +224,10 @@ void AudioSynthKarplusStrong::update(void)
 							?bufferIndexLimit
 							:AUDIO_BLOCK_SAMPLES;
 		}
-		
+		*/
 
 	}
-	//bufferIndex = theBuffer.limitToBuffer(bufferIndex);
+	bufferIndex = theBuffer.limitToBuffer(bufferIndex);
 
 	transmit(block);
 	release(block); 
