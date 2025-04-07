@@ -32,7 +32,7 @@
 #include "extmem.h"
 
 
-class AudioEffectDelayExternal : public AudioStream, public AudioExtMem
+class AudioEffectDelayExternal : public AudioExtMem, public AudioStream
 {
 	static const int   CHANNEL_COUNT = 8;
 public:

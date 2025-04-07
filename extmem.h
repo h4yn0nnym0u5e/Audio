@@ -61,7 +61,8 @@ public:
 	AudioExtMem(AudioEffectDelayMemoryType_t type, 
 				uint32_t samples = AUDIO_SAMPLE_RATE_EXACT,
 				bool forceInitialize = true)
-		: memory_begin(0), initialisationDone(false), memory_type(AUDIO_MEMORY_UNDEFINED)
+		: memory_begin(0), initialisationDone(false), 
+		  memory_length{0}, memory_type(AUDIO_MEMORY_UNDEFINED)
 	{
 		preInitialize(type, samples, forceInitialize);
 	}

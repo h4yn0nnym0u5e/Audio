@@ -87,7 +87,6 @@ unsigned char AudioSynthToneSweep::isPlaying(void)
 void AudioSynthToneSweep::update(void)
 {
   audio_block_t *block;
-  short *bp;
   int i;
   
   if(!sweep_busy)return;
@@ -95,7 +94,6 @@ void AudioSynthToneSweep::update(void)
   //          L E F T  C H A N N E L  O N L Y
   block = allocate();
   if(block) {
-    bp = block->data;
     uint32_t tmp  = tone_freq >> 32; 
     uint64_t tone_tmp = (tone_freq << 14) / (int) AUDIO_SAMPLE_RATE_EXACT;
     uint64_t incr     = (tone_incr << 14) / (int) AUDIO_SAMPLE_RATE_EXACT;
