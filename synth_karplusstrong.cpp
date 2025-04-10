@@ -152,8 +152,8 @@ void AudioSynthKarplusStrong::setLevel(float level,int16_t* levelPtr)
  * Compute a list of period intervals into phasedata[], 
  * adjusted by the bend data supplied in bend[]
  */
- uint32_t perData[AUDIO_BLOCK_SAMPLES]; // for debug only
- void AudioSynthKarplusStrong::computeBendData(uint32_t* phasedata, int16_t* bp)
+uint32_t perData[AUDIO_BLOCK_SAMPLES]; // for debug only
+void AudioSynthKarplusStrong::computeBendData(uint32_t* phasedata, int16_t* bp)
 {
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 	{
@@ -180,7 +180,7 @@ void AudioSynthKarplusStrong::setLevel(float level,int16_t* levelPtr)
 		n = n + 715827882;
 #endif
 		uint32_t scale = n >> (14 - ipart); // this is in 16.16 format
-		int64_t per = baseLen * scale; // 24.8 * 16.16 = 40.24
+		int64_t per = (int64_t) baseLen * (int64_t) scale; // 24.8 * 16.16 = 40.24
 		phasedata[i] = per >> 16;
 	}
 }

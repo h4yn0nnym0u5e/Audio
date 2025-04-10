@@ -43,14 +43,14 @@ public:
 		  _feedbackLevel(32686),
 		  _driveLevel(0)
 		{
-			setMaxShift(2.0f/12); // bend by 2 semitones
+			frequencyModulation(2.0f/12); // bend by 2 semitones
 		}
 
 	void noteOn(float frequency, float velocity);
 	void noteOff(float velocity); 
 	void setFeedbackLevel(float level) { setLevel(level,&_feedbackLevel); }
 	void setDriveLevel(float level) { setLevel(level,&_driveLevel); }
-	void setMaxShift(float octaves)	// must do before noteOn()
+	void frequencyModulation(float octaves)	// must do before noteOn()
 	{
 		if (octaves <= 0.1f) octaves = 0.1f;
 		if (octaves  > 2.0f) octaves = 2.0f;
