@@ -42,6 +42,7 @@ static uint32_t pseudorand(uint32_t lo)
 }
 #endif
 
+
 uint32_t AudioSynthKarplusStrong::IndexableBuffer::seed = 1;
 bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
 {
@@ -59,6 +60,7 @@ bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
 	return result;
 }
 
+
 void AudioSynthKarplusStrong::IndexableBuffer::release(void)
 {
 	size_t i;
@@ -72,6 +74,7 @@ void AudioSynthKarplusStrong::IndexableBuffer::release(void)
 	}
 	bufferCount = 0;
 }
+
 
 void AudioSynthKarplusStrong::IndexableBuffer::prefill(int samples, int32_t magnitude)
 {
@@ -111,7 +114,7 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 	
 	// pitch bend requires ability to reach lower frequency, 
 	// so adjust requested frequency accordingly
-	float frequency = noteFreq * maxShift;
+	float frequency = noteFreq * maxBend;
 	if (frequency < lowestFreq)
 		frequency = lowestFreq;
 	bufferLen = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f; // length of one cycle
@@ -147,12 +150,14 @@ void AudioSynthKarplusStrong::setLevel(float level,int16_t* levelPtr)
 	*levelPtr = (int16_t) (level * 32767);
 }
 
+
 /*
- * Code lifted from modulated waveform
+ * Code lifted from modulated waveform. It's no longer phase data, but
+ * we keep the parameter name so it's easier to do a diff.
+ *
  * Compute a list of period intervals into phasedata[], 
  * adjusted by the bend data supplied in bend[]
  */
-uint32_t perData[AUDIO_BLOCK_SAMPLES]; // for debug only
 void AudioSynthKarplusStrong::computeBendData(uint32_t* phasedata, int16_t* bp)
 {
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
@@ -184,6 +189,7 @@ void AudioSynthKarplusStrong::computeBendData(uint32_t* phasedata, int16_t* bp)
 		phasedata[i] = per >> 16;
 	}
 }
+
 
 //-----------------------------------------------------------------------------
 void AudioSynthKarplusStrong::update(void)
@@ -240,6 +246,8 @@ void AudioSynthKarplusStrong::update(void)
 	}
 	else
 	{
+		uint32_t perData[AUDIO_BLOCK_SAMPLES];
+
 		computeBendData(perData,bend->data); // compute look-back amount for each sample
 		release(bend);
 		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 

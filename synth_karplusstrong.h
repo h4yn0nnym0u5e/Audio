@@ -54,7 +54,7 @@ public:
 	{
 		if (octaves <= 0.1f) octaves = 0.1f;
 		if (octaves  > 2.0f) octaves = 2.0f;
-		maxShift = powf(2.0f, -octaves); // express as frequency factor
+		maxBend = powf(2.0f, -octaves); // express as frequency factor
 		modulation_factor = octaves * 4096.0f; // match modulated waveform calculation
 	}
 	
@@ -133,7 +133,7 @@ private:
 	} theBuffer;
 	int16_t _feedbackLevel;
 	int16_t _driveLevel;
-	float maxShift;
+	float maxBend;
 	uint32_t modulation_factor;
 	audio_block_t* inputQueueArray[2];
 };
