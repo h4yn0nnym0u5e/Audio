@@ -147,20 +147,58 @@ void AudioSynthKarplusStrong::setLevel(float level,int16_t* levelPtr)
 	*levelPtr = (int16_t) (level * 32767);
 }
 
+/*
+ * Code lifted from modulated waveform
+ * Compute a list of period intervals into phasedata[], 
+ * adjusted by the bend data supplied in bend[]
+ */
+ uint32_t perData[AUDIO_BLOCK_SAMPLES]; // for debug only
+ void AudioSynthKarplusStrong::computeBendData(uint32_t* phasedata, int16_t* bp)
+{
+	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
+	{
+		int32_t n = (*bp++) * modulation_factor; // n is # of octaves to mod
+		int32_t ipart = n >> 27; // 4 integer bits
+		n &= 0x7FFFFFF;          // 27 fractional bits
+#ifdef IMPROVE_EXPONENTIAL_ACCURACY
+		// exp2 polynomial suggested by Stefan Stenzel on "music-dsp"
+		// mail list, Wed, 3 Sep 2014 10:08:55 +0200
+		int32_t x = n << 3;
+		n = multiply_accumulate_32x32_rshift32_rounded(536870912, x, 1494202713);
+		int32_t sq = multiply_32x32_rshift32_rounded(x, x);
+		n = multiply_accumulate_32x32_rshift32_rounded(n, sq, 1934101615);
+		n = n + (multiply_32x32_rshift32_rounded(sq,
+			multiply_32x32_rshift32_rounded(x, 1358044250)) << 1);
+		n = n << 1;
+#else
+		// exp2 algorithm by Laurent de Soras
+		// https://www.musicdsp.org/en/latest/Other/106-fast-exp2-approximation.html
+		n = (n + 134217728) << 3;
+
+		n = multiply_32x32_rshift32_rounded(n, n);
+		n = multiply_32x32_rshift32_rounded(n, 715827883) << 3;
+		n = n + 715827882;
+#endif
+		uint32_t scale = n >> (14 - ipart); // this is in 16.16 format
+		int64_t per = baseLen * scale; // 24.8 * 16.16 = 40.24
+		phasedata[i] = per >> 16;
+	}
+}
 
 //-----------------------------------------------------------------------------
 void AudioSynthKarplusStrong::update(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
-	audio_block_t *block, *input;
+	audio_block_t *block, *input, *bend;
 	
-	// deal with drive
-	input = receiveReadOnly();	// do we have a drive block?
+	// deal with drive and bend
+	input = receiveReadOnly(0);	// do we have a drive block?
+	bend  = receiveReadOnly(1); // or a bend block?
 
 	if (state == silent) // not actually playing...
 	{
-		if (nullptr != input)
-			release(input); // ...release any drive block
+		if (nullptr != input) release(input); // ...release any drive...
+		if (nullptr != bend)  release(bend);  // ... and bend
 		return;
 	}
 	
@@ -186,16 +224,35 @@ void AudioSynthKarplusStrong::update(void)
 	}
 
 	// finally, create new audio data
-	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
+	if (nullptr == bend) // no bend, just compute it
 	{
-		int16_t prior = theBuffer[bufferIndex - increment]; // frequency fixed at "baseLen" samples
-		int16_t in = theBuffer[bufferIndex - baseLen];
-		int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
-		if (nullptr != drive)
-			out += (*drive++ * _driveLevel) >> 16;
-		*data++ = out;
-		theBuffer[bufferIndex] = out; // store feedback data for next cycle
-		bufferIndex += increment;
+		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
+		{
+			int16_t prior = theBuffer[bufferIndex - increment]; // frequency fixed at "baseLen" samples
+			int16_t in = theBuffer[bufferIndex - baseLen];
+			int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
+			if (nullptr != drive)
+				out += (*drive++ * _driveLevel) >> 16;
+			*data++ = out;
+			theBuffer[bufferIndex] = out; // store feedback data for next cycle
+			bufferIndex += increment;
+		}
+	}
+	else
+	{
+		computeBendData(perData,bend->data); // compute look-back amount for each sample
+		release(bend);
+		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
+		{
+			int16_t prior = theBuffer[bufferIndex - increment]; // frequency fixed at "baseLen" samples
+			int16_t in = theBuffer[bufferIndex - perData[i]];
+			int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
+			if (nullptr != drive)
+				out += (*drive++ * _driveLevel) >> 16;
+			*data++ = out;
+			theBuffer[bufferIndex] = out; // store feedback data for next cycle
+			bufferIndex += increment;
+		}
 	}
 	bufferIndex = theBuffer.limitToBufferFrac(bufferIndex);
 

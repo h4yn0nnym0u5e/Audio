@@ -35,14 +35,16 @@ class AudioSynthKarplusStrong : public AudioStream
 {
 	enum state_e {silent, started, playing};
 	void setLevel(float level,int16_t* levelPtr);
+	void computeBendData(uint32_t* phasedata, int16_t* bp);
 public:
 	AudioSynthKarplusStrong() 
 		: AudioStream(2, inputQueueArray), // drive and bend inputs
 		  state(silent), 
 		  _feedbackLevel(32686),
-		  _driveLevel(0),
-		  maxShift{0.891f} // about 2 semitones
-		{}
+		  _driveLevel(0)
+		{
+			setMaxShift(2.0f/12); // bend by 2 semitones
+		}
 
 	void noteOn(float frequency, float velocity);
 	void noteOff(float velocity); 
@@ -53,6 +55,7 @@ public:
 		if (octaves <= 0.1f) octaves = 0.1f;
 		if (octaves  > 2.0f) octaves = 2.0f;
 		maxShift = powf(2.0f, -octaves); // express as frequency factor
+		modulation_factor = octaves * 4096.0f; // match modulated waveform calculation
 	}
 	
 	virtual void update(void);
@@ -67,7 +70,7 @@ public:
 	
 private:
 	uint8_t state;     		// 0=steady output, 1=begin on next update, 2=playing
-	int32_t baseLen;		// 24.8 length in samples of base frequncy's cycle
+	int32_t baseLen;		// 24.8 length in samples of base frequency's cycle
 	int32_t bufferIndex;	// 24.8 index into current buffer: must have no fractional bits!
 	
 	int32_t  magnitude; // current output level
@@ -131,7 +134,8 @@ private:
 	int16_t _feedbackLevel;
 	int16_t _driveLevel;
 	float maxShift;
-	audio_block_t* inputQueueArray[1];
+	uint32_t modulation_factor;
+	audio_block_t* inputQueueArray[2];
 };
 
 #endif
