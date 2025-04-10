@@ -145,8 +145,8 @@ void AudioSynthKarplusStrong::noteOff(float velocity)
 
 void AudioSynthKarplusStrong::setLevel(float level,int16_t* levelPtr)
 {
-	if (level > 1.0f)
-		level = 1.0f;
+	if (level > 1.0f) level = 1.0f;
+	if (level < 0.0f) level = 0.0f;
 	*levelPtr = (int16_t) (level * 32767);
 }
 
