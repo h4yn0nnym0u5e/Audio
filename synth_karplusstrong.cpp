@@ -94,9 +94,10 @@ void AudioSynthKarplusStrong::IndexableBuffer::prefill(int samples, int32_t magn
 
 
 //=============================================================================
-void AudioSynthKarplusStrong::noteOn(float frequency, float velocity) 
+void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity) 
 {
 	int bufferNum;
+	int32_t bufferLen;
 
 	if (velocity > 1.0f) {
 		velocity = 0.0f;
@@ -108,10 +109,13 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 	if (state != silent) 	// already playing...
 		noteOff(1.0f); 	// ... release buffers
 	
+	// pitch bend requires ability to reach lower frequency, 
+	// so adjust requested frequency accordingly
+	float frequency = noteFreq * maxShift;
 	if (frequency < lowestFreq)
 		frequency = lowestFreq;
 	bufferLen = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f; // length of one cycle
-	bufferNum = bufferLen / AUDIO_BLOCK_SAMPLES + 3; // one cycle, rounded up
+	bufferNum = bufferLen / AUDIO_BLOCK_SAMPLES + 1; // one cycle, rounded up
 	
 	if (!theBuffer.allocate(bufferNum)) // couldn't allocate, stay silent
 		theBuffer.release();
@@ -120,8 +124,12 @@ void AudioSynthKarplusStrong::noteOn(float frequency, float velocity)
 		bufferIndex = 0;	
 		state = started; // allocated, we're playing
 	}
+
+	// actual number of samples for requested note
+	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq;
+
 Serial.printf("buffers: %d; state: %d; length: %d\n",
-				theBuffer.bufferCount,state, bufferLen);	
+				theBuffer.bufferCount,state, baseLen);	
 }
 
 
@@ -177,57 +185,19 @@ void AudioSynthKarplusStrong::update(void)
 		state = playing;
 	}
 
-	/*
-	// find oldest sample we want to feed back
-	int16_t prior;
-	if (bufferIndex > 0) 
-		prior = theBuffer.buffers[bufferNum]->data[bufferIndex - 1];
-	
-	else 
-	{
-		if (bufferNum > 0)
-			prior = theBuffer.buffers[bufferNum - 1]->data[AUDIO_BLOCK_SAMPLES - 1];
-		else
-			prior = theBuffer.buffers[theBuffer.bufferCount - 1]->data[bufferIndexLimit - 1];
-	}
-	
-
-	int16_t* buffer = theBuffer.buffers[bufferNum]->data;
-	size_t limit = (bufferNum == theBuffer.bufferCount - 1)
-							?bufferIndexLimit
-							:AUDIO_BLOCK_SAMPLES;
-	
-*/
 	// finally, create new audio data
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 	{
-		int16_t prior = theBuffer[bufferIndex - bufferLen]; // frequency fixed at "bufferLen" samples
-		int16_t in = theBuffer[bufferIndex];
+		int16_t prior = theBuffer[bufferIndex - increment]; // frequency fixed at "baseLen" samples
+		int16_t in = theBuffer[bufferIndex - baseLen];
 		int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
 		if (nullptr != drive)
 			out += (*drive++ * _driveLevel) >> 16;
 		*data++ = out;
 		theBuffer[bufferIndex] = out; // store feedback data for next cycle
-		bufferIndex++;
-		/*
-		prior = in;
-		
-		if (++bufferIndex >= limit) // reached the end of this audio block
-		{
-			bufferIndex = 0;
-			bufferNum++;
-			if (bufferNum >= theBuffer.bufferCount) // end of all blocks
-				bufferNum = 0;
-			
-			buffer = theBuffer.buffers[bufferNum]->data;
-			limit = (bufferNum == theBuffer.bufferCount - 1)
-							?bufferIndexLimit
-							:AUDIO_BLOCK_SAMPLES;
-		}
-		*/
-
+		bufferIndex += increment;
 	}
-	bufferIndex = theBuffer.limitToBuffer(bufferIndex);
+	bufferIndex = theBuffer.limitToBufferFrac(bufferIndex);
 
 	transmit(block);
 	release(block); 

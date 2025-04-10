@@ -67,7 +67,7 @@ idx-1 the newest. We average those and multiply
 by a value <1.0 to generate a new sample, then
 overwrite the oldest sample and advance the index
 """
-def updateMinimal(buf,n):
+def updateMinimal(buf,n, incr):
     global idx
     wrap = len(buf)
     prior = buf[idx-1]
@@ -93,13 +93,17 @@ but is guaranteed to be longer.
 
 We therefore have to mix idx-1 with idx-period
 """
-def updateExtended(buf,n):
-    global idx
+def updateExtended(buf,n,incr):
+    global idx, period
     wrap = len(buf)
     prior = buf[idx-1]
     blk = [prior]
     while n > 0:
-        inv = buf[idx-period]
+        off = int(period)
+        frac = period - off
+        inv1 = buf[idx-off]
+        inv2 = buf[idx-off + 1]
+        inv = inv1*frac + inv2*(1-frac)
         new = ((inv + prior) * fbk) // 65536
         if idx >= wrap:
             idx = 0
@@ -108,16 +112,17 @@ def updateExtended(buf,n):
         idx += 1
         prior = inv
         n -= 1
+        period += incr
 
     return buf, blk
 
 
-def update(buf,n):
+def update(buf,n, incr = 0):
     global extendBy
     if 0 == extendBy:
-        return updateMinimal(buf,n)
+        return updateMinimal(buf,n, incr)
     else:
-        return updateExtended(buf,n)
+        return updateExtended(buf,n, incr)
 
 ##################################################
 buf = initBuf(period) # one cycle stimulus
@@ -137,7 +142,7 @@ xl = [x*perFrac for x in range(upl+1)]
 
 # iterate a number of blocks
 for i in range(20):
-    buf,blk = update(buf,upl)
+    buf,blk = update(buf,upl,4/128)
     if False and 6 == i:
         print(buf)
     ax.plot(xl,blk)
@@ -145,7 +150,7 @@ for i in range(20):
     xl = [x+upl*perFrac for x in xl]
     xl = xs + xl[:upl]
 
-    period += 4
+    # period += 4
 
 plt.minorticks_on()    
 ax.xaxis.set_major_locator(MultipleLocator(5))

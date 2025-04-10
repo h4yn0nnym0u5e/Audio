@@ -37,24 +37,38 @@ class AudioSynthKarplusStrong : public AudioStream
 	void setLevel(float level,int16_t* levelPtr);
 public:
 	AudioSynthKarplusStrong() 
-		: AudioStream(1, inputQueueArray),
+		: AudioStream(2, inputQueueArray), // drive and bend inputs
 		  state(silent), 
 		  _feedbackLevel(32686),
-		  _driveLevel(0)
+		  _driveLevel(0),
+		  maxShift{0.891f} // about 2 semitones
 		{}
 
 	void noteOn(float frequency, float velocity);
 	void noteOff(float velocity); 
 	void setFeedbackLevel(float level) { setLevel(level,&_feedbackLevel); }
-	void setDriveLevel(float level) { setLevel(level,&_driveLevel); }	
+	void setDriveLevel(float level) { setLevel(level,&_driveLevel); }
+	void setMaxShift(float octaves)	// must do before noteOn()
+	{
+		if (octaves <= 0.1f) octaves = 0.1f;
+		if (octaves  > 2.0f) octaves = 2.0f;
+		maxShift = powf(2.0f, -octaves); // express as frequency factor
+	}
 	
 	virtual void update(void);
+
+	// Limit lowest frequency to avoid eating all the audio blocks
+	// At a sample rate of 44100Hz, 15.7Hz is about 2809 samples, or 22 blocks
+	// These are allocated at noteOn(), so this should be OK. The default
+	// AudioStream code limits a Teensy 4.x to 896 blocks.
 	static constexpr float lowestFreq = 15.7f; // gets down to C0 / MIDI 12
+	static constexpr int fracShift = 8; // use 24.8 indexes into buffer
+	static constexpr int increment = 1<<fracShift; 
 	
 private:
 	uint8_t state;     		// 0=steady output, 1=begin on next update, 2=playing
-	int32_t bufferLen;		// total length of buffered audio (samples)
-	int32_t bufferIndex;	// index into current buffer
+	int32_t baseLen;		// 24.8 length in samples of base frequncy's cycle
+	int32_t bufferIndex;	// 24.8 index into current buffer: must have no fractional bits!
 	
 	int32_t  magnitude; // current output level
 	class IndexableBuffer
@@ -65,6 +79,9 @@ private:
 			bool allocate(uint16_t count);
 			void release(void);
 			void prefill(int samples, int32_t magnitude);
+
+			// limit index to being within buffer
+			// index is integer portion only
 			int32_t limitToBuffer(int32_t index)
 			{
 				if (index < 0 || index >= sampleCount)
@@ -76,20 +93,44 @@ private:
 				return index;
 			}
 
+			// limit to buffer, fractional index
+			// rounds to nearest sample
+			int32_t limitToBufferFrac(int32_t index)
+			{
+				return limitToBuffer(index >> fracShift) << fracShift;
+			}
+
+			int16_t readVal;
 			int16_t& operator[](int32_t index)
 			{
-				index = limitToBuffer(index);
+				int32_t frac = (uint32_t) index & (increment-1);
+				index = limitToBuffer(index >> fracShift);
 				int blockNum = index / AUDIO_BLOCK_SAMPLES;
-				return buffers[blockNum]->data[index-AUDIO_BLOCK_SAMPLES*blockNum];
+				if (0 == frac) // return reference to read/write value in buffers
+					return buffers[blockNum]->data[index-AUDIO_BLOCK_SAMPLES*blockNum];
+				else
+				{
+					// likely this can be optimised using DSP instructions
+					int32_t val1 = buffers[blockNum]->data[index-AUDIO_BLOCK_SAMPLES*blockNum];
+					val1 *= (increment - frac);
+					index = limitToBuffer(index+1);
+					blockNum = index / AUDIO_BLOCK_SAMPLES;
+					int32_t val2 = buffers[blockNum]->data[index-AUDIO_BLOCK_SAMPLES*blockNum];
+					val2 *= frac;
+					val1 += val2;
+					readVal = val1 >> fracShift;
+				}
+				return readVal; // writing this will have no effect!
 			}
 
 			static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
 			audio_block_t* buffers[maxBufferCount]; // dynamically use audio memory blocks: maximum 22 for C0	
 			uint16_t bufferCount;	// number of audio blocks currently allocated for buffering
-			int32_t sampleCount;
+			int32_t sampleCount;	// number of samples in those blocks
 	} theBuffer;
 	int16_t _feedbackLevel;
 	int16_t _driveLevel;
+	float maxShift;
 	audio_block_t* inputQueueArray[1];
 };
 
