@@ -1,5 +1,5 @@
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator
+#import matplotlib.pyplot as plt
+#from matplotlib.ticker import MultipleLocator
 
 period = 85
 extendBy = 100
@@ -125,35 +125,49 @@ def update(buf,n, incr = 0):
         return updateExtended(buf,n, incr)
 
 ##################################################
-buf = initBuf(period) # one cycle stimulus
-if 0 != extendBy:
-    buf = [0]*extendBy + buf
-    idx = len(buf)
-xl = [(x-idx)/period for x in range(len(buf))] # 0.0 .. 1.0 is one cycle
+if False:
+    buf = initBuf(period) # one cycle stimulus
+    if 0 != extendBy:
+        buf = [0]*extendBy + buf
+        idx = len(buf)
+    xl = [(x-idx)/period for x in range(len(buf))] # 0.0 .. 1.0 is one cycle
 
-# plot initial stimulus before t=0
-fig,ax = plt.subplots()
-ax.grid(visible=True,which='both',axis='x')
-ax.plot(xl,buf)
+    # plot initial stimulus before t=0
+    fig,ax = plt.subplots()
+    ax.grid(visible=True,which='both',axis='x')
+    ax.plot(xl,buf)
 
-# subsequent plots are one block+1sample, not one period
-perFrac = 1/period
-xl = [x*perFrac for x in range(upl+1)]
+    # subsequent plots are one block+1sample, not one period
+    perFrac = 1/period
+    xl = [x*perFrac for x in range(upl+1)]
 
-# iterate a number of blocks
-for i in range(20):
-    buf,blk = update(buf,upl,4/128)
-    if False and 6 == i:
-        print(buf)
-    ax.plot(xl,blk)
-    xs = [xl[-1]]
-    xl = [x+upl*perFrac for x in xl]
-    xl = xs + xl[:upl]
+    # iterate a number of blocks
+    for i in range(20):
+        buf,blk = update(buf,upl,4/128)
+        if False and 6 == i:
+            print(buf)
+        ax.plot(xl,blk)
+        xs = [xl[-1]]
+        xl = [x+upl*perFrac for x in xl]
+        xl = xs + xl[:upl]
 
-    # period += 4
+        # period += 4
 
-plt.minorticks_on()    
-ax.xaxis.set_major_locator(MultipleLocator(5))
-ax.xaxis.set_minor_locator(MultipleLocator(1))
-plt.show()
+    plt.minorticks_on()    
+    ax.xaxis.set_major_locator(MultipleLocator(5))
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    plt.show()
 
+##################################################
+"""
+E2 (82.41 Hz), A2 (110 Hz), D3 (146.83 Hz), G3 (196 Hz), B3 (246.94 Hz), and E4 (329.63 Hz).
+"""
+if True:
+    rate = 44100 # sample rate
+    smps = 128 # samples per block
+    bend = 5 # semitones
+    print("Guitar strings")
+    freqs = [82.41, 110, 146.83, 196, 246.94, 329.63]
+    blks = [rate/(freq*pow(2, -bend/12)) // smps +1 for freq in freqs]
+    print(blks)
+    print(sum(blks))

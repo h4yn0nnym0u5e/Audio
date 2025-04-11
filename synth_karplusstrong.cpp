@@ -130,9 +130,6 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 
 	// actual number of samples for requested note
 	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq;
-
-Serial.printf("buffers: %d; state: %d; length: %d\n",
-				theBuffer.bufferCount,state, baseLen);	
 }
 
 

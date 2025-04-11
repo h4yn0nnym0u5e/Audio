@@ -199,6 +199,8 @@ pitchMod	KEYWORD2
 shape	KEYWORD2
 frequencyModulation	KEYWORD2
 phaseModulation	KEYWORD2
+setFeedbackLevel	KEYWORD2
+setDriveLevel	KEYWORD2
 setInstrument	KEYWORD2
 playFrequency	KEYWORD2
 playNote	KEYWORD2
