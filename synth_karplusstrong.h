@@ -33,7 +33,7 @@
 
 class AudioSynthKarplusStrong : public AudioStream
 {
-	enum state_e {silent, started, playing};
+	enum state_e {releasing=-3, silent=0, started, playing};
 	void setLevel(float level,int16_t* levelPtr);
 	void computeBendData(uint32_t* phasedata, int16_t* bp);
 public:
@@ -48,6 +48,7 @@ public:
 
 	void noteOn(float frequency, float velocity);
 	void noteOff(float velocity); 
+	bool isPlaying(void) { return state != silent; }
 	void setFeedbackLevel(float level) { setLevel(level,&_feedbackLevel); }
 	void setDriveLevel(float level) { setLevel(level,&_driveLevel); }
 	void frequencyModulation(float octaves)	// must do before noteOn()
@@ -69,7 +70,7 @@ public:
 	static constexpr int increment = 1<<fracShift; 
 	
 private:
-	uint8_t state;     		// 0=steady output, 1=begin on next update, 2=playing
+	int8_t state;     		// 0=silent, 1=begin on next update, 2=playing, -ve note releasing
 	int32_t baseLen;		// 24.8 length in samples of base frequency's cycle
 	int32_t bufferIndex;	// 24.8 index into current buffer: must have no fractional bits!
 	
@@ -78,7 +79,7 @@ private:
 	{
 			static uint32_t seed;  // must start at 1
 		public:
-			IndexableBuffer() : buffers{0}, bufferCount(0) {}
+			IndexableBuffer() : readVal {0}, buffers{0}, bufferCount(0) {}
 			bool allocate(uint16_t count);
 			void release(void);
 			void prefill(int samples, int32_t magnitude);
@@ -106,6 +107,9 @@ private:
 			int16_t readVal;
 			int16_t& operator[](int32_t index)
 			{
+				// buffers are invalid, return reference to a zero value
+				if (0 == bufferCount) return readVal;
+
 				int32_t frac = (uint32_t) index & (increment-1);
 				index = limitToBuffer(index >> fracShift);
 				int blockNum = index / AUDIO_BLOCK_SAMPLES;

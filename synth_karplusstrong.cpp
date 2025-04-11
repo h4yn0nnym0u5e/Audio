@@ -64,6 +64,9 @@ bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
 void AudioSynthKarplusStrong::IndexableBuffer::release(void)
 {
 	size_t i;
+
+	readVal = 0;	
+	bufferCount = 0;
 	for (i=0; i < maxBufferCount; i++)
 	{
 		if (nullptr != buffers[i])
@@ -72,13 +75,15 @@ void AudioSynthKarplusStrong::IndexableBuffer::release(void)
 			buffers[i] = nullptr;
 		}
 	}
-	bufferCount = 0;
 }
 
 
 void AudioSynthKarplusStrong::IndexableBuffer::prefill(int samples, int32_t magnitude)
 {
 	uint32_t lo = seed;
+
+	if (0 == lo)
+		lo = 1;
 
 	// fill one full cycle with pseudo-noise
 	for (size_t i=0; i < bufferCount; i++) 		
@@ -88,8 +93,6 @@ void AudioSynthKarplusStrong::IndexableBuffer::prefill(int samples, int32_t magn
 		{
 			lo = pseudorand(lo);
 			buffer[j] = signed_multiply_32x16b(magnitude, lo);
-			//if (0 >= --samples)
-			//	break;
 		}
 	}
 	seed = lo; // re-seed for different noise next time
@@ -120,6 +123,9 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 	bufferLen = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f; // length of one cycle
 	bufferNum = bufferLen / AUDIO_BLOCK_SAMPLES + 1; // one cycle, rounded up
 	
+	// actual number of samples for requested note
+	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq;
+	
 	if (!theBuffer.allocate(bufferNum)) // couldn't allocate, stay silent
 		theBuffer.release();
 	else
@@ -128,15 +134,12 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 		state = started; // allocated, we're playing
 	}
 
-	// actual number of samples for requested note
-	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq;
 }
 
 
 void AudioSynthKarplusStrong::noteOff(float velocity) 
 {
-	state = silent; // first, to prevent update() using stale pointers
-	theBuffer.release();
+	state = releasing; // prevent click at end
 }
 
 
@@ -260,6 +263,22 @@ void AudioSynthKarplusStrong::update(void)
 		}
 	}
 	bufferIndex = theBuffer.limitToBufferFrac(bufferIndex);
+
+	if (state < silent) // releasing values are negative
+	{
+		// fade this block out
+		int off = -AUDIO_BLOCK_SAMPLES*(state+1); // 256, 128, 0
+		data = block->data;
+		for (int i=AUDIO_BLOCK_SAMPLES-1; i>=0; i--)
+		{
+			*data = (*data * (i+off)) / (AUDIO_BLOCK_SAMPLES*3);
+			data++;
+		}
+
+		state++; // work up towards silence
+		if (silent == state)
+			theBuffer.release();
+	}
 
 	transmit(block);
 	release(block); 
