@@ -518,7 +518,7 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioRecordQueue","data":{"defaults":{"name":{"value":"new"}},"shortName":"queue","inputs":1,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthWavetable","data":{"defaults":{"name":{"value":"new"}},"shortName":"wavetable","inputs":0,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthSimpleDrum","data":{"defaults":{"name":{"value":"new"}},"shortName":"drum","inputs":0,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioSynthKarplusStrong","data":{"defaults":{"name":{"value":"new"}},"shortName":"string","inputs":0,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioSynthKarplusStrong","data":{"defaults":{"name":{"value":"new"}},"shortName":"string","inputs":2,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthWaveformSine","data":{"defaults":{"name":{"value":"new"}},"shortName":"sine","inputs":0,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthWaveformSineHires","data":{"defaults":{"name":{"value":"new"}},"shortName":"sine_hires","inputs":0,"outputs":2,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthWaveformSineModulated","data":{"defaults":{"name":{"value":"new"}},"shortName":"sine_fm","inputs":1,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -3946,22 +3946,41 @@ The actual packets are taken
 <script type="text/x-red" data-help-name="AudioSynthKarplusStrong">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
-	<p>Synthesize a plucked string sound, such as a guitar string.
+	<p>Synthesize a plucked string sound, such as a guitar string. 
+		Also includes a drive input for generation of bowed or wind
+		instrument simulations.
 		</p>
 	<p align=center><img src="img/touchguitar.jpg"></p>
 	</div>
 	<h3>Audio Connections</h3>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Port</th><th>Purpose</th></tr>
-		<tr class=odd><td align=center>Out 0</td><td>Sound Output</td></tr>
+		<tr class=odd><td align=center>In 0</td><td>Drive input</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Modulation input</td></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Sound output</td></tr>
 	</table>
 	<h3>Functions</h3>
-	<p class=func><span class=keyword>noteOn</span>(frequency, velocity);</p>
+	<p class=func><span class=keyword>noteOn</span>(float frequency, float velocity);</p>
 	<p class=desc>Begin a new string note.  Velocity can be from 0 to 1.0,
-		indicating how hard the string is plucked.
+		indicating how hard the string is plucked. The lowest playable note 
+		is 15.7Hz / C0 / MIDI 12.
 	</p>
-	<p class=func><span class=keyword>noteOff</span>(velocity);</p>
-	<p class=desc>Stop the sound output.
+	<p class=func><span class=keyword>noteOff</span>(float velocity);</p>
+	<p class=desc>Stop the sound output. (Velocity has no effect.)
+	</p>
+	<p class=func><span class=keyword>frequencyModulation</span>(float octaves);</p>
+	<p class=desc>Set the amount of pitch bend available from the modulation input.
+		Range 0.1 - 2.0 octaves. DO NOT change this while a note is sounding.
+	</p>
+	<p class=func><span class=keyword>setDriveLevel</span>(float level);</p>
+	<p class=desc>Set the level fed through from the drive input to the synthesis engine.
+		Range 0.0 - 1.0.
+	</p>
+	<p class=func><span class=keyword>setFeedbackLevel</span>(float level);</p>
+	<p class=desc>Set the internal feedback level within the synthesis engine.
+		Higher levels give more sustain; it may be effective to increase the level 
+		in line with pitch, as higher notes have poorer sustain.
+		Range 0.0 - 1.0, though anything under 0.9 tends to result in very little output.
 	</p>
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Synthesis &gt; Guitar
@@ -3969,7 +3988,18 @@ The actual packets are taken
 	<p class=exam><a href="https://github.com/PaulStoffregen/TouchGuitar" target="_blank">TouchGuitar</a>
 	</p>
 	<h3>Notes</h3>
-	<p></p>
+	<p>Memory for the generated signal is taken from the memory pool allocated by
+		<a href="http://www.pjrc.com/teensy/td_libs_AudioConnection.html" target="_blank">AudioMemory()</a>.
+		The amount used depends on the pitch and modulation range, with a maximum of 22 blocks
+		used for a 15.7Hz note.
+		AudioMemory should be calculated to allow for the lowest anticipated note, and
+		maximum number of sounding notes. 
+		<br><br>
+		As an example, for six generators whose lowest frequencies will 
+		correspond to conventional 6-string guitar tuning, allowed to
+		bend by up to 2 semitones, the maximum block usage will be 
+		5+4+3+2+2+2 = 18 blocks.
+	</p>
 </script>
 <script type="text/x-red" data-template-name="AudioSynthKarplusStrong">
 	<div class="form-row">
