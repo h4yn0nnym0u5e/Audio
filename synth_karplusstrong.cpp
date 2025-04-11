@@ -162,7 +162,7 @@ void AudioSynthKarplusStrong::computeBendData(uint32_t* phasedata, int16_t* bp)
 {
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 	{
-		int32_t n = (*bp++) * modulation_factor; // n is # of octaves to mod
+		int32_t n = -(*bp++) * modulation_factor; // n is # of octaves to mod
 		int32_t ipart = n >> 27; // 4 integer bits
 		n &= 0x7FFFFFF;          // 27 fractional bits
 #ifdef IMPROVE_EXPONENTIAL_ACCURACY
