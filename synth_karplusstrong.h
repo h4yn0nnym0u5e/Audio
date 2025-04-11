@@ -33,7 +33,7 @@
 
 class AudioSynthKarplusStrong : public AudioStream
 {
-	enum state_e {silent, started, playing, releasing};
+	enum state_e {releasing=-3, silent=0, started, playing};
 	void setLevel(float level,int16_t* levelPtr);
 	void computeBendData(uint32_t* phasedata, int16_t* bp);
 public:
@@ -72,7 +72,7 @@ public:
 	static constexpr int increment = 1<<fracShift; 
 	
 private:
-	uint8_t state;     		// 0=steady output, 1=begin on next update, 2=playing
+	int8_t state;     		// 0=silent, 1=begin on next update, 2=playing, -ve note releasing
 	int32_t baseLen;		// 24.8 length in samples of base frequency's cycle
 	int32_t bufferIndex;	// 24.8 index into current buffer: must have no fractional bits!
 	

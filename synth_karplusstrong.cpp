@@ -266,18 +266,20 @@ void AudioSynthKarplusStrong::update(void)
 	}
 	bufferIndex = theBuffer.limitToBufferFrac(bufferIndex);
 
-	if (releasing == state)
+	if (state < silent) // releasing values are negative
 	{
-		state = silent;
-		theBuffer.release();
-
 		// fade this block out
+		int off = -AUDIO_BLOCK_SAMPLES*(state+1); // 256, 128, 0
 		data = block->data;
 		for (int i=AUDIO_BLOCK_SAMPLES-1; i>=0; i--)
 		{
-			*data = (*data * i) / AUDIO_BLOCK_SAMPLES;
+			*data = (*data * (i+off)) / (AUDIO_BLOCK_SAMPLES*3);
 			data++;
 		}
+
+		state++; // work up towards silence
+		if (silent == state)
+			theBuffer.release();
 	}
 
 	transmit(block);
