@@ -50,10 +50,19 @@ bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
 	size_t i;
 	for (i=0; i < count && result; i++)
 	{
-		buffers[i] = AudioStream::allocate();
+		if (nullptr == buffers[i]) // happens if noteOff() not called - memory leak risk!
+			buffers[i] = AudioStream::allocate();
 		if (nullptr == buffers[i])
 			result = false;
 	}
+
+	// might have noteOn() without noteOff(), which could leave
+	// buffers allocated that we don't need: release those
+	if (bufferCount > i) // old count was higher than we now need...
+		release(i);		 // ...release spare blocks
+
+
+	// we have the required blocks, save the count etc.
 	bufferCount = i;
 	sampleCount = bufferCount*AUDIO_BLOCK_SAMPLES;
 
@@ -61,13 +70,17 @@ bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
 }
 
 
-void AudioSynthKarplusStrong::IndexableBuffer::release(void)
+void AudioSynthKarplusStrong::IndexableBuffer::release(size_t start)
 {
 	size_t i;
 
-	readVal = 0;	
-	bufferCount = 0;
-	for (i=0; i < maxBufferCount; i++)
+	if (0 == start) // noteOff() release all
+	{
+		readVal = 0;	
+		bufferCount = 0;
+	}
+
+	for (i=start; i < maxBufferCount; i++)
 	{
 		if (nullptr != buffers[i])
 		{
@@ -93,8 +106,6 @@ void AudioSynthKarplusStrong::IndexableBuffer::prefill(int samples, int32_t magn
 		{
 			lo = pseudorand(lo);
 			buffer[j] = signed_multiply_32x16b(magnitude, lo);
-			//if (0 >= --samples)
-			//	break;
 		}
 	}
 	seed = lo; // re-seed for different noise next time
@@ -106,6 +117,8 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 {
 	int bufferNum;
 	int32_t bufferLen;
+
+	state = silent; // in case we haven't had a noteOff(), and an update() occurs
 
 	if (velocity > 1.0f) {
 		velocity = 0.0f;
@@ -135,7 +148,6 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 		bufferIndex = 0;	
 		state = started; // allocated, we're playing
 	}
-
 }
 
 
@@ -200,8 +212,8 @@ void AudioSynthKarplusStrong::update(void)
 	audio_block_t *block, *input, *bend;
 	
 	// deal with drive and bend
-	input = receiveReadOnly(0);	// do we have a drive block?
-	bend  = receiveReadOnly(1); // or a bend block?
+	bend  = receiveReadOnly(0); // get bend block...
+	input = receiveReadOnly(1);	// ...and drive block
 
 	if (state == silent) // not actually playing...
 	{

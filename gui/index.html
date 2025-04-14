@@ -3955,8 +3955,8 @@ The actual packets are taken
 	<h3>Audio Connections</h3>
 	<table class=doc align=center cellpadding=3>
 		<tr class=top><th>Port</th><th>Purpose</th></tr>
-		<tr class=odd><td align=center>In 0</td><td>Drive input</td></tr>
-		<tr class=odd><td align=center>In 1</td><td>Modulation input</td></tr>
+		<tr class=odd><td align=center>In 0</td><td>Modulation input</td></tr>
+		<tr class=odd><td align=center>In 1</td><td>Drive input</td></tr>
 		<tr class=odd><td align=center>Out 0</td><td>Sound output</td></tr>
 	</table>
 	<h3>Functions</h3>
@@ -3981,6 +3981,10 @@ The actual packets are taken
 		Higher levels give more sustain; it may be effective to increase the level 
 		in line with pitch, as higher notes have poorer sustain.
 		Range 0.0 - 1.0, though anything under 0.9 tends to result in very little output.
+	</p>
+	<p class=func><span class=keyword>isPlaying</span>();</p>
+	<p class=desc>Return 'true' if note is playing (may be inaudible if it has decayed
+		to nothing, of course).
 	</p>
 	<h3>Examples</h3>
 	<p class=exam>File &gt; Examples &gt; Synthesis &gt; Guitar
