@@ -266,8 +266,8 @@ void AudioSynthKarplusStrong::update(void)
 		release(bend);
 		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 		{
-			int16_t prior = theBuffer[bufferIndex - increment]; // frequency fixed at "baseLen" samples
-			int16_t in = theBuffer[bufferIndex - perData[i]];
+			int16_t prior = theBuffer[bufferIndex - increment]; 
+			int16_t in = theBuffer[bufferIndex - perData[i]]; // frequency modulated by input
 			int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
 			if (nullptr != drive)
 				out += (*drive++ * _driveLevel) >> 16;
