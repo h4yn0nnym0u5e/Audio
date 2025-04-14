@@ -223,7 +223,7 @@ private:
 	int _sampleLength = 16;			// only 16 bits tested
 	bool _usingMCLK = true;
 	dacPwr _dacPower = DAC_DEF;	
-	uint8_t _hpfDefault = AIC_HPF_0045; // enabled at lowest freq
+	uint8_t _hpfDefault = AIC_HPF_DISABLE;// AIC_HPF_0045; // enabled at lowest freq
 
 	int _lastCodec = -1; 	// used by muxDecode (force change on first use)
 	int _lastBoard = -1;
