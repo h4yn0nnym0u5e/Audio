@@ -49,6 +49,7 @@ public:
 	void noteOn(float frequency, float velocity);
 	void noteOff(float velocity); 
 	bool isPlaying(void) { return state != silent; }
+	bool isStarted(void) { return state == playing; } // stimulus has been generated
 	void setFeedbackLevel(float level) { setLevel(level,&_feedbackLevel); }
 	void setDriveLevel(float level) { setLevel(level,&_driveLevel); }
 	void frequencyModulation(float octaves)	// must do before noteOn()
@@ -81,7 +82,7 @@ private:
 		public:
 			IndexableBuffer() : readVal {0}, buffers{0}, bufferCount(0) {}
 			bool allocate(uint16_t count);
-			void release(void);
+			void release(size_t start = 0);
 			void prefill(int samples, int32_t magnitude);
 
 			// limit index to being within buffer
