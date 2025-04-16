@@ -59,6 +59,7 @@ bool AudioControlTLV320AIC3104::enable(int8_t codec)
 				_verbose && fprintf(stderr, "Codec %i not enabled\n", i);
 			}
 		}
+		_verbose && fprintf(stderr, "Enable _gainStep %i\n", _gainStep);
 		return true;	
 	}
 	else // a single codec
@@ -111,12 +112,12 @@ bool AudioControlTLV320AIC3104::enableCodec(int8_t codec)
 		//	route the input 
 		//	and power up the ADC
 		//  then unmute the PGAs 
-	writeRegister(19, (_inputMode << 7) + 4, codec);	// Reg 19 (0x13): ADC Left power On; LIN1/2 to PGA, soft step on, 0dB, single-ended mode
-	writeRegister(22, (_inputMode << 7) + 4, codec);	// Reg 22 (0x16): ADC right power; LIN2 to PGA, soft step on, 0dB, single-ended  mode
+	writeRegister(19, (_inputMode << 7) + 4, codec);	// Reg 19 (0x13): ADC Left power On; LIN1/2 to PGA, soft step on, 0dB, differential mode
+	writeRegister(22, (_inputMode << 7) + 4, codec);	// Reg 22 (0x16): ADC right power; LIN2 to PGA, soft step on, 0dB, differential mode
 
-	writeRegister(15, 0x00, codec);	// Reg 15: ADC PGA R 0dB, un-muted, LINE1 single-ended
-	writeRegister(16, 0x00, codec);	// Reg 16: ADC PGA L 0dB, un-muted
-
+	writeRegister(15, _gainStep, codec);	// Reg 15: ADC PGA R to default, un-muted
+	writeRegister(16, _gainStep, codec);	// Reg 16: ADC PGA L to default, un-muted
+//Serial.printf("Gain step %i (0x%02x) reads as 0x%02x for codec %i\n", _gainStep, _gainStep,readRegister(15, codec), codec);
 	// R19 R21: differential or SE input
 	inputMode(_inputMode, codec);
 	writeRegister(12, (_hpfDefault << 6) | (_hpfDefault << 4), codec);		// Reg 12:  Audio Codec Digital Filter (Default = HPF and Digital Effects filter disabled)
@@ -197,6 +198,28 @@ void AudioControlTLV320AIC3104::writeR10(uint8_t codec)	// p51
 		writeRegister(10, val, codec);
 }
 
+
+// Change the page register for a single CODEC or all
+void AudioControlTLV320AIC3104::setRegPage(uint8_t newPage, int8_t codec)
+{
+	int cst, cend;
+	newPage = constrain(newPage, 0, 1);
+	if(codec < 0)
+	{
+		cst = 0;
+		cend = _codecs;
+	}
+	else
+	{
+		cst = codec;
+		cend = cst + 1;
+	}
+	for(int cod = cst; cod < cend; cod++)
+		writeRegister(0, newPage, cod);
+	
+	Serial.printf("Set code page %i for codecs %i to %i\n", newPage, cst, cend);
+}
+
 // *** Untested ***
 // Mute inputs and outputs, stop generating audio and power down
 bool AudioControlTLV320AIC3104::stopAudio()
@@ -222,5 +245,6 @@ bool AudioControlTLV320AIC3104::stopAudio()
 #include "tlv320aic3104_mux.h"
 #include "tlv320aic3104_routeVol.h"
 #include "tlv320aic3104_pll.h" 
+#include "tlv320aic3104_filters.h" 
 
 

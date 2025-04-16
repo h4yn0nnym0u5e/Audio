@@ -29,6 +29,8 @@
  * R. Palmer 2025
  */
 
+// VERSION 1.2
+
 #ifndef _TLV320AIC3104_H
 #define _TLV320AIC3104_H
 
@@ -176,20 +178,21 @@ public:
  * inputLevel: -59.5 .. 0
  */
 	bool gain(float gainVal, int8_t channel = -1, int8_t codec = -1); 	// 0..60dB gain range
-	bool inputLevel(float gainVal, int8_t channel = -1, int8_t codec = -1); // 0 to -59.5dB
+	bool inputLevel(float gainVal, int8_t channel, int8_t); // 0 to -59.5dB
 	bool inputLevel(float gainVal){ return inputLevel(gainVal, -1, -1); } // see AudioControl.h
 
-	bool inputSelect(int level, int8_t channel = -1, int8_t codec = -1); 		// n=0: Line level, PGA gain = 0dB; n=1: Mic level, PGA gain = 59.5dB See inputLevel();
+	bool inputSelect(int level, int8_t channel, int8_t); 		// n=0: Line level, PGA gain = 0dB; n=1: Mic level, PGA gain = 59.5dB See inputLevel();
 	bool inputSelect(int level) { return inputSelect(level, -1, -1); } 		// see AudioControl.h
 	
 	// HPF will remove the DC offset from signal (P29 and P52)
-	bool setHPF(uint8_t option, int8_t channel = -1, int8_t codec = -1); // when issued before the codecs are enabled, all channels and codecs are set. Default is Fo = 0.0045 Fs
-
+	bool setHPF(uint8_t option, int8_t channel = -1, int8_t codec = -1); // DEPRECATED - filter corner frequencies too high. When issued before the codecs are enabled, all channels and codecs are set. Default is off
+	void HPF(int freq, int8_t channel = -1, int8_t codec = -1);
 	void setVerbose(int verbosity); // 0 = off Diagnostics. 1 and 2 are increasingly verbose. Beware, this will block if USB Serial isn't connected.
 
 	// only used for debugging
 	void muxDecode(uint8_t codec);
 	int readRegister(uint8_t reg, uint8_t codec);
+	void setRegPage(uint8_t newPage, int8_t codec = -1); // change the page register
 protected:
 	TwoWire *_i2c = &Wire;
 	bool volumeInteger(int gainStep, int8_t channel = -1, int8_t codec = -1);
@@ -216,6 +219,7 @@ private:
 	uint8_t _activeMuxes = 0;
 	
 	inputModes _inputMode = AIC_DIFF;	
+	uint8_t _gainStep	= 0;	// 0dB gain default
 	uint8_t _i2sMode = AICMODE_I2S;
 	uint32_t _sampleRate = 44100;	
 	uint32_t _baseRate = 44100;
