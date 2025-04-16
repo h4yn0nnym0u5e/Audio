@@ -132,16 +132,16 @@ Values outside these ranges are constrained.
 When called without channel and codec arguments, all codecs and channels are affected.
 
 ### setHPF(uint8_t option, int8_t channel = -1, int8_t codec = -1)
-Input channel DC removal filter.
+Input channel DC removal filter. These standard digital filter settings are not very useful for audio use, due to the high corner frequencies.
 
 ```
 0 = off	- power on default
 
-1 = 0.0045 Fs (0.2 Hz @ Fs = 44.1kHz) - library default
+1 = 0.0045 Fs (198 Hz @ Fs = 44.1kHz) - library default
 
-2 = 0.0125 Fs (0.5 Hz)
+2 = 0.0125 Fs (551 Hz)
 
-3 = 0.025  Fs (1.1 Hz)
+3 = 0.025  Fs (1102 Hz)
 ```
 
 ### volume(float value, int8_t channel, int8_t codec)
