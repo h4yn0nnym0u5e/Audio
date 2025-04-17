@@ -139,7 +139,7 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 	bufferNum = bufferLen / AUDIO_BLOCK_SAMPLES + 1; // one cycle, rounded up
 	
 	// actual number of samples for requested note
-	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq;
+	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq - increment;
 	
 	if (!theBuffer.allocate(bufferNum)) // couldn't allocate, stay silent
 		theBuffer.release();
