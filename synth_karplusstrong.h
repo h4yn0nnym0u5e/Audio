@@ -68,7 +68,7 @@ public:
 	// AudioStream code limits a Teensy 4.x to 896 blocks.
 	static constexpr float lowestFreq = 15.7f; // gets down to C0 / MIDI 12
 	static constexpr int fracShift = 8; // use 24.8 indexes into buffer
-	static constexpr int increment = 1<<fracShift; 
+	static constexpr int increment = 1<<fracShift;
 	
 private:
 	int8_t state;     		// 0=silent, 1=begin on next update, 2=playing, -ve note releasing
@@ -89,12 +89,20 @@ private:
 			// index is integer portion only
 			int32_t limitToBuffer(int32_t index)
 			{
+				/*
 				if (index < 0 || index >= sampleCount)
 				{
 					index = index % sampleCount;
 					if (index < 0)
 						index += sampleCount;
 				}
+				/*/
+				// expect moderately sane index, so avoid
+				// division by using multiple addition / subtractions
+				while (index < 0) index += sampleCount;
+				while (index >= sampleCount) index -= sampleCount;
+				//*/
+
 				return index;
 			}
 
@@ -113,6 +121,8 @@ private:
 
 				int32_t frac = (uint32_t) index & (increment-1);
 				index = limitToBuffer(index >> fracShift);
+				// this division looks expensive, but replacing it 
+				// with a shift is actually slower!
 				int blockNum = index / AUDIO_BLOCK_SAMPLES;
 				if (0 == frac) // return reference to read/write value in buffers
 					return buffers[blockNum]->data[index-AUDIO_BLOCK_SAMPLES*blockNum];

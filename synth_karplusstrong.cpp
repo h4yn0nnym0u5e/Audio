@@ -268,7 +268,15 @@ void AudioSynthKarplusStrong::update(void)
 		{
 			int16_t prior = theBuffer[bufferIndex - increment]; 
 			int16_t in = theBuffer[bufferIndex - perData[i]]; // frequency modulated by input
+			/*
+			// original computation
 			int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
+			/*/
+			// using DSP - slight loss of precision
+			int32_t fbk = _feedbackLevel;
+			int32_t out = signed_multiply_32x16b(fbk,in);
+			out = signed_multiply_accumulate_32x16b(out,fbk,prior);
+			//*/
 			if (nullptr != drive)
 				out += (*drive++ * _driveLevel) >> 16;
 			*data++ = out;
