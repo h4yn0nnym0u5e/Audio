@@ -30,8 +30,6 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include "utility/dspinst.h"
 
-class AudioSynthKarplusStrong;
-extern void AudioSynthKarplusStrongFail(AudioSynthKarplusStrong* obj);
 
 class AudioSynthKarplusStrong : public AudioStream
 {
@@ -72,7 +70,7 @@ public:
 	static constexpr int fracShift = 8; // use 24.8 indexes into buffer
 	static constexpr int increment = 1<<fracShift;
 	
-//private:
+private:
 	int8_t state;     		// 0=silent, 1=begin on next update, 2=playing, -ve note releasing
 	int32_t baseLen;		// 24.8 length in samples of base frequency's cycle
 	int32_t bufferIndex;	// 24.8 index into current buffer: must have no fractional bits!
@@ -80,11 +78,10 @@ public:
 	int32_t  magnitude; // current output level
 	class IndexableBuffer
 	{
-			AudioSynthKarplusStrong* parent;
 			static uint32_t seed;  // must start at 1
 		public:
 			IndexableBuffer() : readVal {0}, buffers{0}, bufferCount(0) {}
-			bool allocate(uint16_t count, AudioSynthKarplusStrong* p);
+			bool allocate(uint16_t count);
 			void release(size_t start = 0);
 			void prefill(int samples, int32_t magnitude);
 
@@ -103,13 +100,7 @@ public:
 				// expect moderately sane index, so avoid
 				// division by using multiple addition / subtractions
 				while (index < 0) index += sampleCount;
-				int n = 100;
-				while (index >= sampleCount && n-- > 0) index -= sampleCount;
-				if (n<=0)
-				{
-					AudioSynthKarplusStrongFail(parent); // supplied by sketch!
-					index = 0;
-				}
+				while (index >= sampleCount) index -= sampleCount;
 				//*/
 
 				return index;

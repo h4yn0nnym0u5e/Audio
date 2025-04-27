@@ -44,11 +44,11 @@ static uint32_t pseudorand(uint32_t lo)
 
 
 uint32_t AudioSynthKarplusStrong::IndexableBuffer::seed = 1;
-bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count, AudioSynthKarplusStrong* p)
+bool AudioSynthKarplusStrong::IndexableBuffer::allocate(uint16_t count)
 {
 	bool result = true;
 	size_t i;
-	parent = p;
+
 	for (i=0; i < count && result; i++)
 	{
 		if (nullptr == buffers[i]) // happens if noteOff() not called - memory leak risk!
@@ -122,7 +122,7 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 	state = silent; // in case we haven't had a noteOff(), and an update() occurs
 
 	if (velocity > 1.0f) {
-		velocity = 0.0f; // BUGBUG: should be 1.0f! leave for now...
+		velocity = 1.0f; 
 	} else if (velocity <= 0.0f) {
 		noteOff(1.0f);
 		return;
@@ -142,7 +142,7 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 	// actual number of samples for requested note
 	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq - increment;
 	
-	if (!theBuffer.allocate(bufferNum, this)) // couldn't allocate, stay silent
+	if (!theBuffer.allocate(bufferNum)) // couldn't allocate, stay silent
 		theBuffer.release();
 	else
 	{
@@ -154,7 +154,8 @@ void AudioSynthKarplusStrong::noteOn(float noteFreq, float velocity)
 
 void AudioSynthKarplusStrong::noteOff(float velocity) 
 {
-	state = releasing; // prevent click at end
+	if (state > silent)
+		state = releasing; // prevent click at end
 }
 
 
@@ -216,7 +217,7 @@ void AudioSynthKarplusStrong::update(void)
 	bend  = receiveReadOnly(0); // get bend block...
 	input = receiveReadOnly(1);	// ...and drive block
 
-	if (state == silent) // not actually playing...
+	if (state == silent || 0 == theBuffer.sampleCount) // not actually playing...
 	{
 		if (nullptr != input) release(input); // ...release any drive...
 		if (nullptr != bend)  release(bend);  // ... and bend
