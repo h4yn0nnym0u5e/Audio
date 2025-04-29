@@ -30,15 +30,50 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include "utility/dspinst.h"
 
-
+//=================================================================================
 class AudioSynthKarplusStrong : public AudioStream
+{
+public:
+	AudioSynthKarplusStrong() : AudioStream(0, NULL) {
+		state = 0;
+	}
+	void noteOn(float frequency, float velocity) {
+		if (velocity > 1.0f) {
+			velocity = 0.0f;
+		} else if (velocity <= 0.0f) {
+			noteOff(1.0f);
+			return;
+		}
+		magnitude = velocity * 65535.0f;
+		int len = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f;
+		if (len > 536) len = 536;
+		bufferLen = len;
+		bufferIndex = 0;
+		state = 1;
+	}
+	void noteOff(float velocity) {
+		state = 0;
+	}
+	virtual void update(void);
+private:
+	uint8_t  state;     // 0=steady output, 1=begin on next update, 2=playing
+	uint16_t bufferLen;
+	uint16_t bufferIndex;
+	int32_t  magnitude; 	// current output
+	static uint32_t seed;  	// must start at 1
+	int16_t buffer[536]; 	// lowest note ~82Hz, E2
+};
+
+
+//=================================================================================
+class AudioSynthKarplusStrongModulated : public AudioStream
 {
 	enum state_e {releasing=-3, silent=0, started, playing};
 	void setLevel(float level,int16_t* levelPtr);
 	void computeBendData(uint32_t* phasedata, int16_t* bp);
 public:
-	AudioSynthKarplusStrong() 
-		: AudioStream(2, inputQueueArray), // drive and bend inputs
+	AudioSynthKarplusStrongModulated() 
+		: AudioStream(2, inputQueueArray), // bend and drive inputs
 		  state(silent), 
 		  _feedbackLevel(32686),
 		  _driveLevel(0)
@@ -89,19 +124,10 @@ private:
 			// index is integer portion only
 			int32_t limitToBuffer(int32_t index)
 			{
-				/*
-				if (index < 0 || index >= sampleCount)
-				{
-					index = index % sampleCount;
-					if (index < 0)
-						index += sampleCount;
-				}
-				/*/
 				// expect moderately sane index, so avoid
 				// division by using multiple addition / subtractions
 				while (index < 0) index += sampleCount;
 				while (index >= sampleCount) index -= sampleCount;
-				//*/
 
 				return index;
 			}

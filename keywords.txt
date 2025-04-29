@@ -88,6 +88,7 @@ AudioSynthWaveformPWM	KEYWORD2
 AudioSynthNoiseWhite	KEYWORD2
 AudioSynthNoisePink	KEYWORD2
 AudioSynthKarplusStrong	KEYWORD2
+AudioSynthKarplusStrongModulated	KEYWORD2
 AudioSynthSimpleDrum	KEYWORD2
 AudioSynthWavetable	KEYWORD2
 isPlaying	KEYWORD2

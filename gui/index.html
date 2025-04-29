@@ -502,7 +502,8 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioRecordQueue","data":{"defaults":{"name":{"value":"new"}},"shortName":"queue","inputs":1,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthWavetable","data":{"defaults":{"name":{"value":"new"}},"shortName":"wavetable","inputs":0,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthSimpleDrum","data":{"defaults":{"name":{"value":"new"}},"shortName":"drum","inputs":0,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioSynthKarplusStrong","data":{"defaults":{"name":{"value":"new"}},"shortName":"string","inputs":2,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioSynthKarplusStrong","data":{"defaults":{"name":{"value":"new"}},"shortName":"string","inputs":0,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioSynthKarplusStrongModulated","data":{"defaults":{"name":{"value":"new"}},"shortName":"stringMod","inputs":2,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthWaveformSine","data":{"defaults":{"name":{"value":"new"}},"shortName":"sine","inputs":0,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthWaveformSineHires","data":{"defaults":{"name":{"value":"new"}},"shortName":"sine_hires","inputs":0,"outputs":2,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioSynthWaveformSineModulated","data":{"defaults":{"name":{"value":"new"}},"shortName":"sine_fm","inputs":1,"outputs":1,"category":"synth-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -3134,8 +3135,44 @@ The actual packets are taken
 <script type="text/x-red" data-help-name="AudioSynthKarplusStrong">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
+	<p>Synthesize a plucked string sound, such as a guitar string.
+		</p>
+	<p align=center><img src="img/touchguitar.jpg"></p>
+	</div>
+	<h3>Audio Connections</h3>
+	<table class=doc align=center cellpadding=3>
+		<tr class=top><th>Port</th><th>Purpose</th></tr>
+		<tr class=odd><td align=center>Out 0</td><td>Sound Output</td></tr>
+	</table>
+	<h3>Functions</h3>
+	<p class=func><span class=keyword>noteOn</span>(frequency, velocity);</p>
+	<p class=desc>Begin a new string note.  Velocity can be from 0 to 1.0,
+		indicating how hard the string is plucked.
+	</p>
+	<p class=func><span class=keyword>noteOff</span>(velocity);</p>
+	<p class=desc>Stop the sound output.
+	</p>
+	<h3>Examples</h3>
+	<p class=exam>File &gt; Examples &gt; Synthesis &gt; Guitar
+	</p>
+	<p class=exam><a href="https://github.com/PaulStoffregen/TouchGuitar" target="_blank">TouchGuitar</a>
+	</p>
+	<h3>Notes</h3>
+	<p></p>
+</script>
+<script type="text/x-red" data-template-name="AudioSynthKarplusStrong">
+	<div class="form-row">
+		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+		<input type="text" id="node-input-name" placeholder="Name">
+	</div>
+</script>
+
+<script type="text/x-red" data-help-name="AudioSynthKarplusStrongModulated">
+	<h3>Summary</h3>
+	<div class=tooltipinfo>
 	<p>Synthesize a plucked string sound, such as a guitar string. 
-		Also includes a drive input for generation of bowed or wind
+		Also includes a modulation input for note bending,
+		and a drive input for generation of bowed or wind
 		instrument simulations.
 		</p>
 	<p align=center><img src="img/touchguitar.jpg"></p>
@@ -3182,8 +3219,8 @@ The actual packets are taken
 	<h3>Notes</h3>
 	<p>Memory for the generated signal is taken from the memory pool allocated by
 		<a href="http://www.pjrc.com/teensy/td_libs_AudioConnection.html" target="_blank">AudioMemory()</a>.
-		The amount used depends on the pitch and modulation range, with a maximum of 22 blocks
-		used for a 15.7Hz note.
+		The amount used depends on the pitch and modulation range, with a maximum 
+		of 22 blocks used for a 15.7Hz note.
 		AudioMemory should be calculated to allow for the lowest anticipated note, and
 		maximum number of sounding notes. 
 		<br><br>
@@ -3193,7 +3230,7 @@ The actual packets are taken
 		5+4+3+2+2+2 = 18 blocks.
 	</p>
 </script>
-<script type="text/x-red" data-template-name="AudioSynthKarplusStrong">
+<script type="text/x-red" data-template-name="AudioSynthKarplusStrongModulated">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
