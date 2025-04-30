@@ -65,9 +65,6 @@ void AudioSynthKarplusStrong::update(void)
 		state = 0;
 		return;
 	}
-	audio_block_t *blkIn,*blkPrior;
-	blkIn = allocate();
-	blkPrior = allocate();
 
 	int16_t prior;
 	if (bufferIndex > 0) {
@@ -78,8 +75,6 @@ void AudioSynthKarplusStrong::update(void)
 	int16_t *data = block->data;
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
 		int16_t in = buffer[bufferIndex];
-		blkIn->data[i] = in;
-		blkPrior->data[i] = prior;
 	//int16_t out = (in * 32604 + prior * 32604) >> 16;
 		int16_t out = (in * 32686 + prior * 32686) >> 16;
 		//int16_t out = (in * 32768 + prior * 32768) >> 16;
@@ -90,12 +85,7 @@ void AudioSynthKarplusStrong::update(void)
 	}
 
 	transmit(block);
-	release(block);
-	
-	transmit(blkIn,1);
-	release(blkIn); 
-	transmit(blkPrior,2);
-	release(blkPrior); 
+	release(block); 
 #endif
 }
 uint32_t AudioSynthKarplusStrong::seed = 1;
@@ -290,9 +280,6 @@ void AudioSynthKarplusStrongModulated::update(void)
 		state = silent; // darn: give up
 		return;
 	}
-	audio_block_t *blkIn,*blkPrior;
-	blkIn = allocate();
-	blkPrior = allocate();
 
 	// prepare audio data pointers, in and out
 	int16_t *data = block->data;
@@ -312,13 +299,8 @@ void AudioSynthKarplusStrongModulated::update(void)
 	{
 		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 		{
-			//int16_t prior = theBuffer[bufferIndex - baseLen - increment]; // frequency fixed at "baseLen" samples
-			//int16_t in = theBuffer[bufferIndex - baseLen];
 			int16_t in, prior;
 			theBuffer.read2samples(bufferIndex - baseLen, prior, in);
-
-			blkIn->data[i] = in;
-			blkPrior->data[i] = prior;
 
 			// using DSP - slight loss of precision but faster execution
 			int32_t fbk = _feedbackLevel;
@@ -377,11 +359,6 @@ void AudioSynthKarplusStrongModulated::update(void)
 
 	transmit(block);
 	release(block); 
-
-	transmit(blkIn,1);
-	release(blkIn); 
-	transmit(blkPrior,2);
-	release(blkPrior); 
 	
 	if (nullptr != input)
 		release(input);
