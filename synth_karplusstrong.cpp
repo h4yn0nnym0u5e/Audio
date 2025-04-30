@@ -65,6 +65,9 @@ void AudioSynthKarplusStrong::update(void)
 		state = 0;
 		return;
 	}
+	audio_block_t *blkIn,*blkPrior;
+	blkIn = allocate();
+	blkPrior = allocate();
 
 	int16_t prior;
 	if (bufferIndex > 0) {
@@ -75,7 +78,9 @@ void AudioSynthKarplusStrong::update(void)
 	int16_t *data = block->data;
 	for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
 		int16_t in = buffer[bufferIndex];
-		//int16_t out = (in * 32604 + prior * 32604) >> 16;
+		blkIn->data[i] = in;
+		blkPrior->data[i] = prior;
+	//int16_t out = (in * 32604 + prior * 32604) >> 16;
 		int16_t out = (in * 32686 + prior * 32686) >> 16;
 		//int16_t out = (in * 32768 + prior * 32768) >> 16;
 		*data++ = out;
@@ -86,6 +91,11 @@ void AudioSynthKarplusStrong::update(void)
 
 	transmit(block);
 	release(block);
+	
+	transmit(blkIn,1);
+	release(blkIn); 
+	transmit(blkPrior,2);
+	release(blkPrior); 
 #endif
 }
 uint32_t AudioSynthKarplusStrong::seed = 1;
@@ -189,7 +199,7 @@ void AudioSynthKarplusStrongModulated::noteOn(float noteFreq, float velocity)
 	bufferNum = bufferLen / AUDIO_BLOCK_SAMPLES + 1; // one cycle, rounded up
 	
 	// actual number of samples for requested note
-	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq - increment;
+	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq - increment/2;
 	
 	if (!theBuffer.allocate(bufferNum)) // couldn't allocate, stay silent
 		theBuffer.release();
@@ -280,11 +290,14 @@ void AudioSynthKarplusStrongModulated::update(void)
 		state = silent; // darn: give up
 		return;
 	}
+	audio_block_t *blkIn,*blkPrior;
+	blkIn = allocate();
+	blkPrior = allocate();
 
 	// prepare audio data pointers, in and out
 	int16_t *data = block->data;
 	int16_t* drive = nullptr;
-	if (nullptr != input)
+	if (nullptr != input && 0 != _driveLevel)
 		drive = input->data;
 
 	// if just started, provide the initial stimulus		
@@ -299,9 +312,19 @@ void AudioSynthKarplusStrongModulated::update(void)
 	{
 		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 		{
-			int16_t prior = theBuffer[bufferIndex - increment]; // frequency fixed at "baseLen" samples
-			int16_t in = theBuffer[bufferIndex - baseLen];
-			int16_t out = (in * _feedbackLevel + prior * _feedbackLevel) >> 16;
+			//int16_t prior = theBuffer[bufferIndex - baseLen - increment]; // frequency fixed at "baseLen" samples
+			//int16_t in = theBuffer[bufferIndex - baseLen];
+			int16_t in, prior;
+			theBuffer.read2samples(bufferIndex - baseLen, prior, in);
+
+			blkIn->data[i] = in;
+			blkPrior->data[i] = prior;
+
+			// using DSP - slight loss of precision but faster execution
+			int32_t fbk = _feedbackLevel;
+			int32_t out = signed_multiply_32x16b(fbk,in);
+			out = signed_multiply_accumulate_32x16b(out,fbk,prior);
+
 			if (nullptr != drive)
 				out += (*drive++ * _driveLevel) >> 16;
 			*data++ = out;
@@ -317,8 +340,10 @@ void AudioSynthKarplusStrongModulated::update(void)
 		release(bend);
 		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 		{
-			int16_t prior = theBuffer[bufferIndex - increment]; 
-			int16_t in = theBuffer[bufferIndex - perData[i]]; // frequency modulated by input
+			//int16_t prior = theBuffer[bufferIndex- perData[i] - increment]; 
+			//int16_t in = theBuffer[bufferIndex - perData[i]]; // frequency modulated by input
+			int16_t in, prior;
+			theBuffer.read2samples(bufferIndex - perData[i], prior, in);
 
 			// using DSP - slight loss of precision but faster execution
 			int32_t fbk = _feedbackLevel;
@@ -352,6 +377,11 @@ void AudioSynthKarplusStrongModulated::update(void)
 
 	transmit(block);
 	release(block); 
+
+	transmit(blkIn,1);
+	release(blkIn); 
+	transmit(blkPrior,2);
+	release(blkPrior); 
 	
 	if (nullptr != input)
 		release(input);

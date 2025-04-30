@@ -75,7 +75,7 @@ public:
 	AudioSynthKarplusStrongModulated() 
 		: AudioStream(2, inputQueueArray), // bend and drive inputs
 		  state(silent), 
-		  _feedbackLevel(32686),
+		  _feedbackLevel(32686), // 0.9975
 		  _driveLevel(0)
 		{
 			frequencyModulation(2.0f/12); // bend by 2 semitones
@@ -165,6 +165,65 @@ private:
 					readVal = val1 >> fracShift;
 				}
 				return readVal; // writing this will have no effect!
+			}
+
+			void decIndex(int& blockNum, int& subIndex)
+			{
+				if (0 == subIndex)
+				{
+					subIndex = AUDIO_BLOCK_SAMPLES-1;
+					blockNum--;
+					if (blockNum < 0)
+						blockNum = bufferCount-1;
+				}
+				else
+					subIndex--;
+			}
+			
+			/*
+			 * Read the two samples at buffer[index] and buffer[index-1.0]
+			 * (N.B. fractional index)
+			 */
+			void read2samples(int32_t index, int16_t& prior, int16_t& in)
+			{
+				// buffers are invalid, return zero values
+				if (0 == bufferCount) 
+				{
+					prior = 0;
+					in = 0;
+				}
+				else
+				{
+					int32_t frac = (uint32_t) index & (increment-1);
+					if (0 == frac) // return values from buffers
+					{
+						index = limitToBuffer(index >> fracShift);
+						// this division looks expensive, but replacing it 
+						// with a shift is actually slower!
+						int blockNum = index / AUDIO_BLOCK_SAMPLES;
+						int subIndex = index-AUDIO_BLOCK_SAMPLES*blockNum;
+
+						in = buffers[blockNum]->data[subIndex];
+						decIndex(blockNum, subIndex);
+						prior = buffers[blockNum]->data[subIndex];
+					}
+					else
+					{
+						index = limitToBuffer((index >> fracShift)+1);
+						int blockNum = index / AUDIO_BLOCK_SAMPLES;
+						int subIndex = index-AUDIO_BLOCK_SAMPLES*blockNum;
+
+						// likely this can be optimised using DSP instructions
+						int32_t val2 = buffers[blockNum]->data[subIndex];
+						decIndex(blockNum, subIndex);
+						int32_t val1 = buffers[blockNum]->data[subIndex];
+						decIndex(blockNum, subIndex);
+						int32_t val0 = buffers[blockNum]->data[subIndex];
+
+						in    = (val1 * (increment - frac) + val2 * frac) >> fracShift;
+						prior = (val0 * (increment - frac) + val1 * frac) >> fracShift;
+					}
+				}
 			}
 
 			static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
