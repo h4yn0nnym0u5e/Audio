@@ -322,8 +322,6 @@ void AudioSynthKarplusStrongModulated::update(void)
 		release(bend);
 		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 		{
-			//int16_t prior = theBuffer[bufferIndex- perData[i] - increment]; 
-			//int16_t in = theBuffer[bufferIndex - perData[i]]; // frequency modulated by input
 			int16_t in, prior;
 			theBuffer.read2samples(bufferIndex - perData[i], prior, in);
 
