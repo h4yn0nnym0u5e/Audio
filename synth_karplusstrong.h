@@ -30,23 +30,58 @@
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include "utility/dspinst.h"
 
-
+//=================================================================================
 class AudioSynthKarplusStrong : public AudioStream
+{
+public:
+	AudioSynthKarplusStrong() : AudioStream(0, NULL) {
+		state = 0;
+	}
+	void noteOn(float frequency, float velocity) {
+		if (velocity > 1.0f) {
+			velocity = 0.0f;
+		} else if (velocity <= 0.0f) {
+			noteOff(1.0f);
+			return;
+		}
+		magnitude = velocity * 65535.0f;
+		int len = (AUDIO_SAMPLE_RATE_EXACT / frequency) + 0.5f;
+		if (len > 536) len = 536;
+		bufferLen = len;
+		bufferIndex = 0;
+		state = 1;
+	}
+	void noteOff(float velocity) {
+		state = 0;
+	}
+	virtual void update(void);
+private:
+	uint8_t  state;     // 0=steady output, 1=begin on next update, 2=playing
+	uint16_t bufferLen;
+	uint16_t bufferIndex;
+	int32_t  magnitude; 	// current output
+	static uint32_t seed;  	// must start at 1
+	int16_t buffer[536]; 	// lowest note ~82Hz, E2
+};
+
+
+//=================================================================================
+class AudioSynthKarplusStrongModulated : public AudioStream
 {
 	enum state_e {releasing=-3, silent=0, started, playing};
 	void setLevel(float level,int16_t* levelPtr);
 	void computeBendData(uint32_t* phasedata, int16_t* bp);
 public:
-	AudioSynthKarplusStrong() 
-		: AudioStream(2, inputQueueArray), // drive and bend inputs
+	AudioSynthKarplusStrongModulated() 
+		: AudioStream(2, inputQueueArray), // bend and drive inputs
 		  state(silent), 
-		  _feedbackLevel(32686),
+		  _feedbackLevel(32686), // 0.9975
 		  _driveLevel(0)
 		{
 			frequencyModulation(2.0f/12); // bend by 2 semitones
 		}
 
-	~AudioSynthKarplusStrong() { SAFE_RELEASE_INPUTS(); }		
+	~AudioSynthKarplusStrongModulated() { SAFE_RELEASE_INPUTS(); }		
 
 	void noteOn(float frequency, float velocity);
 	void noteOff(float velocity); 
@@ -70,7 +105,7 @@ public:
 	// AudioStream code limits a Teensy 4.x to 896 blocks.
 	static constexpr float lowestFreq = 15.7f; // gets down to C0 / MIDI 12
 	static constexpr int fracShift = 8; // use 24.8 indexes into buffer
-	static constexpr int increment = 1<<fracShift; 
+	static constexpr int increment = 1<<fracShift;
 	
 private:
 	int8_t state;     		// 0=silent, 1=begin on next update, 2=playing, -ve note releasing
@@ -97,12 +132,11 @@ private:
 			// index is integer portion only
 			int32_t limitToBuffer(int32_t index)
 			{
-				if (index < 0 || index >= sampleCount)
-				{
-					index = index % sampleCount;
-					if (index < 0)
-						index += sampleCount;
-				}
+				// expect moderately sane index, so avoid
+				// division by using multiple addition / subtractions
+				while (index < 0) index += sampleCount;
+				while (index >= sampleCount) index -= sampleCount;
+
 				return index;
 			}
 
@@ -121,6 +155,8 @@ private:
 
 				int32_t frac = (uint32_t) index & (increment-1);
 				index = limitToBuffer(index >> fracShift);
+				// this division looks expensive, but replacing it 
+				// with a shift is actually slower!
 				int blockNum = index / AUDIO_BLOCK_SAMPLES;
 				if (0 == frac) // return reference to read/write value in buffers
 					return buffers[blockNum]->data[index-AUDIO_BLOCK_SAMPLES*blockNum];
@@ -137,6 +173,65 @@ private:
 					readVal = val1 >> fracShift;
 				}
 				return readVal; // writing this will have no effect!
+			}
+
+			void decIndex(int& blockNum, int& subIndex)
+			{
+				if (0 == subIndex)
+				{
+					subIndex = AUDIO_BLOCK_SAMPLES-1;
+					blockNum--;
+					if (blockNum < 0)
+						blockNum = bufferCount-1;
+				}
+				else
+					subIndex--;
+			}
+			
+			/*
+			 * Read the two samples at buffer[index] and buffer[index-1.0]
+			 * (N.B. fractional index)
+			 */
+			void read2samples(int32_t index, int16_t& prior, int16_t& in)
+			{
+				// buffers are invalid, return zero values
+				if (0 == bufferCount) 
+				{
+					prior = 0;
+					in = 0;
+				}
+				else
+				{
+					int32_t frac = (uint32_t) index & (increment-1);
+					if (0 == frac) // return values from buffers
+					{
+						index = limitToBuffer(index >> fracShift);
+						// this division looks expensive, but replacing it 
+						// with a shift is actually slower!
+						int blockNum = index / AUDIO_BLOCK_SAMPLES;
+						int subIndex = index-AUDIO_BLOCK_SAMPLES*blockNum;
+
+						in = buffers[blockNum]->data[subIndex];
+						decIndex(blockNum, subIndex);
+						prior = buffers[blockNum]->data[subIndex];
+					}
+					else
+					{
+						index = limitToBuffer((index >> fracShift)+1);
+						int blockNum = index / AUDIO_BLOCK_SAMPLES;
+						int subIndex = index-AUDIO_BLOCK_SAMPLES*blockNum;
+
+						// likely this can be optimised using DSP instructions
+						int32_t val2 = buffers[blockNum]->data[subIndex];
+						decIndex(blockNum, subIndex);
+						int32_t val1 = buffers[blockNum]->data[subIndex];
+						decIndex(blockNum, subIndex);
+						int32_t val0 = buffers[blockNum]->data[subIndex];
+
+						in    = (val1 * (increment - frac) + val2 * frac) >> fracShift;
+						prior = (val0 * (increment - frac) + val1 * frac) >> fracShift;
+					}
+				}
 			}
 
 			static constexpr int maxBufferCount = (int) (AUDIO_SAMPLE_RATE_EXACT / lowestFreq / AUDIO_BLOCK_SAMPLES) + 1;
