@@ -308,7 +308,7 @@ void AudioSynthKarplusStrongModulated::update(void)
 			out = signed_multiply_accumulate_32x16b(out,fbk,prior);
 
 			if (nullptr != drive)
-				out += (*drive++ * _driveLevel) >> 16;
+				out = signed_multiply_accumulate_32x16b(out, _driveLevel, *drive++);
 			*data++ = out/lvMul;
 			theBuffer[bufferIndex] = out/lvMul; // store feedback data for next cycle
 			bufferIndex += increment;
@@ -330,7 +330,7 @@ void AudioSynthKarplusStrongModulated::update(void)
 			out = signed_multiply_accumulate_32x16b(out,fbk,prior);
 
 			if (nullptr != drive)
-				out += (*drive++ * _driveLevel) >> 16;
+				out = signed_multiply_accumulate_32x16b(out, _driveLevel, *drive++);
 			*data++ = out/lvMul;
 			theBuffer[bufferIndex] = out/lvMul; // store feedback data for next cycle
 			bufferIndex += increment;
