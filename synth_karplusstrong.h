@@ -69,13 +69,14 @@ private:
 class AudioSynthKarplusStrongModulated : public AudioStream
 {
 	enum state_e {releasing=-3, silent=0, started, playing};
-	void setLevel(float level,int16_t* levelPtr);
+	void setLevel(float level,int32_t* levelPtr);
 	void computeBendData(uint32_t* phasedata, int16_t* bp);
+	static constexpr int lvMul = 1024;
 public:
 	AudioSynthKarplusStrongModulated() 
 		: AudioStream(2, inputQueueArray), // bend and drive inputs
 		  state(silent), 
-		  _feedbackLevel(32686), // 0.9975
+		  _feedbackLevel(32686*lvMul), // 0.9975
 		  _driveLevel(0)
 		{
 			frequencyModulation(2.0f/12); // bend by 2 semitones
@@ -231,8 +232,8 @@ private:
 			uint16_t bufferCount;	// number of audio blocks currently allocated for buffering
 			int32_t sampleCount;	// number of samples in those blocks
 	} theBuffer;
-	int16_t _feedbackLevel;
-	int16_t _driveLevel;
+	int32_t _feedbackLevel;
+	int32_t _driveLevel;
 	float maxBend;
 	uint32_t modulation_factor;
 	audio_block_t* inputQueueArray[2];
