@@ -163,7 +163,7 @@ void AudioSynthKarplusStrongModulated::IndexableBuffer::prefill(int samples, int
 
 
 //=============================================================================
-void AudioSynthKarplusStrongModulated::noteOn(float noteFreq, float velocity) 
+void AudioSynthKarplusStrongModulated::noteOn(float noteFreq, float velocity, float brightness, float sustain)
 {
 	int bufferNum;
 	int32_t bufferLen;
@@ -172,10 +172,7 @@ void AudioSynthKarplusStrongModulated::noteOn(float noteFreq, float velocity)
 
 	if (velocity > 1.0f) {
 		velocity = 1.0f; 
-	} else if (velocity <= 0.0f) {
-		noteOff(1.0f);
-		return;
-	}
+	} 
 	magnitude = velocity * 65535.0f;
 	if (state != silent) 	// already playing...
 		noteOff(1.0f); 	// ... release buffers
@@ -191,6 +188,17 @@ void AudioSynthKarplusStrongModulated::noteOn(float noteFreq, float velocity)
 	// actual number of samples for requested note
 	baseLen = AUDIO_SAMPLE_RATE_EXACT*increment / noteFreq - increment/2;
 	
+	// set the feedback depending on the frequency, see https://github.com/marcociccone/EKS-string-generator/blob/master/Extended%20Karplus%20Strong%20Algorithm.ipynb
+	// sustain is the decay time of the string
+	// brightess parameter between 0 and 1
+	if (brightness > 1.0f) brightness = 1.0f;
+	if (brightness < 0.0f) brightness = 0.0f;
+	float rho = pow(0.001,(1.0/(noteFreq*sustain))); //here needs to have the frequency
+    g0 = 65535*1024*((1.0 + brightness)*rho)/2;
+    g1 = 65535*1024*((1.0 - brightness)*rho)/4;
+	g0_muted = g0*internal_mute;
+	g1_muted = g1*internal_mute;
+
 	if (!theBuffer.allocate(bufferNum)) // couldn't allocate, stay silent
 		theBuffer.release();
 	else
@@ -207,6 +215,12 @@ void AudioSynthKarplusStrongModulated::noteOff(float velocity)
 		state = releasing; // prevent click at end
 }
 
+void AudioSynthKarplusStrongModulated::setMutingLevel(float mute_factor) 
+{
+	internal_mute=mute_factor;
+	g0_muted = g0*internal_mute;
+	g1_muted = g1*internal_mute;
+}
 
 void AudioSynthKarplusStrongModulated::setLevel(float level,int32_t* levelPtr)
 {
@@ -295,22 +309,23 @@ void AudioSynthKarplusStrongModulated::update(void)
 	}
 
 	// finally, create new audio data
-	int32_t fbk = _feedbackLevel;
 	if (nullptr == bend) // no bend, just compute it
 	{
 		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
 		{
 			int16_t in, prior;
 			theBuffer.read2samples(bufferIndex - baseLen, prior, in);
-
+			int16_t sub_prior = theBuffer[bufferIndex - 2*increment]; 
+		
 			// using DSP - slight loss of precision but faster execution
-			int32_t out = signed_multiply_32x16b(fbk,in);
-			out = signed_multiply_accumulate_32x16b(out,fbk,prior);
+			int32_t out = signed_multiply_32x16b(g1_muted,in);
+			out = signed_multiply_accumulate_32x16b(out,g0_muted,prior);
+			out = signed_multiply_accumulate_32x16b(out,g1_muted,sub_prior);
 
 			if (nullptr != drive)
 				out = signed_multiply_accumulate_32x16b(out, _driveLevel, *drive++);
-			*data++ = out/lvMul;
-			theBuffer[bufferIndex] = out/lvMul; // store feedback data for next cycle
+			*data++ = out / lvMul;
+			theBuffer[bufferIndex] = out / lvMul; // Store feedback data for next cycle
 			bufferIndex += increment;
 		}
 	}
@@ -324,10 +339,12 @@ void AudioSynthKarplusStrongModulated::update(void)
 		{
 			int16_t in, prior;
 			theBuffer.read2samples(bufferIndex - perData[i], prior, in);
+			int16_t sub_prior = theBuffer[bufferIndex - perData[i] - 2*increment]; 
 
 			// using DSP - slight loss of precision but faster execution
-			int32_t out = signed_multiply_32x16b(fbk,in);
-			out = signed_multiply_accumulate_32x16b(out,fbk,prior);
+			int32_t out = signed_multiply_32x16b(g1_muted,in);
+			out = signed_multiply_accumulate_32x16b(out,g0_muted,prior);
+			out = signed_multiply_accumulate_32x16b(out,g1_muted,sub_prior);
 
 			if (nullptr != drive)
 				out = signed_multiply_accumulate_32x16b(out, _driveLevel, *drive++);

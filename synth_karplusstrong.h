@@ -82,8 +82,9 @@ public:
 			frequencyModulation(2.0f/12); // bend by 2 semitones
 		}
 
-	void noteOn(float frequency, float velocity);
+	void noteOn(float frequency, float velocity, float brightness = 0.5f, float sustain = 5.0f);
 	void noteOff(float velocity); 
+	void setMutingLevel(float mute_factor);
 	bool isPlaying(void) { return state != silent; }
 	bool isStarted(void) { return state == playing; } // stimulus has been generated
 	void setFeedbackLevel(float level) { setLevel(level,&_feedbackLevel); }
@@ -233,7 +234,12 @@ private:
 			int32_t sampleCount;	// number of samples in those blocks
 	} theBuffer;
 	int32_t _feedbackLevel;
+	int32_t g0;//half feedback level
+	int32_t g1;//other feedback level
+	int32_t g0_muted;//after muting
+	int32_t g1_muted;//after muting
 	int32_t _driveLevel;
+	float internal_mute=1.0;
 	float maxBend;
 	uint32_t modulation_factor;
 	audio_block_t* inputQueueArray[2];
