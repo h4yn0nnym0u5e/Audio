@@ -34,7 +34,7 @@ uint16_t  AudioOutputSPDIF::block_right_offset = 0;
 bool AudioOutputSPDIF::update_responsibility = false;
 AudioOutputSPDIF::dmaState_t AudioOutputSPDIF::dmaState = AOI2S_Stop;
 DMAChannel AudioOutputSPDIF::dma(false);
-extern uint16_t spdif_bmclookup[256];
+extern const int16_t spdif_bmclookup[256];
 int32_t  AudioOutputSPDIF::vucp;
 DMAMEM __attribute__((aligned(32)))
 int32_t AudioOutputSPDIF::tx_buffer[AUDIO_BLOCK_SAMPLES * 4]; //2 KB
