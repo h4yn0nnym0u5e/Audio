@@ -91,7 +91,7 @@ var RED = (function() {
 							if (wire) {
 								var parts = wire.split(":");
 								if (parts.length == 2) {
-									cpp += "AudioConnection          patchCord" + cordcount + "(";
+									cpp += "AudioConnection          patchCord" + cordcount + "{";
 									var src = RED.nodes.node(n.id);
 									var dst = RED.nodes.node(parts[0]);
 									var src_name = make_name(src);
@@ -101,7 +101,7 @@ var RED = (function() {
 									} else {
 										cpp += src_name + ", " + j + ", " + dst_name + ", " + parts[1];
 									}
-									cpp += ");\n";
+									cpp += "};\n";
 									cordcount++;
 								}
 							}
