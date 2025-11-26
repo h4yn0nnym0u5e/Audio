@@ -68,26 +68,42 @@ private:
 //=================================================================================
 class AudioSynthKarplusStrongModulated : public AudioStream
 {
+public: ///
 	enum state_e {releasing=-3, silent=0, started, playing};
 	void setLevel(float level,int32_t* levelPtr);
 	void computeBendData(uint32_t* phasedata, int16_t* bp);
 	static constexpr int lvMul = 1024;
+	inline void restrict0to1(float& level)
+	{
+		if (level > 1.0f) level = 1.0f;
+		if (level < 0.0f) level = 0.0f;
+	}
 public:
 	AudioSynthKarplusStrongModulated() 
 		: AudioStream(2, inputQueueArray), // bend and drive inputs
 		  state(silent), 
-		  _feedbackLevel(32686*lvMul), // 0.9975
 		  _driveLevel(0)
 		{
 			frequencyModulation(2.0f/12); // bend by 2 semitones
+			setFeedbackLevel(0.9975f);// 0.9975, weight 0.5
 		}
 
 	void noteOn(float frequency, float velocity);
 	void noteOff(float velocity); 
 	bool isPlaying(void) { return state != silent; }
 	bool isStarted(void) { return state == playing; } // stimulus has been generated
-	void setFeedbackLevel(float level) { setLevel(level,&_feedbackLevel); }
-	void setDriveLevel(float level) { setLevel(level,&_driveLevel); }
+	void setFeedbackLevel(float level, float weight = 0.5f) 
+	{ 
+		//restrict0to1(level);
+		restrict0to1(weight);
+		setLevel(level *  weight         * 2.0f,&_feedbackLevelIn); 
+		setLevel(level * (1.0f - weight) * 2.0f,&_feedbackLevelPrior); 
+	}
+	void setDriveLevel(float level) 
+	{ 
+		restrict0to1(level);
+		setLevel(level,&_driveLevel); 
+	}
 	void frequencyModulation(float octaves)	// must do before noteOn()
 	{
 		if (octaves <= 0.1f) octaves = 0.1f;
@@ -106,7 +122,7 @@ public:
 	static constexpr int fracShift = 8; // use 24.8 indexes into buffer
 	static constexpr int increment = 1<<fracShift;
 	
-private:
+//private:
 	int8_t state;     		// 0=silent, 1=begin on next update, 2=playing, -ve note releasing
 	int32_t baseLen;		// 24.8 length in samples of base frequency's cycle
 	int32_t bufferIndex;	// 24.8 index into current buffer: must have no fractional bits!
@@ -232,7 +248,7 @@ private:
 			uint16_t bufferCount;	// number of audio blocks currently allocated for buffering
 			int32_t sampleCount;	// number of samples in those blocks
 	} theBuffer;
-	int32_t _feedbackLevel;
+	int32_t _feedbackLevelIn, _feedbackLevelPrior;
 	int32_t _driveLevel;
 	float maxBend;
 	uint32_t modulation_factor;

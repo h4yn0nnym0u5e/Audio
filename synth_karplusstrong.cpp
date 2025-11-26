@@ -210,9 +210,8 @@ void AudioSynthKarplusStrongModulated::noteOff(float velocity)
 
 void AudioSynthKarplusStrongModulated::setLevel(float level,int32_t* levelPtr)
 {
-	if (level > 1.0f) level = 1.0f;
-	if (level < 0.0f) level = 0.0f;
-	*levelPtr = (int32_t) (level * 32768 * lvMul - 1);
+	int32_t lev = (int32_t) (level * 32768.0f * (float) lvMul) - 1;
+	*levelPtr = (lev < 0)?0:lev;
 }
 
 
@@ -295,7 +294,8 @@ void AudioSynthKarplusStrongModulated::update(void)
 	}
 
 	// finally, create new audio data
-	int32_t fbk = _feedbackLevel;
+	int32_t fbkIn    = _feedbackLevelIn;
+	int32_t fbkPrior = _feedbackLevelPrior;
 	if (nullptr == bend) // no bend, just compute it
 	{
 		for (int i=0; i < AUDIO_BLOCK_SAMPLES; i++) 
@@ -304,8 +304,8 @@ void AudioSynthKarplusStrongModulated::update(void)
 			theBuffer.read2samples(bufferIndex - baseLen, prior, in);
 
 			// using DSP - slight loss of precision but faster execution
-			int32_t out = signed_multiply_32x16b(fbk,in);
-			out = signed_multiply_accumulate_32x16b(out,fbk,prior);
+			int32_t out = signed_multiply_32x16b(fbkIn,in);
+			out = signed_multiply_accumulate_32x16b(out,fbkPrior,prior);
 
 			if (nullptr != drive)
 				out = signed_multiply_accumulate_32x16b(out, _driveLevel, *drive++);
@@ -326,8 +326,8 @@ void AudioSynthKarplusStrongModulated::update(void)
 			theBuffer.read2samples(bufferIndex - perData[i], prior, in);
 
 			// using DSP - slight loss of precision but faster execution
-			int32_t out = signed_multiply_32x16b(fbk,in);
-			out = signed_multiply_accumulate_32x16b(out,fbk,prior);
+			int32_t out = signed_multiply_32x16b(fbkIn,in);
+			out = signed_multiply_accumulate_32x16b(out,fbkPrior,prior);
 
 			if (nullptr != drive)
 				out = signed_multiply_accumulate_32x16b(out, _driveLevel, *drive++);
