@@ -94,7 +94,7 @@ public:
 	bool isStarted(void) { return state == playing; } // stimulus has been generated
 	void setFeedbackLevel(float level, float weight = 0.5f) 
 	{ 
-		//restrict0to1(level);
+		restrict0to1(level);
 		restrict0to1(weight);
 		setLevel(level *  weight         * 2.0f,&_feedbackLevelIn); 
 		setLevel(level * (1.0f - weight) * 2.0f,&_feedbackLevelPrior); 
