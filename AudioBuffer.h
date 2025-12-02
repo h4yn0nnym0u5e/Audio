@@ -192,7 +192,7 @@ public:
 };
  
  
-class AudioWAVdata
+class AudioWavData
 {
   public:
 	union tag_t
@@ -259,12 +259,12 @@ class AudioWAVdata
 	uint32_t audioSize;		// number of bytes of audio
 	uint32_t bytes2millis;	// (scaled) conversion from file bytes to milliseconds
 
-	AudioWAVdata(uint16_t cct) : format(0), bitsPerSample(0), chanCnt(cct), 
+	AudioWavData(uint16_t cct) : format(0), bitsPerSample(0), chanCnt(cct), 
 					 dataChunks(0), samples(0), firstAudio(0)
 					 {}
-	AudioWAVdata() : AudioWAVdata(2) {}				 
+	AudioWavData() : AudioWavData(2) {}				 
 	uint32_t getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bitsPerSample);
-	uint16_t parseWAVheader(File& f); // parse WAV file
+	uint16_t parseWavHeader(File& f); // parse WAV file
 	void makeWAVheader(wavhdr_t* wav, uint16_t chans = 1, uint16_t fmt = 1, uint16_t bits = 16, uint32_t rate = AUDIO_SAMPLE_RATE);
 	size_t millisToPosition(float m, float sr); // convert time in milliseconds to file position
 };

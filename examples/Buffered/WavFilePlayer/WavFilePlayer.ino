@@ -31,7 +31,7 @@
 #include <SD.h>
 #include <SerialFlash.h>
 
-AudioPlayWAVstereo       playWav1;
+AudioPlayWavStereo       playWav1;
 // Use one of these 3 output types: Digital I2S, Digital S/PDIF, or Analog DAC
 AudioOutputI2S           audioOutput;
 //AudioOutputSPDIF       audioOutput;

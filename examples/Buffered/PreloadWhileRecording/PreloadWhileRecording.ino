@@ -17,13 +17,13 @@
 // GUItool: begin automatically generated code
 AudioSynthWaveform       wav1; //xy=202,176
 AudioSynthWaveform       wav2; //xy=207,214
-AudioPlayWAVstereo       playWAVstereo1; //xy=265,260
-AudioPlayWAVstereo       playWAVstereo2; //xy=272,295
+AudioPlayWavStereo       playWAVstereo1; //xy=265,260
+AudioPlayWavStereo       playWAVstereo2; //xy=272,295
 AudioEffectEnvelope      env1; //xy=362,176
 AudioEffectEnvelope      env2; //xy=367,215
 AudioMixer4              recMixer; //xy=559,166
 AudioMixer4              mixer;         //xy=565,243
-AudioRecordWAVmono       recordWAVmono1; //xy=751,165
+AudioRecordWavMono       recordWavMono1; //xy=751,165
 AudioOutputI2S           i2sOut;           //xy=788,260
 
 AudioConnection          patchCord1(wav1, env1);
@@ -34,7 +34,7 @@ AudioConnection          patchCord5(env1, 0, mixer, 0);
 AudioConnection          patchCord6(env1, 0, recMixer, 0);
 AudioConnection          patchCord7(env2, 0, mixer, 1);
 AudioConnection          patchCord8(env2, 0, recMixer, 1);
-AudioConnection          patchCord9(recMixer, recordWAVmono1);
+AudioConnection          patchCord9(recMixer, recordWavMono1);
 AudioConnection          patchCord10(mixer, 0, i2sOut, 0);
 AudioConnection          patchCord11(mixer, 0, i2sOut, 1);
 
@@ -68,7 +68,7 @@ void setup()
   // 16k @ 44.1kHz is ~186ms
   playWAVstereo1.createBuffer(16384,AudioBuffer::inHeap);
   playWAVstereo2.createBuffer(16384,AudioBuffer::inHeap);
-  recordWAVmono1.createBuffer(16384,AudioBuffer::inHeap);
+  recordWavMono1.createBuffer(16384,AudioBuffer::inHeap);
   preLoad1.createBuffer(16384,AudioBuffer::inHeap);
 
   
@@ -119,7 +119,7 @@ void loop()
       // release ends 448ms after its attack started
       case 1:
         Serial.println("Synthesize a scale of C major, and record it");
-        recordWAVmono1.record(scaleFile);
+        recordWavMono1.record(scaleFile);
       case 5:
       case 7:
         wav1.begin(0.5f,Cscale[state - 1],WAVEFORM_SINE);
@@ -136,7 +136,7 @@ void loop()
         state += 10;
 
         // Call new function to allow pre-load to work:
-        Serial.printf("Header at %d bytes\n",recordWAVmono1.writeCurrentHeader()); 
+        Serial.printf("Header at %d bytes\n",recordWavMono1.writeCurrentHeader()); 
         
         Serial.printf("Preload returned %d\n",preLoad1.preLoad(scaleFile));       
         break; 
@@ -179,7 +179,7 @@ void loop()
         break;
 
       case 20:
-        recordWAVmono1.stop();    // last release is finished - stop recording
+        recordWavMono1.stop();    // last release is finished - stop recording
         
         // Call new function to ensure file plays to the (new) end point:
         Serial.printf("Header adjusted by %lu bytes\n",playWAVstereo2.adjustHeaderInfo());

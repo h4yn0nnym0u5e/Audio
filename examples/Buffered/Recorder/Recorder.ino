@@ -15,12 +15,12 @@
 
 
 // GUItool: begin automatically generated code
-AudioPlayWAVstereo       playWAVstereo1; //xy=105,227
+AudioPlayWavStereo       playWAVstereo1; //xy=105,227
 AudioInputI2S            i2sIn;           //xy=128,170
 AudioAnalyzePeak         peakR; //xy=285,111
 AudioOutputI2S           i2sOut;           //xy=285,227
 AudioAnalyzePeak         peakL;          //xy=286,79
-AudioRecordWAVstereo     recordWAVstereo1; //xy=319,170
+AudioRecordWavStereo     recordWAVstereo1; //xy=319,170
 AudioConnection          patchCord1(playWAVstereo1, 0, i2sOut, 0);
 AudioConnection          patchCord2(playWAVstereo1, 1, i2sOut, 1);
 AudioConnection          patchCord3(i2sIn, 0, peakL, 0);

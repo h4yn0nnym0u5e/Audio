@@ -498,16 +498,16 @@ span.mainfunction {color: #993300; font-weight: bolder}
 		{"type":"AudioPlayMemory","data":{"defaults":{"name":{"value":"new"}},"shortName":"playMem","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlaySdWav","data":{"defaults":{"name":{"value":"new"}},"shortName":"playSdWav","inputs":0,"outputs":2,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		
-		{"type":"AudioPlayWAVstereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVstereo","inputs":0,"outputs":2,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioPlayWAVquad",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVquad",  "inputs":0,"outputs":4,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioPlayWAVhex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVhex",   "inputs":0,"outputs":6,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioPlayWAVoct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVoct",   "inputs":0,"outputs":8,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioPlayWavStereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVstereo","inputs":0,"outputs":2,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioPlayWavQuad",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVquad",  "inputs":0,"outputs":4,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioPlayWavHex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVhex",   "inputs":0,"outputs":6,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioPlayWavOct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"playWAVoct",   "inputs":0,"outputs":8,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		
-		{"type":"AudioRecordWAVmono",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVmono",  "inputs":1,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioRecordWAVstereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVstereo","inputs":2,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioRecordWAVquad",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVquad",  "inputs":4,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioRecordWAVhex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVhex",   "inputs":6,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
-		{"type":"AudioRecordWAVoct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVoct",   "inputs":8,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWavMono",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWavMono",  "inputs":1,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWavStereo","data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVstereo","inputs":2,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWavQuad",  "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVquad",  "inputs":4,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWavHex",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVhex",   "inputs":6,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
+		{"type":"AudioRecordWavOct",   "data":{"defaults":{"name":{"value":"new"}},"shortName":"recordWAVoct",   "inputs":8,"outputs":0,"category":"record-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		
 		{"type":"AudioPlaySdRaw","data":{"defaults":{"name":{"value":"new"}},"shortName":"playSdRaw","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
 		{"type":"AudioPlaySerialflashRaw","data":{"defaults":{"name":{"value":"new"}},"shortName":"playFlashRaw","inputs":0,"outputs":1,"category":"play-function","color":"#E6E0F8","icon":"arrow-in.png"}},
@@ -2819,7 +2819,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 
 
 <!-- ------------------------------------------------------------------------------------------------------------- --->
-<script type="text/x-red" data-help-name="AudioPlayWAVquad">
+<script type="text/x-red" data-help-name="AudioPlayWavQuad">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Play a 4-channel WAV file.
@@ -2829,7 +2829,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	</div>
 </script>
-<script type="text/x-red" data-template-name="AudioPlayWAVquad">
+<script type="text/x-red" data-template-name="AudioPlayWavQuad">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -2837,7 +2837,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 </script>
 
 <!-- ----------------------------------------------------------->
-<script type="text/x-red" data-help-name="AudioPlayWAVhex">
+<script type="text/x-red" data-help-name="AudioPlayWavHex">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Play a 6-channel WAV file.
@@ -2847,7 +2847,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	</div>
 </script>
-<script type="text/x-red" data-template-name="AudioPlayWAVhex">
+<script type="text/x-red" data-template-name="AudioPlayWavHex">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -2855,7 +2855,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 </script>
 <!-- ----------------------------------------------------------->
 
-<script type="text/x-red" data-help-name="AudioPlayWAVoct">
+<script type="text/x-red" data-help-name="AudioPlayWavOct">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Play an 8-channel WAV file.
@@ -2865,7 +2865,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	</div>
 </script>
-<script type="text/x-red" data-template-name="AudioPlayWAVoct">
+<script type="text/x-red" data-template-name="AudioPlayWavOct">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -2873,7 +2873,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 </script>
 <!-- ----------------------------------------------------------->
 
-<script type="text/x-red" data-help-name="AudioPlayWAVstereo">
+<script type="text/x-red" data-help-name="AudioPlayWavStereo">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Play a stereo WAV file, stored on an SD card or File object, using
@@ -3020,7 +3020,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 		single sound.  Of course, stereo WAV files play with the left
 		channel on port 0 and the right channel on port 1.
 	</p>
-	<p>AudioPlayWAVquad, AudioPlayWAVhex, and AudioPlayWAVoct objects 
+	<p>AudioPlayWavQuad, AudioPlayWavHex, and AudioPlayWavOct objects 
 	   provide 4, 6 or 8 outputs for playing WAV files which have (up to)
 	   the given number of channels in them.
 	</p>
@@ -3055,7 +3055,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	connected to the audio system. Instead, multiple instances are configured
 	within the application, with an allocation of buffer memory which is loaded with
 	audio data from a file. As well as the buffered audio, a record is retained of the 
-	file path and filesystem from which the audio was loaded. This allows an AudioPlayWAV
+	file path and filesystem from which the audio was loaded. This allows an AudioPlayWav
 	object to start playback (from the pre-load), initiate loading further data from the file,
 	and transition to playback from the file data, without further action by the application.
 	</p>
@@ -3136,7 +3136,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 
 </script>
-<script type="text/x-red" data-template-name="AudioPlayWAVstereo">
+<script type="text/x-red" data-template-name="AudioPlayWavStereo">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -3144,7 +3144,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 </script>
 
 <!-- ------------------------------------------------------------------------------------------------------------- --->
-<script type="text/x-red" data-help-name="AudioRecordWAVmono">
+<script type="text/x-red" data-help-name="AudioRecordWavMono">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Record a mono WAV file.
@@ -3154,7 +3154,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	</div>
 </script>
-<script type="text/x-red" data-template-name="AudioRecordWAVmono">
+<script type="text/x-red" data-template-name="AudioRecordWavMono">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -3162,7 +3162,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 </script>
 
 <!-- ----------------------------------------------------------->
-<script type="text/x-red" data-help-name="AudioRecordWAVquad">
+<script type="text/x-red" data-help-name="AudioRecordWavQuad">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Record a 4-channel WAV file.
@@ -3172,7 +3172,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	</div>
 </script>
-<script type="text/x-red" data-template-name="AudioRecordWAVquad">
+<script type="text/x-red" data-template-name="AudioRecordWavQuad">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -3180,7 +3180,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 </script>
 
 <!-- ----------------------------------------------------------->
-<script type="text/x-red" data-help-name="AudioRecordWAVhex">
+<script type="text/x-red" data-help-name="AudioRecordWavHex">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Record a 6-channel WAV file.
@@ -3190,7 +3190,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	</div>
 </script>
-<script type="text/x-red" data-template-name="AudioRecordWAVhex">
+<script type="text/x-red" data-template-name="AudioRecordWavHex">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -3198,7 +3198,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 </script>
 <!-- ----------------------------------------------------------->
 
-<script type="text/x-red" data-help-name="AudioRecordWAVoct">
+<script type="text/x-red" data-help-name="AudioRecordWavOct">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Record an 8-channel WAV file.
@@ -3208,7 +3208,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 	</div>
 </script>
-<script type="text/x-red" data-template-name="AudioRecordWAVoct">
+<script type="text/x-red" data-template-name="AudioRecordWavOct">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">
@@ -3216,7 +3216,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 </script>
 <!-- ----------------------------------------------------------->
 
-<script type="text/x-red" data-help-name="AudioRecordWAVstereo">
+<script type="text/x-red" data-help-name="AudioRecordWavStereo">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
 	<p>Record a stereo WAV file, stored to an SD card or File object, using
@@ -3327,7 +3327,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	<h3>Notes</h3>
 	<p>Only 16 bit PCM, 44100 Hz WAV files are supported.
 	</p>
-	<p>AudioRecordWAVmono, AudioRecordWAVquad, AudioRecordWAVhex, and AudioRecordWAVoct objects 
+	<p>AudioRecordWavMono, AudioRecordWavQuad, AudioRecordWavHex, and AudioRecordWavOct objects 
 	   provide 1, 4, 6 or 8 inputs for recording WAV files which have
 	   the given number of channels in them.
 	</p>
@@ -3347,7 +3347,7 @@ Returns the actual achieved attenuation of the anti-aliasing filter. If the inpu
 	</p>
 
 </script>
-<script type="text/x-red" data-template-name="AudioRecordWAVstereo">
+<script type="text/x-red" data-template-name="AudioRecordWavStereo">
 	<div class="form-row">
 		<label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
 		<input type="text" id="node-input-name" placeholder="Name">

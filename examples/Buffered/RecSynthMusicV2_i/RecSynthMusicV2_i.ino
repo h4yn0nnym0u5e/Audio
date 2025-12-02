@@ -138,13 +138,13 @@ AudioConnection* ppcs[] = {
 // these stay in place for recording:
 AudioConnection* rpcs[16];
 
-AudioRecordWAVquad rec4;
-AudioRecordWAVhex  rec6;
-AudioRecordWAVoct  rec8;
+AudioRecordWavQuad rec4;
+AudioRecordWavHex  rec6;
+AudioRecordWavOct  rec8;
 
-AudioPlayWAVquad play4;
-AudioPlayWAVhex  play6;
-AudioPlayWAVoct  play8;
+AudioPlayWavQuad play4;
+AudioPlayWavHex  play6;
+AudioPlayWavOct  play8;
 
 AudioMixer4* mixers[] = {&mixer1,&mixer2,&mixer3,&mixer4};
 
@@ -249,7 +249,7 @@ void findSGTL5000(AudioControlSGTL5000& sgtl5000_1)
 
 
 //======================================================================================================
-void printInstrumentPlay(AudioPlayWAVbuffered& o, const char* nam)
+void printInstrumentPlay(AudioPlayWavBuffered& o, const char* nam)
 {
   Serial.printf("%s: low-water: %u/%u; worst read time: %uus; updates: %u\n",
                 nam,

@@ -39,7 +39,7 @@
 #endif // !defined(SAFE_RELEASE_INPUTS)
 
 
-class AudioRecordWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
+class AudioRecordWAVbuffered : public EventResponder, public AudioBuffer, public AudioWavData, public AudioStream
 {
 public:
 	AudioRecordWAVbuffered(unsigned char ninput, audio_block_t **iqueue);
@@ -73,8 +73,8 @@ public:
 	size_t lowWater;
 	LogLastMinMax<uint32_t> readMicros, bufferAvail;
 	
-	friend class AudioRecordWAVmono;
-	friend class AudioRecordWAVstereo;
+	friend class AudioRecordWavMono;
+	friend class AudioRecordWavStereo;
 	
 private:
 	uint32_t _writeCurrentHeader(void);
@@ -95,36 +95,36 @@ private:
 	uint8_t state_record;
 };
 
-class AudioRecordWAVmono : public AudioRecordWAVbuffered
+class AudioRecordWavMono : public AudioRecordWAVbuffered
 {
 	public:
-		AudioRecordWAVmono(): AudioRecordWAVbuffered(1,inputQueueArray) {}
+		AudioRecordWavMono(): AudioRecordWAVbuffered(1,inputQueueArray) {}
 };
 
-class AudioRecordWAVstereo : public AudioRecordWAVbuffered
+class AudioRecordWavStereo : public AudioRecordWAVbuffered
 {
 	public:
-		AudioRecordWAVstereo(): AudioRecordWAVbuffered(2,inputQueueArray) {}
+		AudioRecordWavStereo(): AudioRecordWAVbuffered(2,inputQueueArray) {}
 };
 
-class AudioRecordWAVquad : public AudioRecordWAVbuffered
+class AudioRecordWavQuad : public AudioRecordWAVbuffered
 {
 		audio_block_t *iqa[4];	
 	public:
-		AudioRecordWAVquad(): AudioRecordWAVbuffered(4,iqa) {}
+		AudioRecordWavQuad(): AudioRecordWAVbuffered(4,iqa) {}
 };
 
-class AudioRecordWAVhex : public AudioRecordWAVbuffered
+class AudioRecordWavHex : public AudioRecordWAVbuffered
 {
 		audio_block_t *iqa[6];	
 	public:
-		AudioRecordWAVhex(): AudioRecordWAVbuffered(6,iqa) {}
+		AudioRecordWavHex(): AudioRecordWAVbuffered(6,iqa) {}
 };
 
-class AudioRecordWAVoct : public AudioRecordWAVbuffered
+class AudioRecordWavOct : public AudioRecordWAVbuffered
 {
 		audio_block_t *iqa[8];	
 	public:
-		AudioRecordWAVoct(): AudioRecordWAVbuffered(8,iqa) {}
+		AudioRecordWavOct(): AudioRecordWAVbuffered(8,iqa) {}
 };
 #endif // !defined(record_wav_buffered_h_)

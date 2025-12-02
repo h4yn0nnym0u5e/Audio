@@ -75,7 +75,7 @@ void AudioRecordWAVbuffered::flushBuffer(uint8_t* pb, size_t sz)
 
 
 AudioRecordWAVbuffered::AudioRecordWAVbuffered(unsigned char ninput, audio_block_t **iqueue) : 
-		AudioWAVdata(ninput),
+		AudioWavData(ninput),
 		AudioStream(ninput, iqueue),
 		lowWater(0xFFFFFFFF),
 		eof(false), writePending(false), objnum(objcnt++),

@@ -453,9 +453,9 @@ AudioBuffer::result AudioPreload::preLoad(const char* fp, float startFrom /* = 0
 	
 	if (f)
 	{
-		AudioWAVdata wavd;
+		AudioWavData wavd;
 		
-		if (wavd.parseWAVheader(f) > 0) // channel count >0, file is OK
+		if (wavd.parseWavHeader(f) > 0) // channel count >0, file is OK
 		{
 			size_t loadPos = wavd.firstAudio; // where audio starts in file
 			size_t maxAudio = wavd.audioSize; // how much we could read into buffer
@@ -516,7 +516,7 @@ static constexpr struct {
 		 CHARS_TO_ID('f','a','c','t')
 		 };
 
-uint32_t AudioWAVdata::getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bitsPerSample)
+uint32_t AudioWavData::getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bitsPerSample)
 {
 	uint32_t b2m;
 	
@@ -547,7 +547,7 @@ uint32_t AudioWAVdata::getB2M(uint16_t chanCnt, uint32_t sampleRate, uint16_t bi
  * maximally efficient.
  * \return channel count, or 0 if header didn't parse
  */
-uint16_t AudioWAVdata::parseWAVheader(File& f)
+uint16_t AudioWavData::parseWavHeader(File& f)
 {
 	uint32_t seekTo;
 	RIFFhdr_t rhdr = {0};
@@ -616,7 +616,7 @@ uint16_t AudioWAVdata::parseWAVheader(File& f)
 }
 
 
-void AudioWAVdata::makeWAVheader(wavhdr_t* wav,uint16_t chans, uint16_t fmt, uint16_t bits, uint32_t rate)
+void AudioWavData::makeWAVheader(wavhdr_t* wav,uint16_t chans, uint16_t fmt, uint16_t bits, uint32_t rate)
 {
 	*wav = {0};
 	
@@ -640,7 +640,7 @@ void AudioWAVdata::makeWAVheader(wavhdr_t* wav,uint16_t chans, uint16_t fmt, uin
  * Convert time in milliseconds to file position.
  * \return 0 if header values haven't been parsed, otherwise file position
  */
-size_t AudioWAVdata::millisToPosition(float m,	// time [milliseconds]
+size_t AudioWavData::millisToPosition(float m,	// time [milliseconds]
 									  float sr)	// sample rate [Hz]
 {
 	size_t pos = 0;

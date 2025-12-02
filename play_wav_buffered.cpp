@@ -30,7 +30,7 @@
 /*
  * Prepare to play back from a file
  */
-bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t startFromI)
+bool AudioPlayWavBuffered::prepareFile(bool paused, float startFrom, size_t startFromI)
 {
 	bool rv = false;
 	
@@ -49,7 +49,7 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 		
 		// load data
 		emptyBuffer((objnum & (actualSlots-1)) * stagger); // ensure we start from scratch
-		parseWAVheader(wavfile); 	// figure out WAV file structure
+		parseWavHeader(wavfile); 	// figure out WAV file structure
 		getNextRead(&pb,&sz);		// find out where and how much the buffer pre-load is
 		
 		data_length = total_length = audioSize; // all available data
@@ -88,8 +88,8 @@ bool AudioPlayWAVbuffered::prepareFile(bool paused, float startFrom, size_t star
 }
 
 
-/* static */ uint8_t AudioPlayWAVbuffered::objcnt;
-void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
+/* static */ uint8_t AudioPlayWavBuffered::objcnt;
+void AudioPlayWavBuffered::EventResponse(EventResponderRef evref)
 {
 	uint8_t* pb;
 	size_t sz;
@@ -129,13 +129,13 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 
 static void EventDespatcher(EventResponderRef evref)
 {
-	AudioPlayWAVbuffered* pPWB = (AudioPlayWAVbuffered*) evref.getContext();
+	AudioPlayWavBuffered* pPWB = (AudioPlayWavBuffered*) evref.getContext();
 	
 	pPWB->EventResponse(evref);
 }
 
 
-void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz, bool firstLoad /* = false */)
+void AudioPlayWavBuffered::loadBuffer(uint8_t* pb, size_t sz, bool firstLoad /* = false */)
 {
 	size_t got;
 	
@@ -178,17 +178,17 @@ void AudioPlayWAVbuffered::loadBuffer(uint8_t* pb, size_t sz, bool firstLoad /* 
  *
  * \return amount the audio size changed by: could be 0
  */
-uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
+uint32_t AudioPlayWavBuffered::adjustHeaderInfo(void)
 {
 	uint32_t result = 0;
 	
 	if (wavfile) // we'd better be playing, really!
 	{
 		size_t readPos = wavfile.position(); // keep current position safe
-		AudioWAVdata newWAV;
+		AudioWavData newWAV;
 		
 		// parse the current header, then seek back to where we were
-		newWAV.parseWAVheader(wavfile);
+		newWAV.parseWavHeader(wavfile);
 		wavfile.seek(readPos);
 		
 		if (newWAV.audioSize != audioSize) // file header has been changed since we started
@@ -207,7 +207,7 @@ uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
 
 
 /* Constructor */
-AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) : 
+AudioPlayWavBuffered::AudioPlayWavBuffered(void) : 
 		AudioStream(0, NULL),
 		lowWater(0xFFFFFFFF),
 		wavfile(0), ppl(0), preloadRemaining(0),
@@ -232,24 +232,24 @@ AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) :
  *
  * MUST NOT destruct the object from an ISR!
  */
-AudioPlayWAVbuffered::~AudioPlayWAVbuffered(void)
+AudioPlayWavBuffered::~AudioPlayWavBuffered(void)
 {
 	stop(); // close file, relinquish use of preload buffer, any triggered event cleared, set to STATE_STOPPING
 	// Further destructor actions:
 	// This destructor exits, wavfile is destructed
 	// ~AudioStream: unlinked from connections and update list
-	// ~AudioWAVdata
+	// ~AudioWavData
 	// ~AudioBuffer: ~MemBuffer disposes of buffer memory, if bufType != given
 	// ~EventResponder: detached from event list
 }
 
-bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */, float startFrom /* = 0.0f */)
+bool AudioPlayWavBuffered::playSD(const char *filename, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
 	return play(SD.open(filename), paused, startFrom);
 }
 
 
-bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, float startFrom /* = 0.0f */)
+bool AudioPlayWavBuffered::play(const File _file, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
 	bool rv = false;
 	
@@ -284,7 +284,7 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
  * Note also that the two startFrom values are cumulative; if you pre-load starting at 100.0ms, 
  * then play() starting at 50.0ms, playback starts 150.0ms into the audio file.
  */
-bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, float startFrom /* = 0.0f */)
+bool AudioPlayWavBuffered::play(AudioPreload& p, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
 	bool rv = false;
 	
@@ -334,7 +334,7 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 }
 
 
-void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
+void AudioPlayWavBuffered::stop(uint8_t fromInt /* = false */)
 {
 	bool eventTriggered = false;
 	if (state != STATE_STOP) 
@@ -376,7 +376,7 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 }
 
 
-void AudioPlayWAVbuffered::togglePlayPause(void) {
+void AudioPlayWavBuffered::togglePlayPause(void) {
 	// take no action if wave header is not parsed OR
 	// state is explicitly STATE_STOP
 	if(state_play >= 8 || state == STATE_STOP || state == STATE_STOPPING) return;
@@ -410,7 +410,7 @@ static void deinterleave(int16_t* buf,int16_t** blocks,uint16_t channels)
 }
 
 
-void AudioPlayWAVbuffered::update(void)
+void AudioPlayWavBuffered::update(void)
 {
 	int16_t buf[chanCnt * AUDIO_BLOCK_SAMPLES];
 	audio_block_t* blocks[chanCnt];	
@@ -561,21 +561,21 @@ void AudioPlayWAVbuffered::update(void)
 
 
 
-bool AudioPlayWAVbuffered::isPlaying(void)
+bool AudioPlayWavBuffered::isPlaying(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
 	return (s == STATE_PLAYING);
 }
 
 
-bool AudioPlayWAVbuffered::isPaused(void)
+bool AudioPlayWavBuffered::isPaused(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
 	return (s == STATE_PAUSED);
 }
 
 
-bool AudioPlayWAVbuffered::isStopped(void)
+bool AudioPlayWavBuffered::isStopped(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
 	return (s == STATE_STOP || s == STATE_STOP);
@@ -592,7 +592,7 @@ bool AudioPlayWAVbuffered::isStopped(void)
  * what you hear, depending on the design and hardware 
  * delays.
  */
-uint32_t AudioPlayWAVbuffered::positionMillis(void)
+uint32_t AudioPlayWavBuffered::positionMillis(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
 	if (s >= 8 && s != STATE_PAUSED) return 0;
@@ -604,7 +604,7 @@ uint32_t AudioPlayWAVbuffered::positionMillis(void)
 }
 
 
-uint32_t AudioPlayWAVbuffered::lengthMillis(void)
+uint32_t AudioPlayWavBuffered::lengthMillis(void)
 {
 	uint8_t s = *(volatile uint8_t *)&state;
 	if (s >= 8 && s != STATE_PAUSED) return 0;

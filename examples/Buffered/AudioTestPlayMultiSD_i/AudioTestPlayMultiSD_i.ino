@@ -16,8 +16,8 @@ File frec;
 AudioInputI2S            i2s2;           //xy=105,63
 AudioAnalyzePeak         peak1;          //xy=278,108
 AudioRecordQueue         queue1;         //xy=281,63
-AudioPlayWAVstereo           playRaw1;       //xy=302,157
-AudioPlayWAVstereo           playRaw2;       //xy=302,157
+AudioPlayWavStereo           playRaw1;       //xy=302,157
+AudioPlayWavStereo           playRaw2;       //xy=302,157
 AudioOutputI2S           i2s1;           //xy=470,120
 AudioConnection          patchCord1(i2s2, 0, queue1, 0);
 AudioConnection          patchCord2(i2s2, 0, peak1, 0);
@@ -64,7 +64,7 @@ void setup() {
 }
 
 
-void printInstrument(AudioPlayWAVstereo& o, const char* nam)
+void printInstrument(AudioPlayWavStereo& o, const char* nam)
 {
   Serial.printf("%s: low-water: %u; worst read time: %uus; updates: %u\n",
                 nam,

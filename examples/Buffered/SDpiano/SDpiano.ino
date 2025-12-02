@@ -464,9 +464,9 @@ void checkFile(File& entry)
 
         // Read WAV header
         File wav = SD.open(pathBuffer);
-        AudioWAVdata awv;
+        AudioWavData awv;
 
-        awv.parseWAVheader(wav);
+        awv.parseWavHeader(wav);
         prepNote(wav,awv.firstAudio,nv,pathBuffer);
         
         wav.close();       

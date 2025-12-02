@@ -35,7 +35,7 @@ struct allNotes_t
  * Piano voice class based on this topology:
  * 
     // GUItool: begin automatically generated code
-    AudioPlayWAVstereo       playWAVstereo1; //xy=303,203
+    AudioPlayWavStereo       playWAVstereo1; //xy=303,203
     AudioAmplifier           ampL;           //xy=501,159
     AudioAmplifier           ampR; //xy=503,246
     AudioEffectEnvelope      envL;      //xy=647,159
@@ -84,7 +84,7 @@ class PianoVoice
       }
     }
     
-    AudioPlayWAVstereo       playWAVstereo1; //xy=220,284
+    AudioPlayWavStereo       playWAVstereo1; //xy=220,284
     AudioAmplifier           ampL;         //xy=408,242
     AudioAmplifier           ampR;         //xy=412,329
     AudioEffectEnvelope      envL;      //xy=546,242

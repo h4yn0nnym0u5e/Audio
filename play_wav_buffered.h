@@ -34,11 +34,11 @@
 #include "AudioBuffer.h"
 
 
-class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
+class AudioPlayWavBuffered : public EventResponder, public AudioBuffer, public AudioWavData, public AudioStream
 {
 public:
-	AudioPlayWAVbuffered(void);
-	~AudioPlayWAVbuffered(void);
+	AudioPlayWavBuffered(void);
+	~AudioPlayWavBuffered(void);
 	
 	bool playSD(const char* filename, bool paused = false, float startFrom = 0.0f);
 	bool play(const File _file, bool paused = false, float startFrom = 0.0f);
@@ -99,9 +99,9 @@ private:
 	uint8_t leftover_bytes;
 };
 
-class AudioPlayWAVstereo : public AudioPlayWAVbuffered {};
-class AudioPlayWAVquad	 : public AudioPlayWAVbuffered {};
-class AudioPlayWAVhex	 : public AudioPlayWAVbuffered {};
-class AudioPlayWAVoct	 : public AudioPlayWAVbuffered {};
+class AudioPlayWavStereo : public AudioPlayWavBuffered {};
+class AudioPlayWavQuad	 : public AudioPlayWavBuffered {};
+class AudioPlayWavHex	 : public AudioPlayWavBuffered {};
+class AudioPlayWavOct	 : public AudioPlayWavBuffered {};
 
 #endif // !defined(play_wav_buffered_h_)

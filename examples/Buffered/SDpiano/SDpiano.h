@@ -41,7 +41,7 @@ struct allNotes_t
       // GUItool: begin automatically generated code
       AudioPlayMemory          playMemL;       //xy=186,227
       AudioPlayMemory          playMemR;  //xy=196,342
-      AudioPlayWAVstereo       playWAVstereo1; //xy=220,284
+      AudioPlayWavStereo       playWAVstereo1; //xy=220,284
       AudioMixer4              mixerL;         //xy=408,242
       AudioMixer4              mixerR;         //xy=412,329
       AudioEffectEnvelope      envL;      //xy=546,242
@@ -150,7 +150,7 @@ class PianoVoice : public AudioStream
     
     AudioPlayMemory          playMemL;       //xy=186,227
     AudioPlayMemory          playMemR;  //xy=196,342
-    AudioPlayWAVstereo       playWAVstereo1; //xy=220,284
+    AudioPlayWavStereo       playWAVstereo1; //xy=220,284
     AudioMixer4              mixerL;         //xy=408,242
     AudioMixer4              mixerR;         //xy=412,329
     AudioEffectEnvelope      envL;      //xy=546,242

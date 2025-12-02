@@ -1,11 +1,11 @@
 # Buffered WAV player / recorder
-The `AudioPlayWAV*` and `AudioRecordWAV*` objects are intended to provide good-performance playback from and recording to WAV files stored on SD card or other filesystem, while imposing a minimal set of constraints on the sketch programmer. Multiple files may be used simultaneously.
+The `AudioPlayWav*` and `AudioRecordWAV*` objects are intended to provide good-performance playback from and recording to WAV files stored on SD card or other filesystem, while imposing a minimal set of constraints on the sketch programmer. Multiple files may be used simultaneously.
 
 ## Objects provided
 ### Playback
-For playback, `AudioPlayWAVstereo`, `AudioPlayWAVquad`, `AudioPlayWAVhex`, and `AudioPlayWAVoct` objects are provided. These have 2, 4, 6 and 8 outputs respectively; in order to play a mono WAV file, use either output of an `AudioPlayWAVstereo` object.
+For playback, `AudioPlayWavStereo`, `AudioPlayWavQuad`, `AudioPlayWavHex`, and `AudioPlayWavOct` objects are provided. These have 2, 4, 6 and 8 outputs respectively; in order to play a mono WAV file, use either output of an `AudioPlayWavStereo` object.
 ### Recording
-For recording, `AudioRecordWAVmono`, `AudioRecordWAVstereo`, `AudioRecordWAVquad`, `AudioRecordWAVhex`, and `AudioRecordWAVoct` objects are provided. These have 1, 2, 4, 6 and 8 inputs respectively. Inputs which are not connected will still result in a channel being present in the stored WAV file, but it will be silent.
+For recording, `AudioRecordWavMono`, `AudioRecordWavStereo`, `AudioRecordWavQuad`, `AudioRecordWavHex`, and `AudioRecordWavOct` objects are provided. These have 1, 2, 4, 6 and 8 inputs respectively. Inputs which are not connected will still result in a channel being present in the stored WAV file, but it will be silent.
 ### Pre-load
 For low-latency playback applications, an `AudioPreload` class is provided. This is used to store file information and some audio data from the start of the file, so that playback can start on the next audio system update. Playback transitions seamlessly to streaming from the fileystem once the pre-loadded audio data is exhausted.
 
@@ -85,22 +85,22 @@ Stop the operation (play or record) currently in progress.
 
 If used on an `AudioRecordWAV*` object, the buffer will be flushed to the WAV file and the header updated with the correct length information. This can take a few milliseconds, so if synchronisation of multiple files is important to your application, you should first  pause all files, and only then stop them. 
 ### ``bool play()``
-Resumes playing after a call to ``pause()``, or if the `AudioPlayWAV*` object was started in paused mode. Returns true if successful.
+Resumes playing after a call to ``pause()``, or if the `AudioPlayWav*` object was started in paused mode. Returns true if successful.
 ### ``bool record()``
 Resumes recording after a call to ``pause()``, or if the `AudioRecordWAV*` object was started in paused mode. Returns true if successful.
 
 ### Status functions
 ### ``bool isPlaying()``
-Returns true if an `AudioPlayWAV*` object is currently playing audio. If playback was started with ``play(<something>,true)`` then this function will _immediately_ return true, even if an audio update hasn't yet occurred in the intervening time.
+Returns true if an `AudioPlayWav*` object is currently playing audio. If playback was started with ``play(<something>,true)`` then this function will _immediately_ return true, even if an audio update hasn't yet occurred in the intervening time.
 
 ### ``bool isRecording()``
 Returns true if an `AudioRecordWAV*` object is currently recording audio. 
 
 ### ``bool isPaused()``
-Returns true if an object is currently paused - works for both `AudioPlayWAV*` and `AudioRecordWAV*` objects. 
+Returns true if an object is currently paused - works for both `AudioPlayWav*` and `AudioRecordWAV*` objects. 
 
 ### ``bool isStopped()``
-Returns true if an object is currently stopped - works for both `AudioPlayWAV*` and `AudioRecordWAV*` objects. 
+Returns true if an object is currently stopped - works for both `AudioPlayWav*` and `AudioRecordWAV*` objects. 
 
 ### ``float positionMillis()``
 Returns the record or playback position within the file, in milliseconds. Note that this will be incorrect by a very small amount compared to the audio actually heard, because of latency within the processing system; it should be only a matter of a few milliseconds.
