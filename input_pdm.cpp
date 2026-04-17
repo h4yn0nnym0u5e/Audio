@@ -115,7 +115,7 @@ void AudioInputPDM::begin()
   */
   I2S1_RMR = 0;
   //I2S1_RCSR = (1<<25); //Reset
-  I2S1_RCR1 = I2S_RCR1_RFW(2);  // 2 not 1
+  // I2S1_RCR1 = I2S_RCR1_RFW(2);  // 2 not 1
   I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_RCR2_BCP | (I2S_RCR2_BCD | I2S_RCR2_DIV((1)) | I2S_RCR2_MSEL(1));  // sync=0; rx is async;
   I2S1_RCR3 = I2S_RCR3_RCE;
   I2S1_RCR4 = I2S_RCR4_FRSZ((2-1)) | I2S_RCR4_SYWD((32-1)) | I2S_RCR4_MF /* | I2S_RCR4_FSE */ | I2S_RCR4_FSP | I2S_RCR4_FSD;
@@ -233,7 +233,7 @@ void AudioInputPDM::begin(void)
         // configure receiver (sync'd to transmitter clocks)
         I2S0_RMR = 0;
 	*/
-        I2S0_RCR1 = I2S_RCR1_RFW(2);
+//        I2S0_RCR1 = I2S_RCR1_RFW(2);
 	/*
         I2S0_RCR2 = I2S_RCR2_SYNC(1) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
                 | I2S_RCR2_BCD | I2S_RCR2_DIV(1);

@@ -296,7 +296,7 @@ void AudioOutputSPDIF2::config_SPDIF(void)
 
 	// configure transmitter
 	I2S2_TMR = 0;
-	I2S2_TCR1 = I2S_TCR1_RFW(0);  // watermark
+	I2S2_TCR1 = I2S_TCR1_RFW(FIFOwatermark);  // watermark
 	I2S2_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(0);
 	I2S2_TCR3 = I2S_TCR3_TCE;
 

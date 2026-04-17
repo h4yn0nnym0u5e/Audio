@@ -362,7 +362,7 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 
 	// configure transmitter
 	I2S0_TMR = 0;
-	I2S0_TCR1 = I2S_TCR1_TFW(1);  // watermark at half fifo size
+	I2S0_TCR1 = I2S_TCR1_TFW(FIFOwatermark);  // watermark
 	I2S0_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1)
 		| I2S_TCR2_BCD | I2S_TCR2_DIV(1);
 	I2S0_TCR3 = I2S_TCR3_TCE;
@@ -372,7 +372,7 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 
 	// configure receiver (sync'd to transmitter clocks)
 	I2S0_RMR = 0;
-	I2S0_RCR1 = I2S_RCR1_RFW(1);
+	I2S0_RCR1 = I2S_RCR1_RFW(FIFOwatermark);
 	I2S0_RCR2 = I2S_RCR2_SYNC(1) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
 		| I2S_RCR2_BCD | I2S_RCR2_DIV(1);
 	I2S0_RCR3 = I2S_RCR3_RCE;
@@ -439,7 +439,7 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 
 	I2S1_TMR = 0;
 	//I2S1_TCSR = (1<<25); //Reset
-	I2S1_TCR1 = I2S_TCR1_RFW(1);
+	I2S1_TCR1 = I2S_TCR1_RFW(FIFOwatermark);
 	I2S1_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP // sync=0; tx is async;
 		    | (I2S_TCR2_BCD | I2S_TCR2_DIV((1)) | I2S_TCR2_MSEL(1));
 	I2S1_TCR3 = I2S_TCR3_TCE;
@@ -449,7 +449,7 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 
 	I2S1_RMR = 0;
 	//I2S1_RCSR = (1<<25); //Reset
-	I2S1_RCR1 = I2S_RCR1_RFW(1);
+	I2S1_RCR1 = I2S_RCR1_RFW(FIFOwatermark);
 	I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_RCR2_BCP  // sync=0; rx is async;
 		    | (I2S_RCR2_BCD | I2S_RCR2_DIV((1)) | I2S_RCR2_MSEL(1));
 	I2S1_RCR3 = I2S_RCR3_RCE;
@@ -534,7 +534,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 
 	// configure transmitter
 	I2S0_TMR = 0;
-	I2S0_TCR1 = I2S_TCR1_TFW(1);  // watermark at half fifo size
+	I2S0_TCR1 = I2S_TCR1_TFW(FIFOwatermark);  // watermark
 	I2S0_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_BCP;
 
 	I2S0_TCR3 = I2S_TCR3_TCE;
@@ -545,7 +545,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 
 	// configure receiver (sync'd to transmitter clocks)
 	I2S0_RMR = 0;
-	I2S0_RCR1 = I2S_RCR1_RFW(1);
+	I2S0_RCR1 = I2S_RCR1_RFW(FIFOwatermark);
 	I2S0_RCR2 = I2S_RCR2_SYNC(1) | I2S_TCR2_BCP;
 
 	I2S0_RCR3 = I2S_RCR3_RCE;
@@ -576,7 +576,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 
 	// configure transmitter
 	I2S1_TMR = 0;
-	I2S1_TCR1 = I2S_TCR1_RFW(1);  // watermark at half fifo size
+	I2S1_TCR1 = I2S_TCR1_RFW(FIFOwatermark);  // watermark
 	I2S1_TCR2 = I2S_TCR2_SYNC(1) | I2S_TCR2_BCP;
 	I2S1_TCR3 = I2S_TCR3_TCE;
 	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(31) | I2S_TCR4_MF
@@ -585,7 +585,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 
 	// configure receiver
 	I2S1_RMR = 0;
-	I2S1_RCR1 = I2S_RCR1_RFW(1);
+	I2S1_RCR1 = I2S_RCR1_RFW(FIFOwatermark);
 	I2S1_RCR2 = I2S_RCR2_SYNC(0) | I2S_TCR2_BCP;
 	I2S1_RCR3 = I2S_RCR3_RCE;
 	I2S1_RCR4 = I2S_RCR4_FRSZ(1) | I2S_RCR4_SYWD(31) | I2S_RCR4_MF

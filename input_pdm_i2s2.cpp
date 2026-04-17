@@ -101,7 +101,7 @@ void AudioInputPDM2::begin(void)
 
   I2S2_TMR = 0;
   //I2S2_TCSR = (1<<25); //Reset
-  I2S2_TCR1 = I2S_TCR1_RFW(1);
+  I2S2_TCR1 = I2S_TCR1_RFW(FIFOwatermark);
   I2S2_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | (I2S_TCR2_BCD | I2S_TCR2_DIV((1)) | I2S_TCR2_MSEL(1)); // sync=0; tx is async;
   I2S2_TCR3 = I2S_TCR3_TCE;
   I2S2_TCR4 = I2S_TCR4_FRSZ((2-1)) | I2S_TCR4_SYWD((32-1)) | I2S_TCR4_MF | I2S_TCR4_FSD | I2S_TCR4_FSE | I2S_TCR4_FSP;
@@ -109,7 +109,7 @@ void AudioInputPDM2::begin(void)
 
   I2S2_RMR = 0;
   //I2S2_RCSR = (1<<25); //Reset
-  I2S2_RCR1 = I2S_RCR1_RFW(2);
+  I2S2_RCR1 = I2S_RCR1_RFW(FIFOwatermark);
   I2S2_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_RCR2_BCP | (I2S_RCR2_BCD | I2S_RCR2_DIV((1)) | I2S_RCR2_MSEL(1));  // sync=0; rx is async;
   I2S2_RCR3 = I2S_RCR3_RCE;
   I2S2_RCR4 = I2S_RCR4_FRSZ((2-1)) | I2S_RCR4_SYWD((32-1)) | I2S_RCR4_MF /* | I2S_RCR4_FSE */ | I2S_RCR4_FSP | I2S_RCR4_FSD;

@@ -58,6 +58,21 @@ protected:
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
+	
+// Set FIFO watermarks to keep FIFO as full
+// as possible, in case of DMA contention	
+#if defined(KINETISK) || defined(__IMXRT1062__)
+	static const int FIFOwatermark =
+	#if defined(__IMXRT1062__)
+		31 // Teensy 4.x
+	#elif defined(__MK20DX128__)
+		 3 // Teensy 3.0
+	#else
+		 7 // Teensy 3.1 / 3.2 / 3.5 / 3.6 (unused by LC)
+	#endif
+		;		 
+#endif // watermark 
+
 private:
 	static audio_block_t *block_left_2nd;
 	static audio_block_t *block_right_2nd;

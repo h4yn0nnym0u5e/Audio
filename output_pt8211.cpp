@@ -483,7 +483,7 @@ void AudioOutputPT8211::config_i2s(void)
 
 	// configure transmitter
 	I2S0_TMR = 0;
-	I2S0_TCR1 = I2S_TCR1_TFW(1);  // watermark at half fifo size
+	I2S0_TCR1 = I2S_TCR1_TFW(FIFOwatermark);  // watermark
 	#if defined(AUDIO_PT8211_OVERSAMPLING)
 		I2S0_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(0);
 	#else
@@ -541,7 +541,7 @@ void AudioOutputPT8211::config_i2s(void)
 	#endif
 	// configure transmitter
 	I2S1_TMR = 0;
-	I2S1_TCR1 = I2S_TCR1_RFW(0);
+	I2S1_TCR1 = I2S_TCR1_RFW(FIFOwatermark);
 	I2S1_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(div);
 	I2S1_TCR3 = I2S_TCR3_TCE;
 //	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF | I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_TCR4_FSD; //TDA1543
@@ -550,7 +550,7 @@ void AudioOutputPT8211::config_i2s(void)
 
 	I2S1_RMR = 0;
 	//I2S1_RCSR = (1<<25); //Reset
-	I2S1_RCR1 = I2S_RCR1_RFW(0);
+	I2S1_RCR1 = I2S_RCR1_RFW(FIFOwatermark);
 	I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_RCR2_BCP | I2S_RCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(div);
 	I2S1_RCR3 = I2S_RCR3_RCE;
 //	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF | I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_TCR4_FSD; //TDA1543
