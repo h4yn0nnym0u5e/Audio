@@ -77,7 +77,7 @@ void AudioOutputI2SOct::begin(void)
 	//AudioOutputI2S::config_i2s();
 	// I2S1_TCR3 = I2S_TCR3_TCE_4CH;
 
-	configSAIrx(SAIconfig::SAIcfg::I2S, AUDIO_SAMPLE_RATE_EXACT, false, 8);
+	configSAItx(SAIconfig::SAIcfg::I2S, AUDIO_SAMPLE_RATE_EXACT, false, 8);
 
 	CORE_PIN7_CONFIG  = 3;
 	CORE_PIN32_CONFIG = 3;

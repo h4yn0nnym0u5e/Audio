@@ -80,7 +80,7 @@ void AudioOutputTDM::begin(void)
 	I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 #elif defined(__IMXRT1062__)
 
-	configSAIrx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
+	configSAItx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
 
 	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
 
