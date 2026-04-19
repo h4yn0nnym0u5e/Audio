@@ -88,6 +88,9 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 	int c1 = C * c2 - (c0 * c2);
 	set_audioClock(c0, c1, c2);
 
+	if (SAIcfg::TDM == cfg)
+		n1 = n1 / 2; //Double Speed for TDM
+
 	// clear SAIn_CLK register locations
 	switch (which)
 	{
@@ -154,7 +157,7 @@ PDM:
 			break;
 			
 		case SAIcfg::TDM:		//   TCR2  TCR4          TCR5  clocks
-			settingsTCR = settings_t{0,1,  8-1,32-1,1,0, 32-1, 1,1,1};
+			settingsTCR = settings_t{0,1,  8-1, 1-1,1,0, 32-1, 1,1,1};
 			break;
 			
 		case SAIcfg::SPDIF:		//   TCR2  TCR4       TCR5  (no clocks)
