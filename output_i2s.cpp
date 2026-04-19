@@ -57,9 +57,9 @@ void AudioOutputI2S::begin(void)
 	block_left_1st = NULL;
 	block_right_1st = NULL;
 
+#if defined(KINETISK)
 	config_i2s();
 
-#if defined(KINETISK)
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
 	dma.TCD->SADDR = i2s_tx_buffer;
@@ -80,6 +80,8 @@ void AudioOutputI2S::begin(void)
 	I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
 #elif defined(__IMXRT1062__)
+	configSAItx(SAIconfig::SAIcfg::I2S, AUDIO_SAMPLE_RATE_EXACT);
+
 	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
 	dma.TCD->SADDR = i2s_tx_buffer;
 	dma.TCD->SOFF = 2;
@@ -389,7 +391,7 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 	CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
 
 #elif defined(__IMXRT1062__)
-
+/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 
 	// if either transmitter or receiver is enabled, do nothing
@@ -456,7 +458,7 @@ void AudioOutputI2S::config_i2s(bool only_bclk)
 	I2S1_RCR4 = I2S_RCR4_FRSZ((2-1)) | I2S_RCR4_SYWD((32-1)) | I2S_RCR4_MF
 		    | I2S_RCR4_FSE | I2S_RCR4_FSP | I2S_RCR4_FSD;
 	I2S1_RCR5 = I2S_RCR5_WNW((32-1)) | I2S_RCR5_W0W((32-1)) | I2S_RCR5_FBT((32-1));
-
+*/	
 #endif
 }
 
@@ -560,7 +562,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 	CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
 
 #elif defined(__IMXRT1062__)
-
+/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 
 	// if either transmitter or receiver is enabled, do nothing
@@ -591,7 +593,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 	I2S1_RCR4 = I2S_RCR4_FRSZ(1) | I2S_RCR4_SYWD(31) | I2S_RCR4_MF
 		| I2S_RCR4_FSE | I2S_RCR4_FSP;
 	I2S1_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
-
+*/
 #endif
 }
 

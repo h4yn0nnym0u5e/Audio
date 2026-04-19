@@ -31,15 +31,16 @@
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
+#include <utility/imxrt_hw.h>
 
-class AudioInputI2S2 : public AudioStream
+class AudioInputI2S2 : public AudioStream, private SAIconfig
 {
 public:
-	AudioInputI2S2(void) : AudioStream(0, NULL) { begin(); }
+	AudioInputI2S2(void) : AudioStream(0, NULL), SAIconfig(IMXRT_SAI2) { begin(); }
 	virtual void update(void);
 	void begin(void);
 protected:
-	AudioInputI2S2(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
+	AudioInputI2S2(int dummy): AudioStream(0, NULL), SAIconfig(IMXRT_SAI2) {} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);

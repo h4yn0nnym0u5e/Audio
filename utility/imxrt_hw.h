@@ -39,10 +39,77 @@
 
 void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv,  bool force = false); // sets PLL4
 
+class SAIconfig
+{
+    public:
+        enum class SAIcfg {none, I2S, TDM, SPDIF, PT8211, PDM};
+    private:
+        IMXRT_SAI_t& sai;
+        struct settings_t
+        {
+            // TCR2
+            uint32_t div:8; // bit clock divide (from master clock; mclk / (div+1) / 2)
+            uint32_t bcp:1; // bit clock polarity; 0 = active high
+            // TCR4
+            uint32_t frsz:5; // frame size (words - 1)
+            uint32_t sywd:5; // sync width (bit clocks - 1)
+            uint32_t fse:1; // frame sync early
+            uint32_t fsp:1; // frame sync polarity
+            // TCR5
+            uint32_t wnw:5; // bits/word - 1
+            // clock pins
+            uint32_t mclk:1;
+            uint32_t bclk:1;
+            uint32_t lrclk:1;
+            // 29 bits
+        };
+        void configSAI(SAIcfg cfg, double fs, bool only_bclk, int channels, bool rx, uint32_t extra);
+    public:
+        SAIconfig(IMXRT_SAI_t& _sai) : sai(_sai) {}
+        void configSAItx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
+            { configSAI(cfg, fs, only_bclk, channels, false, extra); }
+        void configSAIrx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
+            { configSAI(cfg, fs, only_bclk, channels, true, extra); }
+
+// Set FIFO watermarks to keep FIFO as full
+// as possible, in case of DMA contention	
+#if defined(KINETISK) || defined(__IMXRT1062__)
+        static const int FIFOwatermark =
+        #if defined(__IMXRT1062__)
+            31 // Teensy 4.x
+        #elif defined(__MK20DX128__)
+            3 // Teensy 3.0
+        #else
+            7 // Teensy 3.1 / 3.2 / 3.5 / 3.6 (unused by LC)
+        #endif
+            ;		 
+#endif // watermark 
+};
+
 #endif
 
 #else
-//No IMXRT
+//No IMXRT - just provide watermark
 #define IMXRT_CACHE_ENABLED 0
+class SAIconfig
+{
+        IMXRT_SAI_t& sai;
+    public:
+        SAIconfig(IMXRT_SAI_t& _sai) : sai(_sai) {}
+
+// Set FIFO watermarks to keep FIFO as full
+// as possible, in case of DMA contention	
+#if defined(KINETISK) || defined(__IMXRT1062__)
+        static const int FIFOwatermark =
+        #if defined(__IMXRT1062__)
+            31 // Teensy 4.x
+        #elif defined(__MK20DX128__)
+            3 // Teensy 3.0
+        #else
+            7 // Teensy 3.1 / 3.2 / 3.5 / 3.6 (unused by LC)
+        #endif
+            ;		 
+#endif // watermark 
+};
 #endif
 	

@@ -90,8 +90,11 @@ void AudioOutputI2SQuad::begin(void)
 #elif defined(__IMXRT1062__)
 	const int pinoffset = 0; // TODO: make this configurable...
 	memset(i2s_tx_buffer, 0, sizeof(i2s_tx_buffer));
-	AudioOutputI2S::config_i2s();
-	I2S1_TCR3 = I2S_TCR3_TCE_2CH << pinoffset;
+	// AudioOutputI2S::config_i2s();
+	// I2S1_TCR3 = I2S_TCR3_TCE_2CH << pinoffset;
+
+	configSAItx(SAIconfig::SAIcfg::I2S, AUDIO_SAMPLE_RATE_EXACT, false, 4, pinoffset);
+
 	switch (pinoffset) {
 	  case 0:
 		CORE_PIN7_CONFIG  = 3;
@@ -120,9 +123,13 @@ void AudioOutputI2SQuad::begin(void)
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 	dma.enable();
+
+	I2S1_TCSR = 0;
+	I2S1_TCR3 = I2S_TCR3_TCE_2CH << pinoffset;
+
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-	I2S1_TCR3 = I2S_TCR3_TCE_2CH << pinoffset;
+	
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
 #endif

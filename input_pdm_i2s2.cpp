@@ -67,7 +67,9 @@ DMAChannel AudioInputPDM2::dma(false);
 void AudioInputPDM2::begin(void)
 {
   dma.begin(true); // Allocate the DMA channel first
+  configSAIrx(SAIconfig::SAIcfg::PDM, AUDIO_SAMPLE_RATE_EXACT, true);
 
+/*
   CCM_CCGR5 |= CCM_CCGR5_SAI2(CCM_CCGR_ON);
   //PLL:
   int fs = AUDIO_SAMPLE_RATE_EXACT;
@@ -112,9 +114,9 @@ void AudioInputPDM2::begin(void)
   I2S2_RCR1 = I2S_RCR1_RFW(FIFOwatermark);
   I2S2_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_RCR2_BCP | (I2S_RCR2_BCD | I2S_RCR2_DIV((1)) | I2S_RCR2_MSEL(1));  // sync=0; rx is async;
   I2S2_RCR3 = I2S_RCR3_RCE;
-  I2S2_RCR4 = I2S_RCR4_FRSZ((2-1)) | I2S_RCR4_SYWD((32-1)) | I2S_RCR4_MF /* | I2S_RCR4_FSE */ | I2S_RCR4_FSP | I2S_RCR4_FSD;
+  I2S2_RCR4 = I2S_RCR4_FRSZ((2-1)) | I2S_RCR4_SYWD((32-1)) | I2S_RCR4_MF / * | I2S_RCR4_FSE * / | I2S_RCR4_FSP | I2S_RCR4_FSD;
   I2S2_RCR5 = I2S_RCR5_WNW((32-1)) | I2S_RCR5_W0W((32-1)) | I2S_RCR5_FBT((32-1));
-
+*/
   CORE_PIN5_CONFIG  = 2;  //2:RX_DATA0
   IOMUXC_SAI2_RX_DATA0_SELECT_INPUT = 0;
   

@@ -30,11 +30,12 @@
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
+#include <utility/imxrt_hw.h>
 
-class AudioInputI2SHex : public AudioStream
+class AudioInputI2SHex : public AudioStream, private SAIconfig
 {
 public:
-	AudioInputI2SHex(void) : AudioStream(0, NULL) { begin(); }
+	AudioInputI2SHex(void) : AudioStream(0, NULL), SAIconfig(IMXRT_SAI1) { begin(); }
 	virtual void update(void);
 	void begin(void);
 private:

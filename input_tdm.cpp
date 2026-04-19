@@ -45,8 +45,8 @@ void AudioInputTDM::begin(void)
 	dma.begin(true); // Allocate the DMA channel first
 
 	// TODO: should we set & clear the I2S_RCSR_SR bit here?
-	AudioOutputTDM::config_tdm();
 #if defined(KINETISK)
+	AudioOutputTDM::config_tdm();
 	CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
 	dma.TCD->SADDR = &I2S0_RDR0;
 	dma.TCD->SOFF = 0;
@@ -67,8 +67,10 @@ void AudioInputTDM::begin(void)
 	I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
 	dma.attachInterrupt(isr);
 #elif defined(__IMXRT1062__)
+	configSAIrx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN8_CONFIG  = 3;  //RX_DATA0
 	IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
+	
 	dma.TCD->SADDR = &I2S1_RDR0;
 	dma.TCD->SOFF = 0;
 	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);

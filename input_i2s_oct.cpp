@@ -47,8 +47,11 @@ void AudioInputI2SOct::begin(void)
 {
 	dma.begin(true); // Allocate the DMA channel first
 
-	AudioOutputI2S::config_i2s();
-	I2S1_RCR3 = I2S_RCR3_RCE_4CH;
+	//AudioOutputI2S::config_i2s();
+	configSAIrx(SAIconfig::SAIcfg::I2S, AUDIO_SAMPLE_RATE_EXACT, false, 8);
+
+	// I2S1_RCR3 = I2S_RCR3_RCE_4CH;
+
 	CORE_PIN8_CONFIG = 3;
 	CORE_PIN6_CONFIG = 3;
 	CORE_PIN9_CONFIG = 3;

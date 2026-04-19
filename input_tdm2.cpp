@@ -45,10 +45,11 @@ void AudioInputTDM2::begin(void)
 	dma.begin(true); // Allocate the DMA channel first
 
 	// TODO: should we set & clear the I2S_RCSR_SR bit here?
-	AudioOutputTDM2::config_tdm();
-
+	//AudioOutputTDM2::config_tdm();
+	configSAIrx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN5_CONFIG = 2;  //2:RX_DATA0
 	IOMUXC_SAI2_RX_DATA0_SELECT_INPUT = 0;
+
 	dma.TCD->SADDR = &I2S2_RDR0;
 	dma.TCD->SOFF = 0;
 	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);

@@ -30,14 +30,15 @@
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
+#include <utility/imxrt_hw.h>
 
 
 #if !defined(KINETISL)
 
-class AudioOutputI2S : public AudioStream
+class AudioOutputI2S : public AudioStream, private SAIconfig
 {
 public:
-	AudioOutputI2S(void) : AudioStream(2, inputQueueArray) { begin(); }
+	AudioOutputI2S(void) : AudioStream(2, inputQueueArray), SAIconfig(IMXRT_SAI1) { begin(); }
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2S;
@@ -51,7 +52,7 @@ public:
 	friend class AudioInputI2SOct;
 #endif
 protected:
-	AudioOutputI2S(int dummy): AudioStream(2, inputQueueArray) {} // to be used only inside AudioOutputI2Sslave !!
+	AudioOutputI2S(int dummy): AudioStream(2, inputQueueArray), SAIconfig(IMXRT_SAI1) {} // to be used only inside AudioOutputI2Sslave !!
 	static void config_i2s(bool only_bclk = false);
 	static audio_block_t *block_left_1st;
 	static audio_block_t *block_right_1st;

@@ -57,7 +57,16 @@ void AudioOutputPT8211_2::begin(void)
 	block_right_1st = NULL;
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_i2s();
+	//config_i2s();
+	uint32_t div = 
+	#if defined(AUDIO_PT8211_OVERSAMPLING)
+		0;
+	#else
+		3;
+	#endif
+
+	configSAItx(SAIconfig::SAIcfg::PT8211, AUDIO_SAMPLE_RATE_EXACT, false, 2, div);
+	
 	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
 	
 	dma.TCD->SADDR = i2s_tx_buffer;
@@ -388,7 +397,7 @@ void AudioOutputPT8211_2::update(void)
 //FLASHMEM
 void AudioOutputPT8211_2::config_i2s(void)
 {
-
+/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI2(CCM_CCGR_ON);
 //PLL:
 	int fs = AUDIO_SAMPLE_RATE_EXACT;
@@ -427,8 +436,8 @@ void AudioOutputPT8211_2::config_i2s(void)
 	I2S2_TCR2 = I2S_TCR2_SYNC(0) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(div);
 	I2S2_TCR3 = I2S_TCR3_TCE;
 //	I2S2_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF | I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_TCR4_FSD; //TDA1543
-	I2S2_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF /*| I2S_TCR4_FSE*/ | I2S_TCR4_FSP | I2S_TCR4_FSD; //PT8211
+	I2S2_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF / * | I2S_TCR4_FSE * / | I2S_TCR4_FSP | I2S_TCR4_FSD; //PT8211
 	I2S2_TCR5 = I2S_TCR5_WNW(15) | I2S_TCR5_W0W(15) | I2S_TCR5_FBT(15);
-
+*/
 }
 #endif

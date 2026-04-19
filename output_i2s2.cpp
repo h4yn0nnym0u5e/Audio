@@ -48,7 +48,8 @@ void AudioOutputI2S2::begin(void)
 	block_left_1st = NULL;
 	block_right_1st = NULL;
 
-	config_i2s();
+	//config_i2s();
+	configSAItx(SAIconfig::SAIcfg::I2S, AUDIO_SAMPLE_RATE_EXACT);
 
 	// if AudioInputI2S2 set I2S_TCSR_TE (for clock sync), disable it
 	I2S2_TCSR = 0;
@@ -189,6 +190,7 @@ void AudioOutputI2S2::update(void)
 
 void AudioOutputI2S2::config_i2s(void)
 {
+	/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI2(CCM_CCGR_ON);
 
 	// if either transmitter or receiver is enabled, do nothing
@@ -241,7 +243,7 @@ void AudioOutputI2S2::config_i2s(void)
 	I2S2_RCR4 = I2S_RCR4_FRSZ((2-1)) | I2S_RCR4_SYWD((32-1)) | I2S_RCR4_MF
 		| I2S_RCR4_FSE | I2S_RCR4_FSP | I2S_RCR4_FSD;
 	I2S2_RCR5 = I2S_RCR5_WNW((32-1)) | I2S_RCR5_W0W((32-1)) | I2S_RCR5_FBT((32-1));
-
+*/
 }
 
 /******************************************************************/
@@ -255,7 +257,7 @@ void AudioOutputI2S2slave::begin(void)
 	block_right_1st = NULL;
 
 	config_i2s();
-
+	
 	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
 
 	dma.TCD->SADDR = i2s2_tx_buffer;

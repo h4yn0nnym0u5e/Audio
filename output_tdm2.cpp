@@ -55,8 +55,9 @@ void AudioOutputTDM2::begin(void)
 	memset(tdm_tx_buffer, 0, sizeof tdm_tx_buffer);
 	
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_tdm();
+	//config_tdm();
 
+	configSAItx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
 
 	dma.TCD->SADDR = tdm_tx_buffer;

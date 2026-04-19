@@ -57,8 +57,9 @@ void AudioOutputPT8211::begin(void)
 	block_right_1st = NULL;
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_i2s();
 #if defined(KINETISK)
+	config_i2s();
+
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
 	dma.TCD->SADDR = i2s_tx_buffer;
@@ -79,7 +80,18 @@ void AudioOutputPT8211::begin(void)
 	dma.enable();
 	I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE | I2S_TCSR_FR;
 	return;
+
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
+
+	//config_i2s();
+	uint32_t div = 
+	#if defined(AUDIO_PT8211_OVERSAMPLING)
+		0;
+	#else
+		3;
+	#endif
+
+	configSAItx(SAIconfig::SAIcfg::PT8211, AUDIO_SAMPLE_RATE_EXACT, false, 2, div);
 
 #if defined(__IMXRT1052__)
 	CORE_PIN6_CONFIG  = 3;  //1:TX_DATA0
@@ -500,7 +512,7 @@ void AudioOutputPT8211::config_i2s(void)
 	//CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
 
 #elif ( defined(__IMXRT1052__) || defined(__IMXRT1062__) )
-
+/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 //PLL:
 	int fs = AUDIO_SAMPLE_RATE_EXACT;
@@ -545,7 +557,7 @@ void AudioOutputPT8211::config_i2s(void)
 	I2S1_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(div);
 	I2S1_TCR3 = I2S_TCR3_TCE;
 //	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF | I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_TCR4_FSD; //TDA1543
-	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF /*| I2S_TCR4_FSE*/ | I2S_TCR4_FSP | I2S_TCR4_FSD; //PT8211
+	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF / * | I2S_TCR4_FSE * / | I2S_TCR4_FSP | I2S_TCR4_FSD; //PT8211
 	I2S1_TCR5 = I2S_TCR5_WNW(15) | I2S_TCR5_W0W(15) | I2S_TCR5_FBT(15);
 
 	I2S1_RMR = 0;
@@ -554,9 +566,9 @@ void AudioOutputPT8211::config_i2s(void)
 	I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_RCR2_BCP | I2S_RCR2_MSEL(1) | I2S_TCR2_BCD | I2S_TCR2_DIV(div);
 	I2S1_RCR3 = I2S_RCR3_RCE;
 //	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(15) | I2S_TCR4_MF | I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_TCR4_FSD; //TDA1543
-	I2S1_RCR4 = I2S_RCR4_FRSZ(1) | I2S_RCR4_SYWD(15) | I2S_RCR4_MF /*| I2S_RCR4_FSE*/ | I2S_RCR4_FSP | I2S_RCR4_FSD; //PT8211
+	I2S1_RCR4 = I2S_RCR4_FRSZ(1) | I2S_RCR4_SYWD(15) | I2S_RCR4_MF / * | I2S_RCR4_FSE * / | I2S_RCR4_FSP | I2S_RCR4_FSD; //PT8211
 	I2S1_RCR5 = I2S_RCR5_WNW(15) | I2S_RCR5_W0W(15) | I2S_RCR5_FBT(15);
-
+*/
 #endif
 }
 

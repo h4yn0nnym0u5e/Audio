@@ -32,6 +32,7 @@
 #include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 #include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
+#include <utility/imxrt_hw.h>
 
 
 #if !defined(KINETISL)
@@ -43,10 +44,10 @@
 #define AUDIO_PT8211_INTERPOLATION_CIC
 
 
-class AudioOutputPT8211 : public AudioStream
+class AudioOutputPT8211 : public AudioStream, private SAIconfig
 {
 public:
-	AudioOutputPT8211(void) : AudioStream(2, inputQueueArray) { begin(); }
+	AudioOutputPT8211(void) : AudioStream(2, inputQueueArray), SAIconfig(IMXRT_SAI1) { begin(); }
 	virtual void update(void);
 	void begin(void);
 protected:

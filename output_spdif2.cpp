@@ -62,7 +62,8 @@ void AudioOutputSPDIF2::begin(void)
 	block_right_1st = NULL;
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_SPDIF();
+	//config_SPDIF();
+	configSAItx(SAIconfig::SAIcfg::SPDIF, AUDIO_SAMPLE_RATE_EXACT);
 
 	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
 	const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
@@ -273,6 +274,7 @@ void AudioOutputSPDIF2::update(void)
 FLASHMEM
 void AudioOutputSPDIF2::config_SPDIF(void)
 {
+	/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI2(CCM_CCGR_ON);
 //PLL:
 	int fs = AUDIO_SAMPLE_RATE_EXACT;
@@ -309,6 +311,7 @@ void AudioOutputSPDIF2::config_SPDIF(void)
 	CORE_PIN4_CONFIG  = 2;  //2:TX_BCLK	5 MHz
 	CORE_PIN3_CONFIG  = 2;  //2:TX_SYNC	44.1 KHz
 #endif
+*/
 }
 
 

@@ -74,8 +74,11 @@ void AudioOutputI2SOct::begin(void)
 	block_ch6_1st = NULL;
 
 	memset(i2s_tx_buffer, 0, sizeof(i2s_tx_buffer));
-	AudioOutputI2S::config_i2s();
-	I2S1_TCR3 = I2S_TCR3_TCE_4CH;
+	//AudioOutputI2S::config_i2s();
+	// I2S1_TCR3 = I2S_TCR3_TCE_4CH;
+
+	configSAIrx(SAIconfig::SAIcfg::I2S, AUDIO_SAMPLE_RATE_EXACT, false, 8);
+
 	CORE_PIN7_CONFIG  = 3;
 	CORE_PIN32_CONFIG = 3;
 	CORE_PIN6_CONFIG  = 3;
@@ -95,9 +98,10 @@ void AudioOutputI2SOct::begin(void)
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 	dma.enable();
+
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-	//I2S1_TCR3 = I2S_TCR3_TCE_4CH;
+
 	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
 }

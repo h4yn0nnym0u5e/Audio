@@ -55,8 +55,9 @@ void AudioOutputTDM::begin(void)
 	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_tdm();
 #if defined(KINETISK)
+	config_tdm();
+
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
 	dma.TCD->SADDR = tdm_tx_buffer;
@@ -78,6 +79,9 @@ void AudioOutputTDM::begin(void)
 	I2S0_TCSR = I2S_TCSR_SR;
 	I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 #elif defined(__IMXRT1062__)
+
+	configSAIrx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
+
 	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
 
 	dma.TCD->SADDR = tdm_tx_buffer;
@@ -282,6 +286,7 @@ void AudioOutputTDM::config_tdm(void)
 	CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK - 22.5 MHz
 
 #elif defined(__IMXRT1062__)
+/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 
 	// if either transmitter or receiver is enabled, do nothing
@@ -336,6 +341,7 @@ void AudioOutputTDM::config_tdm(void)
 	CORE_PIN23_CONFIG = 3;  //1:MCLK
 	CORE_PIN21_CONFIG = 3;  //1:RX_BCLK
 	CORE_PIN20_CONFIG = 3;  //1:RX_SYNC
+*/	
 #endif
 }
 

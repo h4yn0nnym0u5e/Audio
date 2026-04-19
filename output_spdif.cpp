@@ -62,8 +62,8 @@ void AudioOutputSPDIF::begin(void)
 	block_right_1st = NULL;
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-	config_SPDIF();
 #if defined(KINETISK)
+	config_SPDIF();
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
 
 	const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
@@ -87,7 +87,9 @@ void AudioOutputSPDIF::begin(void)
 	dma.attachInterrupt(isr);
 
 #elif defined(__IMXRT1062__)
+	configSAItx(SAIconfig::SAIcfg::SPDIF, AUDIO_SAMPLE_RATE_EXACT);
 	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0	
+	
 	const int nbytes_mlno = 2 * 4; // 8 Bytes per minor loop
 
 	dma.TCD->SADDR = SPDIF_tx_buffer;
@@ -383,7 +385,7 @@ void AudioOutputSPDIF::config_SPDIF(void)
 #endif
 
 #elif defined(__IMXRT1062__)
-
+/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 //PLL:
 	int fs = AUDIO_SAMPLE_RATE_EXACT;
@@ -426,7 +428,7 @@ void AudioOutputSPDIF::config_SPDIF(void)
 	I2S1_RCR3 = I2S_RCR3_RCE;
 	I2S1_RCR4 = I2S_TCR4_FRSZ(3) | I2S_TCR4_SYWD(0) | I2S_TCR4_MF | I2S_TCR4_FSP | I2S_TCR4_FSD;
 	I2S1_RCR5 = I2S_TCR5_WNW(31) | I2S_TCR5_W0W(31) | I2S_TCR5_FBT(31);
-
+*/
 #if 0
 	//debug only:
 	CORE_PIN23_CONFIG = 3;  //1:MCLK	11.43MHz

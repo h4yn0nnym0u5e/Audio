@@ -46,7 +46,8 @@ void AudioInputI2S2::begin(void)
 	//block_right_1st = NULL;
 
 	// TODO: should we set & clear the I2S_RCSR_SR bit here?
-	AudioOutputI2S2::config_i2s();
+	//AudioOutputI2S2::config_i2s();
+	configSAIrx(SAIconfig::SAIcfg::I2S, AUDIO_SAMPLE_RATE_EXACT);
 
 	CORE_PIN5_CONFIG = 2;  //EMC_08, 2=SAI2_RX_DATA, page 434
 	IOMUXC_SAI2_RX_DATA0_SELECT_INPUT = 0; // 0=GPIO_EMC_08_ALT2, page 876
