@@ -73,7 +73,6 @@ class SAIconfig
 
 // Set FIFO watermarks to keep FIFO as full
 // as possible, in case of DMA contention	
-#if defined(KINETISK) || defined(__IMXRT1062__)
         static const int FIFOwatermark =
         #if defined(__IMXRT1062__)
             31 // Teensy 4.x
@@ -83,7 +82,6 @@ class SAIconfig
             7 // Teensy 3.1 / 3.2 / 3.5 / 3.6 (unused by LC)
         #endif
             ;		 
-#endif // watermark 
 };
 
 #endif
@@ -99,7 +97,6 @@ class SAIconfig
 
 // Set FIFO watermarks to keep FIFO as full
 // as possible, in case of DMA contention	
-#if defined(KINETISK) || defined(__IMXRT1062__)
         static const int FIFOwatermark =
         #if defined(__IMXRT1062__)
             31 // Teensy 4.x
@@ -109,7 +106,6 @@ class SAIconfig
             7 // Teensy 3.1 / 3.2 / 3.5 / 3.6 (unused by LC)
         #endif
             ;		 
-#endif // watermark 
 };
 #endif
 	

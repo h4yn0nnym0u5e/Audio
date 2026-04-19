@@ -153,6 +153,7 @@ PDM:
 			break;
 			
 		case SAIcfg::I2S:	   	//   TCR2  TCR4          TCR5	clocks
+// Serial.printf("I2S; %d channels; %s\n", channels, rx?"Rx":"Tx");
 			settingsTCR = settings_t{1,1,  2-1,32-1,1,1, 32-1,  1,1,1};
 			break;
 			
