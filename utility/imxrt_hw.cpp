@@ -60,10 +60,6 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 						  bool rx, 			//! true if setting up receiver
 						  uint32_t extra) 	//! extra hardware-dependent info, e.g. for PT8211
 {
-	// which SAI are we using, 1 or 2?
-	int which = &sai == &IMXRT_SAI1
-					?1
-					:2;
 	uint32_t tcr3 = sai.TCR3, rcr3 = sai.RCR3; // keep existing values
 
 	switch (which)

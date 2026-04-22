@@ -39,11 +39,12 @@ DMAChannel AudioOutputTDM2::dma(false);
 DMAMEM __attribute__((aligned(32)))
 static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 DMAMEM __attribute__((aligned(32)))
-static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
+uint32_t* AudioOutputTDM2::tdm_tx_buffer; // [AUDIO_BLOCK_SAMPLES*16];
 
 
 void AudioOutputTDM2::begin(void)
 {
+	tdm_tx_buffer = (uint32_t*) aligned_alloc(32, txBufSz);
 	dma.begin(true); // Allocate the DMA channel first
 
 	for (int i=0; i < 16; i++) {
@@ -52,7 +53,7 @@ void AudioOutputTDM2::begin(void)
 	
 	// DMAMEM doesn't get zeroed, have to do it ourselves:
 	memset(zeros, 0, sizeof zeros);
-	memset(tdm_tx_buffer, 0, sizeof tdm_tx_buffer);
+	memset(tdm_tx_buffer, 0, txBufSz);
 	
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
 	//config_tdm();
@@ -64,12 +65,12 @@ void AudioOutputTDM2::begin(void)
 	dma.TCD->SOFF = 4;
 	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
 	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
+	dma.TCD->SLAST = -txBufSz; // (tdmsizeof_tx_buffer);
 	dma.TCD->DADDR = &I2S2_TDR0;
 	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
+	dma.TCD->CITER_ELINKNO = txBufSz / 4; // sizeof(tdm_tx_buffer) / 4;
 	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
+	dma.TCD->BITER_ELINKNO = txBufSz / 4; // sizeof(tdm_tx_buffer) / 4;
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
 
@@ -115,7 +116,7 @@ void AudioOutputTDM2::isr(void)
 
 	saddr = (uint32_t)(dma.TCD->SADDR);
 	dma.clearInterrupt();
-	if (saddr < (uint32_t)tdm_tx_buffer + sizeof(tdm_tx_buffer) / 2) {
+	if (saddr < (uint32_t)tdm_tx_buffer + /* sizeof(tdm_tx_buffer) */ txBufSz / 2) {
 		// DMA is transmitting the first half of the buffer
 		// so we must fill the second half
 		dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8;
@@ -134,7 +135,7 @@ void AudioOutputTDM2::isr(void)
 	}
 
 	#if IMXRT_CACHE_ENABLED >= 2
-	arm_dcache_flush_delete(dc, sizeof(tdm_tx_buffer) / 2 );
+	arm_dcache_flush_delete(dc, /* sizeof(tdm_tx_buffer) */ txBufSz / 2 );
 	#endif
 
 	for (i=0; i < 16; i++) {
@@ -164,6 +165,7 @@ void AudioOutputTDM2::update(void)
 
 void AudioOutputTDM2::config_tdm(void)
 {
+	/*
 	CCM_CCGR5 |= CCM_CCGR5_SAI2(CCM_CCGR_ON);
 
 	// if either transmitter or receiver is enabled, do nothing
@@ -220,6 +222,7 @@ void AudioOutputTDM2::config_tdm(void)
 	CORE_PIN33_CONFIG = 2;  //2:MCLK
 	CORE_PIN4_CONFIG  = 2;  //2:TX_BCLK
 	CORE_PIN3_CONFIG  = 2;  //2:TX_SYNC
+	*/
 }
 
 #endif

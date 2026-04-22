@@ -42,7 +42,8 @@ void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv,  bool force = false
 class SAIconfig
 {
     public:
-        enum class SAIcfg {none, I2S, TDM, SPDIF, PT8211, PDM};
+        enum class SAIcfg {none, I2S, TDM, SPDIF, PT8211, PDM}; // possible uses for SAI
+        int which{0}; // pre-computed at instantiation: 1 or 2 (could add 3 in future)
     private:
         IMXRT_SAI_t& sai;
         struct settings_t
@@ -65,7 +66,9 @@ class SAIconfig
         };
         void configSAI(SAIcfg cfg, double fs, bool only_bclk, int channels, bool rx, uint32_t extra);
     public:
-        SAIconfig(IMXRT_SAI_t& _sai) : sai(_sai) {}
+        SAIconfig(IMXRT_SAI_t& _sai) 
+            : which{&_sai == &IMXRT_SAI1 ? 1 : 2}, sai{_sai}
+            {}
         void configSAItx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
             { configSAI(cfg, fs, only_bclk, channels, false, extra); }
         void configSAIrx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
