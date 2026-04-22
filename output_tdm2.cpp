@@ -30,22 +30,26 @@
 #include "memcpy_audio.h"
 #include "utility/imxrt_hw.h"
 
+/*
 audio_block_t * AudioOutputTDM2::block_input[16] = {
 	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
 	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
 };
+*/
 bool AudioOutputTDM2::update_responsibility = false;
-DMAChannel AudioOutputTDM2::dma(false);
+//DMAChannel AudioOutputTDM2::dma(false);
 DMAMEM __attribute__((aligned(32)))
 static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
-DMAMEM __attribute__((aligned(32)))
-uint32_t* AudioOutputTDM2::tdm_tx_buffer; // [AUDIO_BLOCK_SAMPLES*16];
+//DMAMEM __attribute__((aligned(32)))
+//uint32_t* AudioOutputTDM2::tdm_tx_buffer; // [AUDIO_BLOCK_SAMPLES*16];
 
 
 void AudioOutputTDM2::begin(void)
 {
-	tdm_tx_buffer = (uint32_t*) aligned_alloc(32, txBufSz);
-	dma.begin(true); // Allocate the DMA channel first
+	configDMAtx(SAIconfig::SAIcfg::TDM, this, DMAisr, txBufSz,
+				&I2S2_TDR0, 4, 0);
+//	tdm_tx_buffer = (uint32_t*) aligned_alloc(32, txBufSz);
+//	dma.begin(true); // Allocate the DMA channel first
 
 	for (int i=0; i < 16; i++) {
 		block_input[i] = nullptr;
@@ -53,14 +57,14 @@ void AudioOutputTDM2::begin(void)
 	
 	// DMAMEM doesn't get zeroed, have to do it ourselves:
 	memset(zeros, 0, sizeof zeros);
-	memset(tdm_tx_buffer, 0, txBufSz);
+//	memset(tdm_tx_buffer, 0, txBufSz);
 	
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
 	//config_tdm();
 
 	configSAItx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
-
+/*
 	dma.TCD->SADDR = tdm_tx_buffer;
 	dma.TCD->SOFF = 4;
 	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
@@ -73,14 +77,14 @@ void AudioOutputTDM2::begin(void)
 	dma.TCD->BITER_ELINKNO = txBufSz / 4; // sizeof(tdm_tx_buffer) / 4;
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
-
+*/
 	update_responsibility = update_setup();
-	dma.enable();
+//	dma.enable();
 
 	//I2S2_RCSR |= I2S_RCSR_RE;
 	I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
-	dma.attachInterrupt(isr);
+//	dma.attachInterrupt(isr);
 }
 
 // TODO: needs optimization...
@@ -108,6 +112,12 @@ static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *
 	}
 }
 
+// static
+void AudioOutputTDM2::DMAisr(void* instance)
+{
+	((AudioOutputTDM2*) instance)->isr();
+}
+
 void AudioOutputTDM2::isr(void)
 {
 	uint32_t *dest, *dc;
@@ -116,14 +126,14 @@ void AudioOutputTDM2::isr(void)
 
 	saddr = (uint32_t)(dma.TCD->SADDR);
 	dma.clearInterrupt();
-	if (saddr < (uint32_t)tdm_tx_buffer + /* sizeof(tdm_tx_buffer) */ txBufSz / 2) {
+	if (saddr < (uint32_t)buffer + /* sizeof(tdm_tx_buffer) */ txBufSz / 2) {
 		// DMA is transmitting the first half of the buffer
 		// so we must fill the second half
-		dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8;
+		dest = buffer + AUDIO_BLOCK_SAMPLES*8;
 	} else {
 		// DMA is transmitting the second half of the buffer
 		// so we must fill the first half
-		dest = tdm_tx_buffer;
+		dest = buffer;
 	}
 	if (update_responsibility) AudioStream::update_all();
 	dc = dest;

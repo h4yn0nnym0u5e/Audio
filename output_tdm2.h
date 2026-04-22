@@ -43,12 +43,17 @@ public:
 	//friend class AudioInputTDM2;
 protected:
 	static void config_tdm(void);
+	/*
 	static audio_block_t *block_input[16];
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
 	static uint32_t* tdm_tx_buffer;
-
+	*/
+	void isr(void);
+	audio_block_t *block_input[16];
+	static bool update_responsibility;
+	static void DMAisr(void* instance);
 private:
 	audio_block_t *inputQueueArray[16];
 };

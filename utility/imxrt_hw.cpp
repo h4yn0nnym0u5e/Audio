@@ -53,6 +53,9 @@ void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) // sets
 	CCM_ANALOG_PLL_AUDIO &= ~CCM_ANALOG_PLL_AUDIO_BYPASS;//Disable Bypass
 }
 
+
+SAIconfig::DMAisrInfo_t SAIconfig::DMAisrInfo[2]{0};
+
 void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 						  double fs, 		//! sample rate
 						  bool only_bclk, 	//! true if we only want to set bit clock
@@ -113,28 +116,28 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 					| (IOMUXC_GPR_GPR1_SAI2_MCLK_DIR | IOMUXC_GPR_GPR1_SAI2_MCLK3_SEL(0));	//Select MCLK
 			break;
 	}
-/*
-Use I2S as baseline:
-Different channel counts 
-	affect TCR3 / RCR3 enabled channels
+	/*
+	Use I2S as baseline:
+	Different channel counts 
+		affect TCR3 / RCR3 enabled channels
 
-Using TDM affects
-	TCR2: DIV (bit clock divide)
-	TCR4: FRSZ (frame size); SYWD (sync width); FSP (frame sync polarity)
+	Using TDM affects
+		TCR2: DIV (bit clock divide)
+		TCR4: FRSZ (frame size); SYWD (sync width); FSP (frame sync polarity)
 
-PT8211:
-	TCR2: DIV (bit clock divide)
-	TCR4: SYWD (sync width); FSE (frame sync early)
-	TCR5: all (16-bit word width rather than 32)
+	PT8211:
+		TCR2: DIV (bit clock divide)
+		TCR4: SYWD (sync width); FSE (frame sync early)
+		TCR5: all (16-bit word width rather than 32)
 
-S/PDIF:
-	TCR2: BCP (bit clock polarity); DIV (bit clock divide)
-	TCR4: FRSZ (frame size); SYWD (sync width); FSE (frame sync early)
+	S/PDIF:
+		TCR2: BCP (bit clock polarity); DIV (bit clock divide)
+		TCR4: FRSZ (frame size); SYWD (sync width); FSE (frame sync early)
 
-PDM:
-	RCR2: DIV (bit clock divide)
-	RCR4: FRSZ (frame size); SYWD (sync width); FSP (frame sync polarity)
-*/
+	PDM:
+		RCR2: DIV (bit clock divide)
+		RCR4: FRSZ (frame size); SYWD (sync width); FSP (frame sync polarity)
+	*/
 
 
 	int rsync = which == 1?0:1; // for some reason; does it matter?
@@ -149,7 +152,7 @@ PDM:
 			break;
 			
 		case SAIcfg::I2S:	   	//   TCR2  TCR4          TCR5	clocks
-// Serial.printf("I2S; %d channels; %s\n", channels, rx?"Rx":"Tx");
+ // Serial.printf("I2S; %d channels; %s\n", channels, rx?"Rx":"Tx");
 			settingsTCR = settings_t{1,1,  2-1,32-1,1,1, 32-1,  1,1,1};
 			break;
 			
@@ -272,6 +275,93 @@ PDM:
 	// re-enable tx and rx, if previously enabled
 	sai.TCSR |= tcsr;
 	sai.RCSR |= rcsr;
+}
+
+
+void SAIconfig::configDMA(
+				SAIcfg cfg, 			//! type of hardware: I²S, TDM etc. (?)
+				void* instance,			//! which instance is using this: needed for DMA ISR
+				void (*isr)(void*),		//! object's DMA ISR function
+				size_t bufSz, 			//! required buffer size
+				volatile void* regAddr,	//! SAI register to transfer to / from
+				int regSz, 				//! register width (2 / 4 bytes)
+				int regStep, 			//! register step for e.g. quad / hex/ oct I²S
+				bool rx)				//! configure as receiver (reg -> buffer)
+{
+	buffer = (uint32_t*) aligned_alloc(32, bufSz);
+	dma.begin(true); // Allocate the DMA channel first
+
+ /*
+	dma.TCD->SADDR = tdm_tx_buffer;
+	dma.TCD->SOFF = 4;
+	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+	dma.TCD->NBYTES_MLNO = 4;
+	dma.TCD->SLAST = -txBufSz; // (tdmsizeof_tx_buffer);
+	dma.TCD->DADDR = &I2S2_TDR0;
+	dma.TCD->DOFF = 0;
+	dma.TCD->CITER_ELINKNO = txBufSz / 4; // sizeof(tdm_tx_buffer) / 4;
+	dma.TCD->DLASTSGA = 0;
+	dma.TCD->BITER_ELINKNO = txBufSz / 4; // sizeof(tdm_tx_buffer) / 4;
+	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_TX);
+ */
+	if (rx)
+	{
+		switch (regSz)
+		{
+			case 2: // int16_t samples
+				dma.destinationBuffer((uint16_t*) buffer,bufSz);
+				dma.source(*((uint16_t*) regAddr));
+				break;
+
+			case 4: // int16_t samples
+				dma.destinationBuffer(buffer,bufSz);
+				dma.source(*((uint32_t*) regAddr));
+				break;
+		}
+
+	}
+	else
+	{
+		switch (regSz)
+		{
+			case 2: // int16_t samples
+				dma.sourceBuffer((uint16_t*) buffer,bufSz);
+				dma.destination(*((uint16_t*) regAddr));
+				break;
+
+			case 4: // int16_t samples
+				dma.sourceBuffer(buffer,bufSz);
+				dma.destination(*((uint32_t*) regAddr));
+				break;
+		}
+	}
+	dma.interruptAtCompletion();
+	dma.interruptAtHalf();
+	dma.triggerAtHardwareEvent(which == 1
+									?DMAMUX_SOURCE_SAI1_TX
+									:DMAMUX_SOURCE_SAI2_TX);
+
+
+	dma.attachInterrupt(which == 1
+							?isr1
+							:isr2);
+	dma.enable();
+
+	// allow ISR to find the target object
+	DMAisrInfo[which-1] = {instance, isr};
+}
+
+// static
+void SAIconfig::isr1(void)
+{
+	(DMAisrInfo[0].isr)(DMAisrInfo[0].instance);
+}
+
+// static
+void SAIconfig::isr2(void)
+{
+	(DMAisrInfo[1].isr)(DMAisrInfo[1].instance);
 }
 
 #endif

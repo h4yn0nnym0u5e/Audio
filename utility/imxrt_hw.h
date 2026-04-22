@@ -36,6 +36,7 @@
 
 #include <Arduino.h>
 #include <imxrt.h>
+#include <DMAChannel.h>
 
 void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv,  bool force = false); // sets PLL4
 
@@ -44,8 +45,8 @@ class SAIconfig
     public:
         enum class SAIcfg {none, I2S, TDM, SPDIF, PT8211, PDM}; // possible uses for SAI
         int which{0}; // pre-computed at instantiation: 1 or 2 (could add 3 in future)
+
     private:
-        IMXRT_SAI_t& sai;
         struct settings_t
         {
             // TCR2
@@ -64,7 +65,25 @@ class SAIconfig
             uint32_t lrclk:1;
             // 29 bits
         };
+
+        struct DMAisrInfo_t 
+        {
+            void* instance;
+            void  (*isr)(void*);
+        };
+
         void configSAI(SAIcfg cfg, double fs, bool only_bclk, int channels, bool rx, uint32_t extra);
+        void configDMA(SAIcfg cfg, void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep, bool rx);
+	    static void isr1(void);
+	    static void isr2(void);
+
+        IMXRT_SAI_t& sai;
+        static DMAisrInfo_t DMAisrInfo[2]; // derived class DMA ISR info
+
+    protected:  // accessible from derived DAM ISR
+       	DMAChannel dma;
+	    uint32_t* buffer;
+
     public:
         SAIconfig(IMXRT_SAI_t& _sai) 
             : which{&_sai == &IMXRT_SAI1 ? 1 : 2}, sai{_sai}
@@ -73,6 +92,11 @@ class SAIconfig
             { configSAI(cfg, fs, only_bclk, channels, false, extra); }
         void configSAIrx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
             { configSAI(cfg, fs, only_bclk, channels, true, extra); }
+        void configDMAtx(SAIcfg cfg, void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep)
+            {configDMA(cfg, instance, isr, bufSz, regAddr, regSz, regStep, false); }
+        void configDMArx(SAIcfg cfg, void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep)
+            {configDMA(cfg, instance, isr, bufSz, regAddr, regSz, regStep, true); }
+
 
 // Set FIFO watermarks to keep FIFO as full
 // as possible, in case of DMA contention	
