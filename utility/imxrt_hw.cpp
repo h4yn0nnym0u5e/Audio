@@ -24,11 +24,12 @@
  * THE SOFTWARE.
  */
 /*
- (c) Frank B
+ (c) Frank B, Jonathan O
 */
 
-#if defined(__IMXRT1052__) || defined(__IMXRT1062__)
 #include "imxrt_hw.h"
+
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__)
 
 FLASHMEM
 void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) // sets PLL4
@@ -54,8 +55,7 @@ void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) // sets
 }
 
 
-SAIconfig::DMAisrInfo_t SAIconfig::DMAisrInfo[2]{0};
-
+FLASHMEM
 void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 						  double fs, 		//! sample rate
 						  bool only_bclk, 	//! true if we only want to set bit clock
@@ -277,8 +277,13 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 	sai.RCSR |= rcsr;
 }
 
+#endif // defined(__IMXRT1052__) || defined(__IMXRT1062__)
 
-void SAIconfig::configDMA(
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__) || defined(KINETISK)
+SAIbase::DMAisrInfo_t SAIbase::DMAisrInfo[2]{0};
+
+FLASHMEM
+void SAIbase::configDMA(
 				void* instance,			//! which instance is using this: needed for DMA ISR
 				void (*isr)(void*),		//! object's DMA ISR function
 				size_t bufSz, 			//! required buffer size
@@ -318,7 +323,13 @@ void SAIconfig::configDMA(
 				dma.source(*((uint32_t*) regAddr));
 				break;
 		}
-
+		#if defined(__IMXRT1062__)
+			dma.triggerAtHardwareEvent(which == 1
+											?DMAMUX_SOURCE_SAI1_RX
+											:DMAMUX_SOURCE_SAI2_RX);
+		#elif defined(KINETISK)
+			dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
+		#endif // hardware type
 	}
 	else
 	{
@@ -334,13 +345,16 @@ void SAIconfig::configDMA(
 				dma.destination(*((uint32_t*) regAddr));
 				break;
 		}
+		#if defined(__IMXRT1062__)
+			dma.triggerAtHardwareEvent(which == 1
+											?DMAMUX_SOURCE_SAI1_TX
+											:DMAMUX_SOURCE_SAI2_TX);
+		#elif defined(KINETISK)
+			dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
+		#endif // hardware type
 	}
 	dma.interruptAtCompletion();
 	dma.interruptAtHalf();
-	dma.triggerAtHardwareEvent(which == 1
-									?DMAMUX_SOURCE_SAI1_TX
-									:DMAMUX_SOURCE_SAI2_TX);
-
 
 	dma.attachInterrupt(which == 1
 							?isr1
@@ -352,15 +366,15 @@ void SAIconfig::configDMA(
 }
 
 // static
-void SAIconfig::isr1(void)
+void SAIbase::isr1(void)
 {
 	(DMAisrInfo[0].isr)(DMAisrInfo[0].instance);
 }
 
 // static
-void SAIconfig::isr2(void)
+void SAIbase::isr2(void)
 {
 	(DMAisrInfo[1].isr)(DMAisrInfo[1].instance);
 }
 
-#endif // defined(__IMXRT1052__) || defined(__IMXRT1062__)
+#endif // defined(__IMXRT1052__) || defined(__IMXRT1062__) || defined(KINETISK)

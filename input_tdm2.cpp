@@ -27,7 +27,6 @@
 #if defined(__IMXRT1062__)
 #include <Arduino.h>
 #include "input_tdm2.h"
-#include "output_tdm2.h"
 #include "utility/imxrt_hw.h"
 
 DMAMEM __attribute__((aligned(32)))
@@ -45,7 +44,6 @@ void AudioInputTDM2::begin(void)
 	dma.begin(true); // Allocate the DMA channel first
 
 	// TODO: should we set & clear the I2S_RCSR_SR bit here?
-	//AudioOutputTDM2::config_tdm();
 	configSAIrx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN5_CONFIG = 2;  //2:RX_DATA0
 	IOMUXC_SAI2_RX_DATA0_SELECT_INPUT = 0;

@@ -32,79 +32,45 @@
 #include "memcpy_audio.h"
 #include "utility/imxrt_hw.h"
 
-audio_block_t * AudioOutputTDM::block_input[16] = {
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
-};
-bool AudioOutputTDM::update_responsibility = false;
-DMAChannel AudioOutputTDM::dma(false);
+
+bool AudioOutputTDM_Base::update_responsibility = false;
 DMAMEM __attribute__((aligned(32)))
 static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
-DMAMEM __attribute__((aligned(32)))
-static uint32_t tdm_tx_buffer[AUDIO_BLOCK_SAMPLES*16];
 
-
-void AudioOutputTDM::begin(void)
+void AudioOutputTDM_Base::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
 
 	for (int i=0; i < 16; i++) {
 		block_input[i] = nullptr;
 	}
 	memset(zeros, 0, sizeof(zeros));
-	memset(tdm_tx_buffer, 0, sizeof(tdm_tx_buffer));
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
 #if defined(KINETISK)
+	configDMAtx(this, DMAisr, txBufSz,
+				&I2S0_TDR0, 4, 0);
+
 	config_tdm();
-
 	CORE_PIN22_CONFIG = PORT_PCR_MUX(6); // pin 22, PTC1, I2S0_TXD0
-
-	dma.TCD->SADDR = tdm_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
-	dma.TCD->DADDR = &I2S0_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
-
 	update_responsibility = update_setup();
-	dma.enable();
 
 	I2S0_TCSR = I2S_TCSR_SR;
 	I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
-#elif defined(__IMXRT1062__)
 
-	configSAItx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
+	#elif defined(__IMXRT1062__)
 
+	configDMAtx(this, DMAisr, txBufSz,
+				&I2S1_TDR0, 4, 0);
+
+	configSAItx(AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
 
-	dma.TCD->SADDR = tdm_tx_buffer;
-	dma.TCD->SOFF = 4;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = -sizeof(tdm_tx_buffer);
-	dma.TCD->DADDR = &I2S1_TDR0;
-	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_tx_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
-
 	update_responsibility = update_setup();
-	dma.enable();
 
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
 #endif
-	dma.attachInterrupt(isr);
 }
 
 // TODO: needs optimization...
@@ -132,7 +98,14 @@ static void memcpy_tdm_tx(uint32_t *dest, const uint32_t *src1, const uint32_t *
 	}
 }
 
-void AudioOutputTDM::isr(void)
+// static
+void AudioOutputTDM_Base::DMAisr(void* instance)
+{
+	((AudioOutputTDM_Base*) instance)->isr();
+}
+
+
+void AudioOutputTDM_Base::isr(void)
 {
 	uint32_t *dest;
 	const uint32_t *src1, *src2;
@@ -142,14 +115,14 @@ void AudioOutputTDM::isr(void)
 	saddr = (uint32_t)(dma.TCD->SADDR);
 #endif
 	dma.clearInterrupt();
-	if (saddr < (uint32_t)tdm_tx_buffer + sizeof(tdm_tx_buffer) / 2) {
+	if (saddr < (uint32_t) buffer + txBufSz / 2) {
 		// DMA is transmitting the first half of the buffer
 		// so we must fill the second half
-		dest = tdm_tx_buffer + AUDIO_BLOCK_SAMPLES*8;
+		dest = buffer + AUDIO_BLOCK_SAMPLES*8;
 	} else {
 		// DMA is transmitting the second half of the buffer
 		// so we must fill the first half
-		dest = tdm_tx_buffer;
+		dest = buffer;
 	}
 	if (update_responsibility) AudioStream::update_all();
 
@@ -165,7 +138,7 @@ void AudioOutputTDM::isr(void)
 	}
 
 	#if IMXRT_CACHE_ENABLED >= 2
-	arm_dcache_flush_delete(dc, sizeof(tdm_tx_buffer) / 2 );
+	arm_dcache_flush_delete(dc, txBufSz / 2 );
 	#endif
 
 	for (i=0; i < 16; i++) {
@@ -177,7 +150,7 @@ void AudioOutputTDM::isr(void)
 }
 
 
-void AudioOutputTDM::update(void)
+void AudioOutputTDM_Base::update(void)
 {
 	audio_block_t *prev[16];
 	unsigned int i;
@@ -244,7 +217,7 @@ void AudioOutputTDM::update(void)
 #endif
 #endif
 
-void AudioOutputTDM::config_tdm(void)
+void AudioOutputTDM_Base::config_tdm(void)
 {
 #if defined(KINETISK)
 	SIM_SCGC6 |= SIM_SCGC6_I2S;
@@ -286,62 +259,7 @@ void AudioOutputTDM::config_tdm(void)
 	CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK - 22.5 MHz
 
 #elif defined(__IMXRT1062__)
-/*
-	CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
-
-	// if either transmitter or receiver is enabled, do nothing
-	if (I2S1_TCSR & I2S_TCSR_TE) return;
-	if (I2S1_RCSR & I2S_RCSR_RE) return;
-//PLL:
-	int fs = AUDIO_SAMPLE_RATE_EXACT;
-	// PLL between 27*24 = 648MHz und 54*24=1296MHz
-	int n1 = 4; //SAI prescaler 4 => (n1*n2) = multiple of 4
-	int n2 = 1 + (24000000 * 27) / (fs * 256 * n1);
-
-	double C = ((double)fs * 256 * n1 * n2) / 24000000;
-	int c0 = C;
-	int c2 = 10000;
-	int c1 = C * c2 - (c0 * c2);
-	set_audioClock(c0, c1, c2);
-	// clear SAI1_CLK register locations
-	CCM_CSCMR1 = (CCM_CSCMR1 & ~(CCM_CSCMR1_SAI1_CLK_SEL_MASK))
-		   | CCM_CSCMR1_SAI1_CLK_SEL(2); // &0x03 // (0,1,2): PLL3PFD0, PLL5, PLL4
-
-	n1 = n1 / 2; //Double Speed for TDM
-
-	CCM_CS1CDR = (CCM_CS1CDR & ~(CCM_CS1CDR_SAI1_CLK_PRED_MASK | CCM_CS1CDR_SAI1_CLK_PODF_MASK))
-		   | CCM_CS1CDR_SAI1_CLK_PRED(n1-1) // &0x07
-		   | CCM_CS1CDR_SAI1_CLK_PODF(n2-1); // &0x3f
-
-	IOMUXC_GPR_GPR1 = (IOMUXC_GPR_GPR1 & ~(IOMUXC_GPR_GPR1_SAI1_MCLK1_SEL_MASK))
-			| (IOMUXC_GPR_GPR1_SAI1_MCLK_DIR | IOMUXC_GPR_GPR1_SAI1_MCLK1_SEL(0));	//Select MCLK
-
-	// configure transmitter
-	int rsync = 0;
-	int tsync = 1;
-
-	I2S1_TMR = 0;
-	I2S1_TCR1 = I2S_TCR1_RFW(FIFOwatermark);
-	I2S1_TCR2 = I2S_TCR2_SYNC(tsync) | I2S_TCR2_BCP | I2S_TCR2_MSEL(1)
-		| I2S_TCR2_BCD | I2S_TCR2_DIV(0);
-	I2S1_TCR3 = I2S_TCR3_TCE;
-	I2S1_TCR4 = I2S_TCR4_FRSZ(7) | I2S_TCR4_SYWD(0) | I2S_TCR4_MF
-		| I2S_TCR4_FSE | I2S_TCR4_FSD;
-	I2S1_TCR5 = I2S_TCR5_WNW(31) | I2S_TCR5_W0W(31) | I2S_TCR5_FBT(31);
-
-	I2S1_RMR = 0;
-	I2S1_RCR1 = I2S_RCR1_RFW(FIFOwatermark);
-	I2S1_RCR2 = I2S_RCR2_SYNC(rsync) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
-		| I2S_RCR2_BCD | I2S_RCR2_DIV(0);
-	I2S1_RCR3 = I2S_RCR3_RCE;
-	I2S1_RCR4 = I2S_RCR4_FRSZ(7) | I2S_RCR4_SYWD(0) | I2S_RCR4_MF
-		| I2S_RCR4_FSE | I2S_RCR4_FSD;
-	I2S1_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
-
-	CORE_PIN23_CONFIG = 3;  //1:MCLK
-	CORE_PIN21_CONFIG = 3;  //1:RX_BCLK
-	CORE_PIN20_CONFIG = 3;  //1:RX_SYNC
-*/	
+ 
 #endif
 }
 
