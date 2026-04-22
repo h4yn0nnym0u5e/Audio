@@ -279,7 +279,6 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 
 
 void SAIconfig::configDMA(
-				SAIcfg cfg, 			//! type of hardware: I²S, TDM etc. (?)
 				void* instance,			//! which instance is using this: needed for DMA ISR
 				void (*isr)(void*),		//! object's DMA ISR function
 				size_t bufSz, 			//! required buffer size
@@ -364,4 +363,4 @@ void SAIconfig::isr2(void)
 	(DMAisrInfo[1].isr)(DMAisrInfo[1].instance);
 }
 
-#endif
+#endif // defined(__IMXRT1052__) || defined(__IMXRT1062__)

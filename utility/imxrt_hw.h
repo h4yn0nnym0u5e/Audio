@@ -43,7 +43,7 @@ void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv,  bool force = false
 class SAIconfig
 {
     public:
-        enum class SAIcfg {none, I2S, TDM, SPDIF, PT8211, PDM}; // possible uses for SAI
+        enum class SAIcfg {none, I2S, TDM, SPDIF, PT8211, PDM} cfg; // possible uses for SAI
         int which{0}; // pre-computed at instantiation: 1 or 2 (could add 3 in future)
 
     private:
@@ -73,7 +73,7 @@ class SAIconfig
         };
 
         void configSAI(SAIcfg cfg, double fs, bool only_bclk, int channels, bool rx, uint32_t extra);
-        void configDMA(SAIcfg cfg, void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep, bool rx);
+        void configDMA(void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep, bool rx);
 	    static void isr1(void);
 	    static void isr2(void);
 
@@ -85,17 +85,24 @@ class SAIconfig
 	    uint32_t* buffer;
 
     public:
-        SAIconfig(IMXRT_SAI_t& _sai) 
-            : which{&_sai == &IMXRT_SAI1 ? 1 : 2}, sai{_sai}
+        SAIconfig(IMXRT_SAI_t& _sai, SAIcfg _cfg = SAIcfg::none) 
+            : cfg(_cfg), which{&_sai == &IMXRT_SAI1 ? 1 : 2}, sai{_sai}
             {}
+
         void configSAItx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
             { configSAI(cfg, fs, only_bclk, channels, false, extra); }
         void configSAIrx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
             { configSAI(cfg, fs, only_bclk, channels, true, extra); }
-        void configDMAtx(SAIcfg cfg, void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep)
-            {configDMA(cfg, instance, isr, bufSz, regAddr, regSz, regStep, false); }
-        void configDMArx(SAIcfg cfg, void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep)
-            {configDMA(cfg, instance, isr, bufSz, regAddr, regSz, regStep, true); }
+
+        void configSAItx(double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
+            { configSAI(cfg, fs, only_bclk, channels, false, extra); }
+        void configSAIrx(double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
+            { configSAI(cfg, fs, only_bclk, channels, true, extra); }
+
+        void configDMAtx(void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep)
+            {configDMA(instance, isr, bufSz, regAddr, regSz, regStep, false); }
+        void configDMArx(void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep)
+            {configDMA(instance, isr, bufSz, regAddr, regSz, regStep, true); }
 
 
 // Set FIFO watermarks to keep FIFO as full

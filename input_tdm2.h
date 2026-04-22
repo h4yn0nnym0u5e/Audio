@@ -36,7 +36,10 @@
 class AudioInputTDM2 : public AudioStream, private SAIconfig
 {
 public:
-	AudioInputTDM2(void) : AudioStream(0, NULL), SAIconfig(IMXRT_SAI2) { begin(); }
+	AudioInputTDM2(void) 
+		: AudioStream(0, NULL), 
+		  SAIconfig(IMXRT_SAI2, SAIconfig::SAIcfg::TDM) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 protected:	

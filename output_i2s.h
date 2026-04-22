@@ -38,7 +38,10 @@
 class AudioOutputI2S : public AudioStream, protected SAIconfig
 {
 public:
-	AudioOutputI2S(void) : AudioStream(2, inputQueueArray), SAIconfig(IMXRT_SAI1) { begin(); }
+	AudioOutputI2S(void) 
+		: AudioStream(2, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::I2S) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2S;
@@ -52,7 +55,10 @@ public:
 	friend class AudioInputI2SOct;
 #endif
 protected:
-	AudioOutputI2S(int dummy): AudioStream(2, inputQueueArray), SAIconfig(IMXRT_SAI1) {} // to be used only inside AudioOutputI2Sslave !!
+	AudioOutputI2S(int dummy)
+		: AudioStream(2, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::I2S) 
+		{} // to be used only inside AudioOutputI2Sslave !!
 	static void config_i2s(bool only_bclk = false);
 	static audio_block_t *block_left_1st;
 	static audio_block_t *block_right_1st;

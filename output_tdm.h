@@ -35,7 +35,10 @@
 class AudioOutputTDM : public AudioStream, private SAIconfig
 {
 public:
-	AudioOutputTDM(void) : AudioStream(16, inputQueueArray), SAIconfig(IMXRT_SAI1) { begin(); }
+	AudioOutputTDM(void) 
+		: AudioStream(16, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::TDM) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputTDM;

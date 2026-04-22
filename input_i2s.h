@@ -35,11 +35,17 @@
 class AudioInputI2S : public AudioStream, private SAIconfig
 {
 public:
-	AudioInputI2S(void) : AudioStream(0, NULL), SAIconfig(IMXRT_SAI1) { begin(); }
+	AudioInputI2S(void) 
+		: AudioStream(0, NULL), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::I2S) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 protected:	
-	AudioInputI2S(int dummy): AudioStream(0, NULL), SAIconfig(IMXRT_SAI1) {} // to be used only inside AudioInputI2Sslave !!
+	AudioInputI2S(int dummy)
+		: AudioStream(0, NULL), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::I2S)
+		{} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;
 
 #if !defined(KINETISL)

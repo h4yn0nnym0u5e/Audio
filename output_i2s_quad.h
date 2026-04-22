@@ -35,7 +35,10 @@
 class AudioOutputI2SQuad : public AudioStream, private SAIconfig
 {
 public:
-	AudioOutputI2SQuad(void) : AudioStream(4, inputQueueArray), SAIconfig(IMXRT_SAI1) { begin(); }
+	AudioOutputI2SQuad(void) 
+		: AudioStream(4, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::I2S) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2SQuad;

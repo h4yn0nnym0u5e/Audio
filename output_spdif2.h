@@ -32,7 +32,10 @@
 class AudioOutputSPDIF2 : public AudioStream, private SAIconfig
 {
 public:
-	AudioOutputSPDIF2(void) : AudioStream(2, inputQueueArray), SAIconfig(IMXRT_SAI2) { begin(); }
+	AudioOutputSPDIF2(void) 
+		: AudioStream(2, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI2, SAIconfig::SAIcfg::SPDIF) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 	//friend class AudioInputSPDIF;

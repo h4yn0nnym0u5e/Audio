@@ -37,7 +37,10 @@ class AudioOutputTDM2 : public AudioStream, private SAIconfig
 {
 	static const uint32_t txBufSz = sizeof(((audio_block_t*)0)->data) * 2 * 16;
 public:
-	AudioOutputTDM2(void) : AudioStream(16, inputQueueArray), SAIconfig(IMXRT_SAI2) { begin(); }
+	AudioOutputTDM2(void) 
+		: AudioStream(16, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI2, SAIconfig::SAIcfg::TDM) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 	//friend class AudioInputTDM2;

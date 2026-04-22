@@ -46,7 +46,7 @@ static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 
 void AudioOutputTDM2::begin(void)
 {
-	configDMAtx(SAIconfig::SAIcfg::TDM, this, DMAisr, txBufSz,
+	configDMAtx(this, DMAisr, txBufSz,
 				&I2S2_TDR0, 4, 0);
 //	tdm_tx_buffer = (uint32_t*) aligned_alloc(32, txBufSz);
 //	dma.begin(true); // Allocate the DMA channel first
@@ -62,7 +62,7 @@ void AudioOutputTDM2::begin(void)
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
 	//config_tdm();
 
-	configSAItx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
+	configSAItx(AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
 /*
 	dma.TCD->SADDR = tdm_tx_buffer;

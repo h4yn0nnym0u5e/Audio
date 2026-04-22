@@ -35,7 +35,10 @@
 class AudioOutputI2SOct : public AudioStream, private SAIconfig
 {
 public:
-	AudioOutputI2SOct(void) : AudioStream(8, inputQueueArray), SAIconfig(IMXRT_SAI1) { begin(); }
+	AudioOutputI2SOct(void) 
+		: AudioStream(8, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::I2S) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 private:

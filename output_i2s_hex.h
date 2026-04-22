@@ -35,7 +35,10 @@
 class AudioOutputI2SHex : public AudioStream, private SAIconfig
 {
 public:
-	AudioOutputI2SHex(void) : AudioStream(6, inputQueueArray), SAIconfig(IMXRT_SAI1) { begin(); }
+	AudioOutputI2SHex(void) 
+		: AudioStream(6, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::I2S) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 private:

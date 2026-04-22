@@ -47,7 +47,10 @@
 class AudioOutputPT8211 : public AudioStream, private SAIconfig
 {
 public:
-	AudioOutputPT8211(void) : AudioStream(2, inputQueueArray), SAIconfig(IMXRT_SAI1) { begin(); }
+	AudioOutputPT8211(void) 
+		: AudioStream(2, inputQueueArray), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::PT8211) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 protected:

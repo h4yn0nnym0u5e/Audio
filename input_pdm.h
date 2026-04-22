@@ -35,7 +35,10 @@
 class AudioInputPDM : public AudioStream, private SAIconfig
 {
 public:
-	AudioInputPDM(void) : AudioStream(0, NULL), SAIconfig(IMXRT_SAI1) { begin(); }
+	AudioInputPDM(void) 
+		: AudioStream(0, NULL), 
+		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::PDM) 
+		{ begin(); }
 
 	virtual void update(void);
 	void begin(void);

@@ -36,11 +36,17 @@
 class AudioInputI2S2 : public AudioStream, private SAIconfig
 {
 public:
-	AudioInputI2S2(void) : AudioStream(0, NULL), SAIconfig(IMXRT_SAI2) { begin(); }
+	AudioInputI2S2(void) 
+		: AudioStream(0, NULL), 
+		  SAIconfig(IMXRT_SAI2, SAIconfig::SAIcfg::I2S) 
+		{ begin(); }
 	virtual void update(void);
 	void begin(void);
 protected:
-	AudioInputI2S2(int dummy): AudioStream(0, NULL), SAIconfig(IMXRT_SAI2) {} // to be used only inside AudioInputI2Sslave !!
+	AudioInputI2S2(int dummy)
+		: AudioStream(0, NULL), 
+		  SAIconfig(IMXRT_SAI2, SAIconfig::SAIcfg::I2S) 
+		{} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
