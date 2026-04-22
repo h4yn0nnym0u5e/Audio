@@ -60,12 +60,13 @@ class AudioOutputTDM : public AudioOutputTDM_Base
 		AudioOutputTDM(void) : AudioOutputTDM_Base(IMXRT_SAI1) {}
 };
 
-
+#if defined(__IMXRT1062__)
 class AudioOutputTDM2 : public AudioOutputTDM_Base
 {
 	public:
 		AudioOutputTDM2(void) : AudioOutputTDM_Base(IMXRT_SAI2) {}
 };
+#endif // defined(__IMXRT1062__)
 
 
 #endif

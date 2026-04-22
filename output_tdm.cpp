@@ -46,7 +46,7 @@ void AudioOutputTDM_Base::begin(void)
 	memset(zeros, 0, sizeof(zeros));
 
 	// TODO: should we set & clear the I2S_TCSR_SR bit here?
-#if defined(KINETISK)
+ #if defined(KINETISK)
 	configDMAtx(this, DMAisr, txBufSz,
 				&I2S0_TDR0, 4, 0);
 
@@ -57,10 +57,10 @@ void AudioOutputTDM_Base::begin(void)
 	I2S0_TCSR = I2S_TCSR_SR;
 	I2S0_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
-	#elif defined(__IMXRT1062__)
+ #elif defined(__IMXRT1062__)
 
 	configDMAtx(this, DMAisr, txBufSz,
-				&I2S1_TDR0, 4, 0);
+				&(getSAI().TDR[0]), 4, 0);
 
 	configSAItx(AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
@@ -70,7 +70,7 @@ void AudioOutputTDM_Base::begin(void)
 	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
-#endif
+ #endif
 }
 
 // TODO: needs optimization...

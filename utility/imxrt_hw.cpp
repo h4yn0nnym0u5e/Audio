@@ -280,6 +280,10 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 #endif // defined(__IMXRT1052__) || defined(__IMXRT1062__)
 
 #if defined(__IMXRT1052__) || defined(__IMXRT1062__) || defined(KINETISK)
+#if defined(KINETISK)
+IMXRT_SAI_t IMXRT_SAI1 = 1, IMXRT_SAI2 = 2; // placeholders for Teensy 3.x
+#endif // defined(KINETISK)
+
 SAIbase::DMAisrInfo_t SAIbase::DMAisrInfo[2]{0};
 
 FLASHMEM
@@ -356,13 +360,13 @@ void SAIbase::configDMA(
 	dma.interruptAtCompletion();
 	dma.interruptAtHalf();
 
+	// allow ISR to find the target object
+	DMAisrInfo[which-1] = {instance, isr};
+
 	dma.attachInterrupt(which == 1
 							?isr1
 							:isr2);
 	dma.enable();
-
-	// allow ISR to find the target object
-	DMAisrInfo[which-1] = {instance, isr};
 }
 
 // static

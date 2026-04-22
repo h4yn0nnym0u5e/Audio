@@ -30,64 +30,37 @@
 #if defined(KINETISK) || defined(__IMXRT1062__)
 #include "utility/imxrt_hw.h"
 
-DMAMEM __attribute__((aligned(32)))
-static uint32_t tdm_rx_buffer[AUDIO_BLOCK_SAMPLES*16];
-audio_block_t * AudioInputTDM::block_incoming[16] = {
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
-};
-bool AudioInputTDM::update_responsibility = false;
-DMAChannel AudioInputTDM::dma(false);
+bool AudioInputTDM_Base::update_responsibility = false;
 
 
-void AudioInputTDM::begin(void)
+void AudioInputTDM_Base::begin(void)
 {
 	dma.begin(true); // Allocate the DMA channel first
 
 	// TODO: should we set & clear the I2S_RCSR_SR bit here?
 #if defined(KINETISK)
+	configDMArx(this, DMAisr, rxBufSz,
+				&I2S0_RDR0, 4, 0);
+
 	AudioOutputTDM::config_tdm();
 	CORE_PIN13_CONFIG = PORT_PCR_MUX(4); // pin 13, PTC5, I2S0_RXD0
-	dma.TCD->SADDR = &I2S0_RDR0;
-	dma.TCD->SOFF = 0;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = 0;
-	dma.TCD->DADDR = tdm_rx_buffer;
-	dma.TCD->DOFF = 4;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_rx_buffer) / 4;
-	dma.TCD->DLASTSGA = -sizeof(tdm_rx_buffer);
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_rx_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
+	
 	update_responsibility = update_setup();
-	dma.enable();
 
 	I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 	I2S0_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
-	dma.attachInterrupt(isr);
+
 #elif defined(__IMXRT1062__)
+	configDMArx(this, DMAisr, rxBufSz,
+				&(getSAI().RDR[0]), 4, 0);
+
 	configSAIrx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
 	CORE_PIN8_CONFIG  = 3;  //RX_DATA0
 	IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
-	
-	dma.TCD->SADDR = &I2S1_RDR0;
-	dma.TCD->SOFF = 0;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-	dma.TCD->NBYTES_MLNO = 4;
-	dma.TCD->SLAST = 0;
-	dma.TCD->DADDR = tdm_rx_buffer;
-	dma.TCD->DOFF = 4;
-	dma.TCD->CITER_ELINKNO = sizeof(tdm_rx_buffer) / 4;
-	dma.TCD->DLASTSGA = -sizeof(tdm_rx_buffer);
-	dma.TCD->BITER_ELINKNO = sizeof(tdm_rx_buffer) / 4;
-	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
+
 	update_responsibility = update_setup();
-	dma.enable();
 
 	I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
-	dma.attachInterrupt(isr);	
 #endif	
 }
 
@@ -105,7 +78,14 @@ static void memcpy_tdm_rx(uint32_t *dest1, uint32_t *dest2, const uint32_t *src)
 	}
 }
 
-void AudioInputTDM::isr(void)
+// static
+void AudioInputTDM_Base::DMAisr(void* instance)
+{
+	((AudioInputTDM_Base*) instance)->isr();
+}
+
+
+void AudioInputTDM_Base::isr(void)
 {
 	uint32_t daddr;
 	const uint32_t *src;
@@ -114,18 +94,18 @@ void AudioInputTDM::isr(void)
 	daddr = (uint32_t)(dma.TCD->DADDR);
 	dma.clearInterrupt();
 
-	if (daddr < (uint32_t)tdm_rx_buffer + sizeof(tdm_rx_buffer) / 2) {
+	if (daddr < (uint32_t) buffer + rxBufSz / 2) {
 		// DMA is receiving to the first half of the buffer
 		// need to remove data from the second half
-		src = &tdm_rx_buffer[AUDIO_BLOCK_SAMPLES*8];
+		src = &buffer[AUDIO_BLOCK_SAMPLES*8];
 	} else {
 		// DMA is receiving to the second half of the buffer
 		// need to remove data from the first half
-		src = &tdm_rx_buffer[0];
+		src = &buffer[0];
 	}
 	if (block_incoming[0] != nullptr) {
 		#if IMXRT_CACHE_ENABLED >=1
-		arm_dcache_delete((void*)src, sizeof(tdm_rx_buffer) / 2);
+		arm_dcache_delete((void*)src, rxBufSz / 2);
 		#endif
 		for (i=0; i < 16; i += 2) {
 			uint32_t *dest1 = (uint32_t *)(block_incoming[i]->data);
@@ -138,7 +118,7 @@ void AudioInputTDM::isr(void)
 }
 
 
-void AudioInputTDM::update(void)
+void AudioInputTDM_Base::update(void)
 {
 	unsigned int i, j;
 	audio_block_t *new_block[16];

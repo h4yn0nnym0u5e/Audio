@@ -46,7 +46,10 @@ private:
         static bool update_responsibility;
         static DMAChannel dma;
         static void isr(void);
-        static void init(uint8_t pin);
+#if !defined(KINETISK)        
+        static // this is odd ... long-standing bug?
+#endif // !defined(KINETISK)        
+                void init(uint8_t pin);
 
 };
 

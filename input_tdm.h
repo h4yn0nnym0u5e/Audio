@@ -32,21 +32,38 @@
 #include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 #include <utility/imxrt_hw.h>
 
-class AudioInputTDM : public AudioStream, private SAIconfig
+class AudioInputTDM_Base : public AudioStream, private SAIconfig
 {
-public:
-	AudioInputTDM(void) 
-		: AudioStream(0, NULL), 
-		  SAIconfig(IMXRT_SAI1, SAIconfig::SAIcfg::TDM) 
-		{ begin(); }
-	virtual void update(void);
-	void begin(void);
-protected:	
-	static bool update_responsibility;
-	static DMAChannel dma;
-	static void isr(void);
-private:
-	static audio_block_t *block_incoming[16];
+		static const uint32_t rxBufSz = sizeof(((audio_block_t*)0)->data) * 2 * 16;
+	public:
+		AudioInputTDM_Base(IMXRT_SAI_t& _sai) 
+			: AudioStream(0, NULL), 
+			SAIconfig(_sai, SAIconfig::SAIcfg::TDM) 
+			{ begin(); }
+		virtual void update(void);
+		void begin(void);
+
+	protected:	
+		static bool update_responsibility;
+		void isr(void);
+		static void DMAisr(void* instance);
+
+	private:
+		audio_block_t *block_incoming[16];
 };
+
+class AudioInputTDM : public AudioInputTDM_Base
+{
+	public:
+		AudioInputTDM(void) : AudioInputTDM_Base(IMXRT_SAI1) {}
+};
+
+#if defined(__IMXRT1062__)
+class AudioInputTDM2 : public AudioInputTDM_Base
+{
+	public:
+		AudioInputTDM2(void) : AudioInputTDM_Base(IMXRT_SAI2) {}
+};
+#endif // defined(__IMXRT1062__)
 
 #endif

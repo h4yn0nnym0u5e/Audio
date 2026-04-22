@@ -129,6 +129,8 @@ class SAIconfig : public SAIbase
               sai{_sai}
             {}
 
+        IMXRT_SAI_t& getSAI(void) { return sai; }
+
         void configSAItx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
             { configSAI(cfg, fs, only_bclk, channels, false, extra); }
         void configSAIrx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
@@ -145,13 +147,14 @@ class SAIconfig : public SAIbase
 
 //No IMXRT - provide watermark and DMA only
 #define IMXRT_CACHE_ENABLED 0
-#define IMXRT_SAI1 1
-//#define IMXRT_SAI2 2 // should never happen!
+typedef int IMXRT_SAI_t;
+extern IMXRT_SAI_t IMXRT_SAI1, IMXRT_SAI2;
+
 class SAIconfig : public SAIbase
 {
-        IMXRT_SAI_t& sai;
+        IMXRT_SAI_t sai;
     public:
-        SAIconfig(int _sai, SAIcfg _cfg = SAIcfg::none) 
+        SAIconfig(IMXRT_SAI_t& _sai, SAIcfg _cfg = SAIcfg::none) 
             : SAIbase(_cfg, _sai)
         {}
 };
