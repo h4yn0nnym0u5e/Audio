@@ -30,8 +30,6 @@
 #if defined(KINETISK) || defined(__IMXRT1062__)
 #include "utility/imxrt_hw.h"
 
-bool AudioInputTDM_Base::update_responsibility = false;
-
 
 void AudioInputTDM_Base::begin(void)
 {

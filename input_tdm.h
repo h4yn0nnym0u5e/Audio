@@ -44,7 +44,7 @@ class AudioInputTDM_Base : public AudioStream, private SAIconfig
 		void begin(void);
 
 	protected:	
-		static bool update_responsibility;
+		bool update_responsibility;
 		void isr(void);
 		static void DMAisr(void* instance);
 

@@ -351,13 +351,13 @@ void SAIbase::configDMA(
 		switch (regSz)
 		{
 			case 2: // int16_t samples
-				dma.sourceBuffer((uint16_t*) buffer,bufSz);
 				dma.destination(*((uint16_t*) regAddr));
+				dma.sourceBuffer((uint16_t*) buffer,bufSz);
 				break;
 
 			case 4: // int16_t samples
-				dma.sourceBuffer(buffer,bufSz);
 				dma.destination(*((uint32_t*) regAddr));
+				dma.sourceBuffer(buffer,bufSz);
 				break;
 		}
 		#if defined(__IMXRT1062__)

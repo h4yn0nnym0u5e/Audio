@@ -46,7 +46,7 @@ class AudioOutputTDM_Base : public AudioStream, private SAIconfig
 	protected:
 		static void config_tdm(void);
 		audio_block_t *block_input[16];
-		static bool update_responsibility;
+		bool update_responsibility;
 		void isr(void);
 		static void DMAisr(void* instance);
 

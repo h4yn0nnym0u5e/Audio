@@ -33,7 +33,6 @@
 #include "utility/imxrt_hw.h"
 
 
-bool AudioOutputTDM_Base::update_responsibility = false;
 DMAMEM __attribute__((aligned(32)))
 static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 
