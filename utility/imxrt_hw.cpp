@@ -56,7 +56,7 @@ void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) // sets
 
 
 FLASHMEM
-void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
+int  SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 						  double fs, 		//! sample rate
 						  bool only_bclk, 	//! true if we only want to set bit clock
 						  int channels, 	//! number of channels: 2-8 for I²S, 16 for TDM
@@ -65,6 +65,7 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 {
 	uint32_t tcr3 = sai.TCR3, rcr3 = sai.RCR3; // keep existing values
 
+	// turn on the relevant peripheral clock
 	switch (which)
 	{
 		case 1:
@@ -275,6 +276,8 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 	// re-enable tx and rx, if previously enabled
 	sai.TCSR |= tcsr;
 	sai.RCSR |= rcsr;
+
+	return which; // so caller knows which pins to configure
 }
 
 #endif // defined(__IMXRT1052__) || defined(__IMXRT1062__)
@@ -284,7 +287,8 @@ void SAIconfig::configSAI(SAIcfg cfg, 		//! type of hardware: I²S, TDM etc.
 IMXRT_SAI_t IMXRT_SAI1 = 1, IMXRT_SAI2 = 2; // placeholders for Teensy 3.x
 #endif // defined(KINETISK)
 
-SAIbase::DMAisrInfo_t SAIbase::DMAisrInfo[2]{0};
+SAIbase::DMAisrInfo_t SAIbase::DMAtxISRinfo[2]{0};
+SAIbase::DMAisrInfo_t SAIbase::DMArxISRinfo[2]{0};
 
 FLASHMEM
 void SAIbase::configDMA(
@@ -318,13 +322,13 @@ void SAIbase::configDMA(
 		switch (regSz)
 		{
 			case 2: // int16_t samples
-				dma.destinationBuffer((uint16_t*) buffer,bufSz);
 				dma.source(*((uint16_t*) regAddr));
+				dma.destinationBuffer((uint16_t*) buffer,bufSz);
 				break;
 
 			case 4: // int16_t samples
-				dma.destinationBuffer(buffer,bufSz);
 				dma.source(*((uint32_t*) regAddr));
+				dma.destinationBuffer(buffer,bufSz);
 				break;
 		}
 		#if defined(__IMXRT1062__)
@@ -334,6 +338,13 @@ void SAIbase::configDMA(
 		#elif defined(KINETISK)
 			dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
 		#endif // hardware type
+
+		// allow ISR to find the target object
+		DMArxISRinfo[which-1] = {instance, isr};
+
+		dma.attachInterrupt(which == 1
+								?isr1rx
+								:isr2rx);
 	}
 	else
 	{
@@ -356,29 +367,24 @@ void SAIbase::configDMA(
 		#elif defined(KINETISK)
 			dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_TX);
 		#endif // hardware type
+
+		// allow ISR to find the target object
+		DMAtxISRinfo[which-1] = {instance, isr};
+
+		dma.attachInterrupt(which == 1
+								?isr1tx
+								:isr2tx);
 	}
 	dma.interruptAtCompletion();
 	dma.interruptAtHalf();
 
-	// allow ISR to find the target object
-	DMAisrInfo[which-1] = {instance, isr};
-
-	dma.attachInterrupt(which == 1
-							?isr1
-							:isr2);
 	dma.enable();
 }
 
 // static
-void SAIbase::isr1(void)
-{
-	(DMAisrInfo[0].isr)(DMAisrInfo[0].instance);
-}
-
-// static
-void SAIbase::isr2(void)
-{
-	(DMAisrInfo[1].isr)(DMAisrInfo[1].instance);
-}
+void SAIbase::isr1rx(void) { (DMArxISRinfo[0].isr)(DMArxISRinfo[0].instance); }
+void SAIbase::isr2rx(void) { (DMArxISRinfo[1].isr)(DMArxISRinfo[1].instance); }
+void SAIbase::isr1tx(void) { (DMAtxISRinfo[0].isr)(DMAtxISRinfo[0].instance); }
+void SAIbase::isr2tx(void) { (DMAtxISRinfo[1].isr)(DMAtxISRinfo[1].instance); }
 
 #endif // defined(__IMXRT1052__) || defined(__IMXRT1062__) || defined(KINETISK)

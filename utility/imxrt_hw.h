@@ -56,10 +56,13 @@ class SAIbase
         };
 
         void configDMA(void* instance, void (*isr)(void*), size_t bufSz, volatile void* regAddr, int regSz, int regStep, bool rx);
-	    static void isr1(void);
-	    static void isr2(void);
+	    static void isr1tx(void);
+	    static void isr2tx(void);
+	    static void isr1rx(void);
+	    static void isr2rx(void);
 
-        static DMAisrInfo_t DMAisrInfo[2]; // derived class DMA ISR info
+        static DMAisrInfo_t DMAtxISRinfo[2]; // derived class DMA ISR info - transmit
+        static DMAisrInfo_t DMArxISRinfo[2]; // derived class DMA ISR info - receive
 
     protected:  // accessible from derived DMA ISR
        	DMAChannel dma{false};
@@ -120,26 +123,26 @@ class SAIconfig : public SAIbase
         };
 
 
-        void configSAI(SAIcfg cfg, double fs, bool only_bclk, int channels, bool rx, uint32_t extra);
+        int configSAI(SAIcfg cfg, double fs, bool only_bclk, int channels, bool rx, uint32_t extra);
 
+    protected:
         IMXRT_SAI_t& sai;
+
     public:
         SAIconfig(IMXRT_SAI_t& _sai, SAIcfg _cfg = SAIcfg::none) 
             : SAIbase(_cfg, &_sai == &IMXRT_SAI1 ? 1 : 2),
               sai{_sai}
             {}
 
-        IMXRT_SAI_t& getSAI(void) { return sai; }
+        int configSAItx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
+            { return configSAI(cfg, fs, only_bclk, channels, false, extra); }
+        int configSAIrx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
+            { return configSAI(cfg, fs, only_bclk, channels, true, extra); }
 
-        void configSAItx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
-            { configSAI(cfg, fs, only_bclk, channels, false, extra); }
-        void configSAIrx(SAIcfg cfg, double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
-            { configSAI(cfg, fs, only_bclk, channels, true, extra); }
-
-        void configSAItx(double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
-            { configSAI(cfg, fs, only_bclk, channels, false, extra); }
-        void configSAIrx(double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
-            { configSAI(cfg, fs, only_bclk, channels, true, extra); }
+        int configSAItx(double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
+            { return configSAI(cfg, fs, only_bclk, channels, false, extra); }
+        int configSAIrx(double fs, bool only_bclk = false, int channels = 2, uint32_t extra = 0U)
+            { return configSAI(cfg, fs, only_bclk, channels, true, extra); }
 
 };
 

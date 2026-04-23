@@ -39,7 +39,6 @@ static uint32_t zeros[AUDIO_BLOCK_SAMPLES/2];
 
 void AudioOutputTDM_Base::begin(void)
 {
-
 	for (int i=0; i < 16; i++) {
 		block_input[i] = nullptr;
 	}
@@ -60,15 +59,24 @@ void AudioOutputTDM_Base::begin(void)
  #elif defined(__IMXRT1062__)
 
 	configDMAtx(this, DMAisr, txBufSz,
-				&(getSAI().TDR[0]), 4, 0);
+				&(sai.TDR[0]), 4, 0);
 
-	configSAItx(AUDIO_SAMPLE_RATE_EXACT, false, 16);
-	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
+	int  which = configSAItx(AUDIO_SAMPLE_RATE_EXACT, false, 16);
+	switch (which)
+	{
+		case 1:
+			CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
+			break;
+
+		case 2:
+			CORE_PIN2_CONFIG  = 2;  //2:TX_DATA0
+			break;
+	}
 
 	update_responsibility = update_setup();
 
-	I2S1_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
-	I2S1_TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
+	sai.RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
+	sai.TCSR = I2S_TCSR_TE | I2S_TCSR_BCE | I2S_TCSR_FRDE;
 
  #endif
 }

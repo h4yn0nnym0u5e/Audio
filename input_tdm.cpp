@@ -35,8 +35,7 @@ bool AudioInputTDM_Base::update_responsibility = false;
 
 void AudioInputTDM_Base::begin(void)
 {
-	dma.begin(true); // Allocate the DMA channel first
-
+	int which;
 	// TODO: should we set & clear the I2S_RCSR_SR bit here?
 #if defined(KINETISK)
 	configDMArx(this, DMAisr, rxBufSz,
@@ -52,15 +51,26 @@ void AudioInputTDM_Base::begin(void)
 
 #elif defined(__IMXRT1062__)
 	configDMArx(this, DMAisr, rxBufSz,
-				&(getSAI().RDR[0]), 4, 0);
+				&(sai.RDR[0]), 4, 0);
 
-	configSAIrx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
-	CORE_PIN8_CONFIG  = 3;  //RX_DATA0
-	IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
+	which = configSAIrx(SAIconfig::SAIcfg::TDM, AUDIO_SAMPLE_RATE_EXACT, false, 16);
+	switch (which)
+	{
+		case 1:
+			CORE_PIN8_CONFIG  = 3;  //RX_DATA0
+			IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
+			break;
+
+		case 2:
+			CORE_PIN5_CONFIG = 2;  //2:RX_DATA0
+			IOMUXC_SAI2_RX_DATA0_SELECT_INPUT = 0;
+			break;
+	}
 
 	update_responsibility = update_setup();
 
-	I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
+	if (0 == (sai.RCSR & I2S_RCSR_RE))
+		sai.RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
 #endif	
 }
 
