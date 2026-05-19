@@ -27,9 +27,9 @@
 #ifndef output_i2s_h_
 #define output_i2s_h_
 
-#include <Arduino.h>
-#include <AudioStream.h>
-#include <DMAChannel.h>
+#include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
+#include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
+#include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
 
 
 #if !defined(KINETISL)
@@ -58,6 +58,7 @@ protected:
 	static bool update_responsibility;
 	static DMAChannel dma;
 	static void isr(void);
+	static void isr_fifo_underrun(void);
 private:
 	static audio_block_t *block_left_2nd;
 	static audio_block_t *block_right_2nd;
