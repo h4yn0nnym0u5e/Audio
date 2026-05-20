@@ -55,14 +55,32 @@ static inline int32_t unsigned_saturate_rshift(int32_t val, int bits, int rshift
 
 
 #define SAMPLES_PER_MSEC (AUDIO_SAMPLE_RATE_EXACT/1000.0f)
-#define SHIFT 30
+/*
+ * For optimal performance with Teensy 4.x DSP instructions, we use a
+ * fixed point representation for the multiplication factor, and generate
+ * an exponential curve by successive approximation. In order to flatten this
+ * curve towards a linear ramp, like the existing envelope, we can set
+ * a "target factor" which uses only the first part of the exponential curve,
+ * which is "aimed towards" a target that's outside the true 0.0 - 1.0 range.
+ *
+ * The fewer bits that are used for the fraction, the flatter we can get the 
+ * curve, but with consequent loss of precision. Previosuly we had a 30-bit
+ * fractional part allowing only up to half the exponential curve to be used,
+ * but this version is set to 29 bits allowing a quarter of the curve, which
+ * looks pretty close to linear. Edit just the SHIFT value to tune this,
+ * if you feel the need to do so.
+ */
+#define SHIFT 29 // balance between integer precision and achievable flatness at MIN_TF
+
 #define EEE_ONE (1L << SHIFT) // scale to unity gain at high resolution
 #define HIRES_TO_FLOAT(i32) ((float) i32 / EEE_ONE)
 #define MAX_MULT 65535    // maximum 16-bit multiplier value
-#define TF 0.95f          // target factor for exponential: switch state here, we'll never get to 1.00!
 
 class AudioEffectExpEnvelope : public AudioStream
 {
+  static constexpr float MAX_TF = 0.9999f;
+  static constexpr float MIN_TF = 1.0f / (1<<(31 - SHIFT));
+  static constexpr float NOM_TF = 0.95f;
 public:
   // constructor - start with a sensible set of defaults
 	AudioEffectExpEnvelope() : AudioStream(1, inputQueueArray) {
@@ -101,7 +119,7 @@ public:
     __enable_irq();
 	}
 	
-	void attack(float milliseconds, float target_factor = TF) 
+	void attack(float milliseconds, float target_factor = NOM_TF) 
 	{
 		attack_count = milliseconds2count(milliseconds);
     set_factors(milliseconds,EEE_ONE,target_factor,
@@ -140,7 +158,7 @@ public:
 	}
 
  
-	void decay(float milliseconds, float target_factor = TF) 
+	void decay(float milliseconds, float target_factor = NOM_TF) 
 	{
     set_factors(milliseconds,EEE_ONE - sustain_mult,target_factor,
                 &decay_count,&decay_factor,&decay_factor1,&decay_target,&decay_tf);
@@ -160,8 +178,18 @@ public:
     __enable_irq();
 	}
 
- 
-	void sustain(float level) 
+
+  void doSustain(void)
+  {
+    state = STATE_SUSTAIN;
+    count = 0xFFFF;
+    mult_hires = sustain_mult;
+    target = mult_hires - 1; // ensure we don't transition because we've "reached target"
+    factor = 0;
+    factor1 = EEE_ONE;
+  }
+
+  void sustain(float level) 
 	{
     int32_t old_sustain_mult = sustain_mult;
     
@@ -175,35 +203,39 @@ public:
     
 		sustain_mult = level * EEE_ONE;
     // sustain level changed, need to re-calculate
-    decay(decay_ms,decay_tf);
+    decay(decay_ms,decay_tf); // will reset targets if we're mid-decay
     release(release_ms,release_tf);
 
     // is decay active? change if so
-    if (STATE_DECAY == state)
+    // also, if in sustain, use decay parameters to effect a smooth transition
+    if (STATE_DECAY == state || STATE_SUSTAIN == state)
     {
-      if (mult_hires >= sustain_mult) // haven't got down that far yet
+      milliseconds = fabs(decay_ms * (sustain_mult - mult_hires) / (EEE_ONE - old_sustain_mult));
+      if (milliseconds < 1.0f)
+        milliseconds = 1.0f;
+
+      if (mult_hires < sustain_mult) // new sustain level is higher than we've decayed to!
       {
-        target = decay_target;
-        factor = decay_factor; 
-        factor1 = decay_factor1;
-        count = decay_count; // too much, but level trigger should catch it
-      }
-      else // new sustain level is higher than we've decayed to!
-      {
-        float milliseconds = decay_ms * (sustain_mult - mult_hires) / (EEE_ONE - old_sustain_mult);
-        
-        set_factors(milliseconds,sustain_mult - mult_hires,decay_factor,
+        set_factors(milliseconds, sustain_mult - mult_hires, decay_tf,
                     &count,&factor,&factor1,&target,NULL);
         target += mult_hires;
-        transition_mult = sustain_mult;  
         state = STATE_RISING_DECAY;
       }
-    }    
+      else
+      {
+        set_factors(milliseconds, mult_hires - sustain_mult, decay_tf,
+                    &count,&factor,&factor1,&target,NULL);
+        target = mult_hires - target;
+        state = STATE_REDECAY;
+      }
+      transition_mult = sustain_mult;  
+    }
+
     __enable_irq();
 	}
 
  
-	void release(float milliseconds, float target_factor = TF) 
+	void release(float milliseconds, float target_factor = NOM_TF) 
 	{
     set_factors(milliseconds,sustain_mult,target_factor,
                 &release_count,&release_factor,&release_factor1,&release_target,&release_tf);
@@ -256,6 +288,7 @@ private:
   //... and downwards
   STATE_DYNAMIC_DOWN, // placeholder, not a "real" state
   STATE_DECAY, 
+  STATE_REDECAY, // sustain level changed, doing a short decay to avoid clicks
   STATE_RELEASE, 
   STATE_FORCED,  
   STATE_INVALID  
@@ -276,18 +309,21 @@ private:
         c = 1;
 
       // limit to vaguely-sane values
-      if (target_factor > 0.9999f)
-        target_factor = 0.9999f;
-      if (target_factor < 0.5f)
-        target_factor = 0.5f;
+      if (target_factor > MAX_TF)
+        target_factor = MAX_TF;
+      if (target_factor < MIN_TF)
+        target_factor = MIN_TF;
 
       __disable_irq(); /******************* interrupts disabled! *************************/
-      if (tf_record)
+      if (nullptr != tf_record)
         *tf_record = target_factor;
       *count = c;
       *factor = (int32_t)(-log(1-target_factor)*EEE_ONE/c/8);
       *factor1 = EEE_ONE - *factor;
-      *target = change / target_factor;   
+
+      // make target further away proportional to target factor
+      // this results in using only the first part of the exponential curve
+      *target = change / target_factor;  
   }
 
   
@@ -315,7 +351,7 @@ private:
   void doAttack();
   void doHold();
   void doDecay();
-  void doSustain();
+  //void doSustain();
   void doRelease();
   void doForce();
 

@@ -70,17 +70,6 @@ void inline AudioEffectExpEnvelope::doDecay()
 }
 
 
-void inline AudioEffectExpEnvelope::doSustain()
-{
-  state = STATE_SUSTAIN;
-  count = 0xFFFF;
-  mult_hires = sustain_mult;
-  target = mult_hires - 1; // ensure we don't transition because we've "reached target"
-  factor = 0;
-  factor1 = EEE_ONE;
-}
-
-
 void inline AudioEffectExpEnvelope::doRelease()
 {
   state = STATE_RELEASE;
@@ -168,27 +157,28 @@ void AudioEffectExpEnvelope::update(void)
 				  doRelease();	// this should be safer than processing just two samples...
 				  break;
 				  
-					  case STATE_ATTACK:
-						if (hold_count > 0) 
-					doHold();
-						else 
-					doDecay();
-						continue;
+				case STATE_ATTACK:
+					if (hold_count > 0) 
+						doHold();
+					else 
+						doDecay();
+					continue;
 					 
-					  case STATE_HOLD:
-				  doDecay();
-						continue;
+				case STATE_HOLD:
+				  	doDecay();
+					continue;
 					
 				case STATE_DECAY: 
 				case STATE_RISING_DECAY: 
-				  doSustain();
-				  break;
+				case STATE_REDECAY: 
+					doSustain();
+					break;
 					 
-					  case STATE_SUSTAIN:	// has no transition out, apart from noteOff()
-						count = 0xFFFF;
-				  break;
+				case STATE_SUSTAIN:	// has no transition out, apart from noteOff()
+				count = 0xFFFF;
+					break;
 					
-					  case STATE_RELEASE: 
+				case STATE_RELEASE: 
 				  if (mult_hires > 0) // got here before release really completed
 				  {
 					count = release_count; // keep going
@@ -241,7 +231,7 @@ void AudioEffectExpEnvelope::update(void)
 			if (STATE_IDLE == state) // already filled block, we're done here
 				break;
 			
-    		mult = mult_hires >> 14;  // 30-bit -> 16-bit
+    		mult = mult_hires >> (SHIFT - 16);  // 30-bit -> 16-bit
     		// process 8 samples, using only mult and inc (16 bit resolution)
     		sample12 = *p++;
     		sample34 = *p++;
