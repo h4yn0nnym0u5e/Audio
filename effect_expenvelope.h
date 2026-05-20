@@ -210,7 +210,7 @@ public:
     // also, if in sustain, use decay parameters to effect a smooth transition
     if (STATE_DECAY == state || STATE_SUSTAIN == state)
     {
-      milliseconds = fabs(decay_ms * (sustain_mult - mult_hires) / (EEE_ONE - old_sustain_mult));
+      float milliseconds = fabs(decay_ms * (sustain_mult - mult_hires) / (EEE_ONE - old_sustain_mult));
       if (milliseconds < 1.0f)
         milliseconds = 1.0f;
 
