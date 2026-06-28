@@ -55,7 +55,7 @@
 #define control_tlv320aic3206_h_
 
 #include "AudioControl.h"
-#include <Arduino.h>
+#include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
 
 #define AIC3206_I2C_ADDR                                             0x18
 

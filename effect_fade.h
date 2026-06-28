@@ -51,7 +51,7 @@ public:
 	virtual void update(void);
 private:
 	void fadeBegin(uint32_t samples, uint8_t dir);
-	uint32_t position; // 0 = off, 0xFFFFFFFF = on
+	uint32_t position; // 0 = off, MAX_FADE = on
 	uint32_t rate;
 	uint8_t direction; // 0 = fading out, 1 = fading in
 	audio_block_t *inputQueueArray[1];

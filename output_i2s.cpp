@@ -518,7 +518,7 @@ void AudioOutputI2S::config_i2s(bool only_bclk /* = false */, bool SPDIF_sync /*
 	
 	I2S1_TMR = 0;
 	//I2S1_TCSR = (1<<25); //Reset
-	I2S1_TCR1 = I2S_TCR1_RFW(1);
+	I2S1_TCR1 = I2S_TCR1_TFW(28);
 	if (SPDIF_is_master)
 		div_and_mclk = I2S_TCR2_DIV((0)) | I2S_TCR2_MSEL(3); // MCLK[3] / 2
 	else
@@ -528,12 +528,12 @@ void AudioOutputI2S::config_i2s(bool only_bclk /* = false */, bool SPDIF_sync /*
 		    | I2S_TCR2_BCD | div_and_mclk;
 	I2S1_TCR3 = I2S_TCR3_TCE;
 	I2S1_TCR4 = I2S_TCR4_FRSZ((2-1)) | I2S_TCR4_SYWD((32-1)) | I2S_TCR4_MF
-		    | I2S_TCR4_FSD | I2S_TCR4_FSE | I2S_TCR4_FSP;
+		    | I2S_TCR4_FSD | I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_TCR4_FCONT;
 	I2S1_TCR5 = I2S_TCR5_WNW((32-1)) | I2S_TCR5_W0W((32-1)) | I2S_TCR5_FBT((32-1));
 
 	I2S1_RMR = 0;
 	//I2S1_RCSR = (1<<25); //Reset
-	I2S1_RCR1 = I2S_RCR1_RFW(1);
+	I2S1_RCR1 = I2S_RCR1_RFW(16);
 	
 	if (SPDIF_is_master)
 		div_and_mclk = I2S_RCR2_DIV((0)) | I2S_RCR2_MSEL(3); // MCLK[3] / 2
