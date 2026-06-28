@@ -70,17 +70,6 @@ void inline AudioEffectExpEnvelope::doDecay()
 }
 
 
-void inline AudioEffectExpEnvelope::doSustain()
-{
-  state = STATE_SUSTAIN;
-  count = 0xFFFF;
-  mult_hires = sustain_mult;
-  target = mult_hires - 1; // ensure we don't transition because we've "reached target"
-  factor = 0;
-  factor1 = EEE_ONE;
-}
-
-
 void inline AudioEffectExpEnvelope::doRelease()
 {
   state = STATE_RELEASE;
@@ -186,6 +175,7 @@ void AudioEffectExpEnvelope::update(void)
 				
 			case STATE_DECAY: 
 			case STATE_RISING_DECAY: 
+				case STATE_REDECAY: 
 			  doSustain();
 			  break;
 				 

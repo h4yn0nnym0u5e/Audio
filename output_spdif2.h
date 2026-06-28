@@ -26,20 +26,15 @@
 #ifndef output_SPDIF2_h_
 #define output_SPDIF2_h_
 
-#include <Arduino.h>     // github.com/PaulStoffregen/cores/blob/master/teensy4/Arduino.h
-#include <AudioStream.h> // github.com/PaulStoffregen/cores/blob/master/teensy4/AudioStream.h
-#include <DMAChannel.h>  // github.com/PaulStoffregen/cores/blob/master/teensy4/DMAChannel.h
+#include "output_i2s_spdif.h"
 
-class AudioOutputSPDIF2 : public AudioStream
+class AudioOutputSPDIF2 : public AudioOutputI2S_SPDIF<AudioOutputSPDIF2>
 {
+	friend AudioOutputI2S_SPDIF<AudioOutputSPDIF2>;
 public:
-	AudioOutputSPDIF2(void) : AudioStream(2, inputQueueArray) { begin(); }
+	AudioOutputSPDIF2(void) : AudioOutputI2S_SPDIF() { begin(); }
 	~AudioOutputSPDIF2();
-	virtual void update(void);
-	//friend class AudioInputSPDIF;
-	static void mute_PCM(const bool mute);
 protected:
-	//AudioOutputSPDIF2(int dummy): AudioStream(2, inputQueueArray) {}
 	static void config_SPDIF(void);
 	static audio_block_t *block_left_1st; // released in destructor
 	static audio_block_t *block_right_1st; // released in destructor
@@ -47,15 +42,14 @@ protected:
 	enum dmaState_t {AOI2S_Stop,AOI2S_Running,AOI2S_Paused};
 	static dmaState_t dmaState;
 	static DMAChannel dma;
-	static void isr(void);
 private:
 	void begin(void);
-	static uint32_t vucp;
+	static int32_t vucp;
 	static audio_block_t *block_left_2nd; // released in destructor
 	static audio_block_t *block_right_2nd; // released in destructor
 	static uint16_t block_left_offset;
 	static uint16_t block_right_offset;
-	audio_block_t *inputQueueArray[2];
+	static int32_t tx_buffer[AUDIO_BLOCK_SAMPLES * 4];
 };
 
 
