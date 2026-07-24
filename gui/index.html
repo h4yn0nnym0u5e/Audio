@@ -4879,7 +4879,7 @@ double s_freq = .0625;</p>
 <script type="text/x-red" data-help-name="AudioAnalyzeFFT256">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
-	<p>Compute a 256 point Fast Fourier Transform (FFT) frequency analysis,
+	<p>Compute a 256-point Fast Fourier Transform (FFT) frequency analysis,
 		with real value (magnitude) output.  The frequency resolution is
 		172 Hz, useful for simple audio visualization.</p>
 	</div>
@@ -4902,9 +4902,10 @@ double s_freq = .0625;</p>
 		as a group for audio visualization.
 	</p>
 	<p class=func><span class=keyword>averageTogether</span>(number);</p>
-	<p class=desc>New data is produced very radidly, approximately 344 times
+	<p class=desc>New data can be produced very rapidly, approximately 344 times
 		per second.  Multiple outputs can be averaged together, so available()
-		returns true at a slower rate.
+		returns true at a slower rate. Defaults to 8, so results are available 
+		~172 times per second.
 	</p>
 	<p class=func><span class=keyword>windowFunction</span>(window);</p>
 	<p class=desc>Set the window function to be used.  AudioWindowHanning256
@@ -4946,7 +4947,7 @@ double s_freq = .0625;</p>
 <script type="text/x-red" data-help-name="AudioAnalyzeFFT1024">
 	<h3>Summary</h3>
 	<div class=tooltipinfo>
-	<p>Compute a 1024 point Fast Fourier Transform (FFT) frequency analysis,
+	<p>Compute a 1024-point Fast Fourier Transform (FFT) frequency analysis,
 		with real value (magnitude) output.  The frequency resolution is
 		43 Hz, useful detailed for audio visualization.</p>
 	</div>
@@ -4969,8 +4970,9 @@ double s_freq = .0625;</p>
 		as a group for audio visualization.
 	</p>
 	<p class=func><span class=keyword>averageTogether</span>(number);</p>
-	<p class=desc>This function does nothing.  The 1024 point FFT always
-		updates at approximately 86 times per second.
+	<p class=desc>Multiple outputs can be averaged together, so available()
+		returns true at a slower rate. Defaults to 1, so results are available 
+		approximately 86 times per second (every 4 audio updates).
 	</p>
 	<p class=func><span class=keyword>windowFunction</span>(window);</p>
 	<p class=desc>Set the window function to be used.  AudioWindowHanning1024
