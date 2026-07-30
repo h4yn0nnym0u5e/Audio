@@ -30,6 +30,7 @@
 #include <Arduino.h>
 #include <FS.h>
 
+
 class MemBuffer
 {
 	int inUse;			// if true, buffer is in use and createBuffer() and disposeBuffer() will fail
@@ -307,5 +308,48 @@ class LogLastMinMax
 	T getHighest(void) { return highest; }
 	T getUpdates(void) { return updates; }	
 }; 
+
+
+class AudioEventResponder : public EventResponder
+{
+	static uint8_t active_flags_copy;
+	static int disableCount;
+	static bool forceResponse; // if true, we don't change yield_active_check_flags
+	bool _isPolled;
+	AudioEventResponder* _aprev,*_anext; // can't use base ones, protected
+	
+	struct triggeredList {AudioEventResponder* first, *last;};
+	void addToList(void);//, triggeredList& list);
+	void removeFromList(void);//, triggeredList& list);
+	static triggeredList pollList;
+	
+  public:
+	static void disableResponse(void);
+	static void enableResponse(void);
+	static void updateResponse(void);
+	
+	static void setForceResponse(bool force) { forceResponse = force; }
+	static bool getForceResponse(void) { return forceResponse; }
+	
+	void attachPolled(EventResponderFunction function);
+	void detach(void);
+	void triggerEvent(int status=0, void *data=nullptr);
+	void m_runPolled(void);
+	static int runPolled(void);
+	
+  protected:
+	static bool disableInterrupts() {
+		uint32_t primask;
+		__asm__ volatile("mrs %0, primask\n" : "=r" (primask)::);
+		__disable_irq();
+		return (primask == 0) ? true : false;
+	}
+	static void enableInterrupts(bool doit) {
+		if (doit) __enable_irq();
+	}
+	
+  
+};
+
  #endif // !defined(_AUDIO_BUFFER_H_)
  

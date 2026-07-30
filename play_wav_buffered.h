@@ -34,7 +34,7 @@
 #include "AudioBuffer.h"
 
 
-class AudioPlayWAVbuffered : public EventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
+class AudioPlayWAVbuffered : public AudioEventResponder, public AudioBuffer, public AudioWAVdata, public AudioStream
 {
 public:
 	AudioPlayWAVbuffered(void);
@@ -43,7 +43,12 @@ public:
 	bool playSD(const char* filename, bool paused = false, float startFrom = 0.0f);
 	bool play(const File _file, bool paused = false, float startFrom = 0.0f);
 	bool play(const char* filename, FS& fs = SD, bool paused = false, float startFrom = 0.0f) 
-		{ return play(fs.open(filename), paused, startFrom); }
+		{ 		
+			disableResponse();
+			bool result = play(fs.open(filename), paused, startFrom); 
+			enableResponse();
+			return result;
+		}
 	bool play(AudioPreload& p, bool paused = false, float startFrom = 0.0f);
 		
 	bool play(void)  { if (isPaused())  togglePlayPause(); return isPlaying(); }
@@ -68,6 +73,7 @@ public:
 	LogLastMinMax<uint32_t> readMicros, bufferAvail;
 
 private:
+	void attachDespatcher(void);
 	enum state_e {STATE_STOP,STATE_STOPPING,STATE_PAUSED,STATE_PLAYING,STATE_LOADING};
 	File wavfile;
 	AudioPreload* ppl;

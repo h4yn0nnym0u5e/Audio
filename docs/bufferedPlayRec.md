@@ -16,6 +16,19 @@ One of ``AudioBuffer::ok``, ``AudioBuffer::halfEmpty``, ``AudioBuffer::underflow
 One of ``AudioBuffer::none``, ``AudioBuffer::given``, ``AudioBuffer::inHeap``, ``AudioBuffer::inExt``; used to define where an object's buffer memory is located. See ``createBuffer()``.
 
 ## Functions
+### System control
+A number of fuctions are provided to control operation of the system, depending on the needs of your sketch. If your sketch does not access the filesystem during playback or recording then you can ignore these.
+
+### `AudioEventResponder::setForceResponse(bool)`
+Calling this function with a `true` parameter *forces* the system to execute Event responses from within the `yield()` function, *even if* a call to `AudioEventResponder::disableResponse(bool)` has been made. If this is the case, then the events that the system generates are placed into a separate list, and *must* be executed by calls to `AudioEventResponder::runPolled()` from your sketch, at sufficiently frequent intervals so the buffers are updated in a timely manner. 
+
+### `AudioEventResponder::disableResponse()`
+### `AudioEventResponder::enableResponse()`
+If a call to `AudioEventResponder::setForceResponse(true)` has *not* been made, and your code accesses the filesystem, those access calls (e.g. `open()`, `read()`, `write()` etc.) *must* be "wrapped" in calls to these two functions. They act in a similar manner to disabling interrupts, but apply to all EventResponder functions attached to `yield()`. If you do not do this then filesystem accesses during playback or recording will very likely cause your sketch to become unstable or crash.
+
+### `AudioEventResponder::runPolled()` 
+Call this from your sketch, at sufficiently frequent intervals so the buffers are updated in a timely manner, if you have previously made a call to `AudioEventResponder::setForceResponse(true)`. 
+
 ### Buffer functions
 For best results a buffer should be allocated prior to using any of the playback and record objects; if you fail to do so, a minimal 1k buffer will be allocated on the first operation, but it is unlikely to be large enough to provide stable operation.
 ### `AudioBuffer::result createBuffer(size_t size,AudioBuffer::bufType location)`
@@ -112,12 +125,14 @@ Returns the file length, in milliseconds. For playback this is straighforward. D
 ## Constraints
 ### Memory buffers
 Each object _must_ have its own memory buffer to hold audio data awaiting playback or storage to the filesystem. The larger the buffer the more resilience the system will have to filesystem (or other) delays, but obviously at a penalty of reducing the memory available for other aspects of your application. If you have PSRAM fitted this can be used for buffer memory (see ``createBuffer()``).
-### Yield()
-Transfers between buffers and filesystem are scheduled using the EventResponder library, which is set up to execute them when the yield() function is called. The user _does not have to_ add explicit calls to `yield()`, as these will occur whenever `loop()` is allowed to return, and possibly in some (undocumented?) library functions. It is almost always good practise to allow `loop()` to return often as this allows internal "housekeeping" activities to occur; if you cannot do this, be sure to include `yield()` calls that execute sufficiently often to keep the buffers updated.
+### yield()
+By default, transfers between buffers and filesystem are scheduled using the EventResponder library, which is set up to execute them when the `yield()` function is called. The user _does not have to_ add explicit calls to `yield()`, as these will occur whenever `loop()` is allowed to return, and possibly in some (undocumented) library functions. It is almost always good practise to allow `loop()` to return often as this allows internal "housekeeping" activities to occur; if you cannot do this, be sure to include `yield()` calls that execute sufficiently often to keep the buffers updated.
+
 ### Filesystem access
-Because buffer transfers occur during `yield()`, and this is effectively part of the user's application, other filesystem operations (like reading/writing settings or log files) can be undertaken freely by the sketch.
+The `yield()` mechanism *does not work* if filesystem access is required within your sketch, e.g. to load / save playlists. If this is the case, there are a couple of options to isolate the sketch and buffering accesses from one another - see the `System control` functions.
+
 ### Timing
-Filesystem access can take a significant amount of time to execute, depending on the size of the transaction, quality of the medium, filesystem fragmentation and so forth. As a result, functions like ``playSD()`` and ``stop()`` (for a recording object) can take a few milliseconds to execute, as can ``yield()`` if a filesystem transfer is triggered. Some effort has been expended to ensure that accesses are spread out in time: for example, if 4 files are being played at once, all 4 buffer reloads should not occur on the same ``yield()``, but will probably happen on 4 separate ``yield()`` calls.  
+Filesystem access can take a significant amount of time to execute, depending on the size of the transaction, quality of the medium, filesystem fragmentation and so forth. As a result, functions like ``playSD()`` and ``stop()`` (for a recording object) can take a few milliseconds to execute, as can ``yield()`` if a filesystem transfer is triggered. Some effort has been expended to ensure that accesses are spread out in time: for example, if 4 files are being played at once, all 4 buffer reloads should not occur on the same `yield()`, but will probably happen on 4 separate ``yield()`` calls.  
 
 ## Examples
 These can be found in Examples/Audio/Buffered
@@ -126,12 +141,15 @@ Adapted from the existing WAV file player example. Shows:
 * how to create buffers
 * that `yield()` or `delay()` calls are needed if you don't let `loop()` exit
 * `play()` does *not* need a delay before `isPlaying()` becomes true
+
 ### Recorder
 This is a variant on the Recorder example, but using the buffered objects to record and play a _stereo WAV_ file, rather than a queue and application-based writes to record a _mono RAW_ file, plus the ``AudioPlaySdRaw`` object for playback. As written it uses 128k of heap for the buffers. You will need an audio adaptor and a source of audio connected to the line inputs for this one. A couple of ``AudioAnalyzePeak`` objects are used to provide a crude level meter to allow you to set up prior to recording.
 ### RecSynthMusic
 This is based on the PlaySynthMusic example. It plays a short piece of music using a very simple 16-voice polyphonic synth, while simultaneously recording it to three WAV files with 4, 6 and 8 tracks - the last track of the 6- and 8-track files is unconnected and hence silent. It then re-patches the audio connections and plays the files back, which should sound identical to the original.
 ### RecSynthMusicV2
-Same as the above, but achieves tighter note timing by using an IntervalTimer rather than `delay()`.
+Same as `RecSynthMusic`, but achieves tighter note timing by using an IntervalTimer rather than `delay()`.
+### RecSynthMusicV3
+Same as `RecSynthMusicV2`, with the addition of a file copy during the file playback phase, demonstrating the ability to isolate filesystem accesses to provide a stable system.
 ### SDpiano
 88-note 3 samples per note piano. See the ReadMe in the sketch folder. Pre-dates `AudioPreload` objects, and shows how hard it is to get it right if you don't have them...
 ### SDpianoUsingPreload

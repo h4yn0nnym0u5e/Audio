@@ -27,6 +27,7 @@
 #include <Arduino.h>
 #include "play_wav_buffered.h"
 
+
 /*
  * Prepare to play back from a file
  */
@@ -93,7 +94,8 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 {
 	uint8_t* pb;
 	size_t sz;
-	
+
+	disableResponse();
 	switch (evref.getStatus())
 	{
 		case STATE_LOADING: // playing pre-load: open and prepare file, ready to switch over
@@ -124,6 +126,7 @@ void AudioPlayWAVbuffered::EventResponse(EventResponderRef evref)
 			asm("nop");
 			break;
 	}
+	enableResponse();
 }
 
 
@@ -184,12 +187,14 @@ uint32_t AudioPlayWAVbuffered::adjustHeaderInfo(void)
 	
 	if (wavfile) // we'd better be playing, really!
 	{
+		disableResponse();
 		size_t readPos = wavfile.position(); // keep current position safe
 		AudioWAVdata newWAV;
 		
 		// parse the current header, then seek back to where we were
 		newWAV.parseWAVheader(wavfile);
 		wavfile.seek(readPos);
+		enableResponse();
 		
 		if (newWAV.audioSize != audioSize) // file header has been changed since we started
 		{
@@ -220,7 +225,7 @@ AudioPlayWAVbuffered::AudioPlayWAVbuffered(void) :
 	// prepare EventResponder to refill buffer
 	// during yield(), if triggered from update()
 	setContext(this);
-	attach(EventDespatcher);
+	//attach(EventDespatcher);
 }
 
 
@@ -243,9 +248,23 @@ AudioPlayWAVbuffered::~AudioPlayWAVbuffered(void)
 	// ~EventResponder: detached from event list
 }
 
+
+// Figure out how to attach the EventDespatcher
+void AudioPlayWAVbuffered::attachDespatcher(void)
+{
+	if (getForceResponse())
+		attachPolled(EventDespatcher);
+	else
+		attach(EventDespatcher);
+	// attaching a yield() responder for the first time sets
+	// the flag, so ensure we don't clear it on enableResponse()!
+	updateResponse();  
+}	
+
+
 bool AudioPlayWAVbuffered::playSD(const char *filename, bool paused /* = false */, float startFrom /* = 0.0f */)
 {
-	return play(SD.open(filename), paused, startFrom);
+	return play(filename, SD, paused, startFrom);
 }
 
 
@@ -263,7 +282,11 @@ bool AudioPlayWAVbuffered::play(const File _file, bool paused /* = false */, flo
 	if (nullptr == buffer)
 		createBuffer(1024,inHeap);
 	
+	disableResponse();
+	attachDespatcher();
+	
 	rv = prepareFile(paused,startFrom,0); // get file ready to play
+	enableResponse();
 	if (rv)
 	{
 		fileState = fileReady;
@@ -319,7 +342,11 @@ bool AudioPlayWAVbuffered::play(AudioPreload& p, bool paused /* = false */, floa
 		{
 			playState = sample;		// start by playing pre-loaded data
 			fileState = fileLoad;	// load file buffer on first event
-			ppl->setInUse(true); // prevent changes to buffer memory
+			ppl->setInUse(true); 	// prevent changes to buffer memory
+			
+			disableResponse();
+			attachDespatcher();
+			enableResponse();			
 
 			state_play = STATE_PLAYING;
 			if (paused)
@@ -349,7 +376,9 @@ void AudioPlayWAVbuffered::stop(uint8_t fromInt /* = false */)
 			}
 			else
 			{
+				disableResponse();
 				wavfile.close();
+				enableResponse();
 				state = state_play = STATE_STOP;
 				playState /* = fileState */ = silent;
 			}
